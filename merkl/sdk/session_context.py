@@ -1,0 +1,105 @@
+"""Session context manager — async with witness.session(...) as session."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from merkl.sdk.transport import AsyncTransport
+from merkl.shared.hashing import SHA256Hash
+
+
+class SessionContext:
+    """Context manager wrapping a Merkl session lifecycle.
+
+    Usage:
+        async with client.session(goal=..., ...) as session:
+            result = await session.record_action(...)
+    """
+
+    def __init__(
+        self,
+        transport: AsyncTransport,
+        agent_id: str,
+        goal: str,
+        allowed_tools: list[str],
+        data_scope: list[str],
+        policy_reference: str,
+    ) -> None:
+        self._transport = transport
+        self._agent_id = agent_id
+        self._goal = goal
+        self._allowed_tools = allowed_tools
+        self._data_scope = data_scope
+        self._policy_reference = policy_reference
+        self._session_id: str | None = None
+        self._action_count = 0
+
+    @property
+    def session_id(self) -> str | None:
+        return self._session_id
+
+    @property
+    def action_count(self) -> int:
+        return self._action_count
+
+    async def __aenter__(self) -> SessionContext:
+        resp = await self._transport.post("/v1/sessions", json={
+            "agent_id": self._agent_id,
+            "goal": self._goal,
+            "allowed_tools": self._allowed_tools,
+            "data_scope": self._data_scope,
+            "policy_reference": self._policy_reference,
+        })
+        self._session_id = resp["session_id"]
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        if self._session_id:
+            await self._transport.post(
+                f"/v1/sessions/{self._session_id}/close",
+                json={},
+            )
+
+    async def record_action(
+        self,
+        tool_name: str,
+        input_data: Any,
+        output_data: Any,
+        action_type: str = "tool_call",
+        drift_score: float = 0.0,
+        guardrail_result: str = "passed",
+        duration_ms: int = 0,
+    ) -> dict[str, Any]:
+        """Record an action in this session."""
+        if self._session_id is None:
+            msg = "Session not opened. Use 'async with' context manager."
+            raise RuntimeError(msg)
+
+        input_hash = SHA256Hash.from_bytes(
+            str(input_data).encode()
+        ).hex()
+        output_hash = SHA256Hash.from_bytes(
+            str(output_data).encode()
+        ).hex()
+
+        result: dict[str, Any] = await self._transport.post(
+            f"/v1/sessions/{self._session_id}/actions",
+            json={
+                "agent_id": self._agent_id,
+                "action_type": action_type,
+                "tool_name": tool_name,
+                "input_hash": input_hash,
+                "output_hash": output_hash,
+                "drift_score": drift_score,
+                "guardrail_result": guardrail_result,
+                "policy_reference": self._policy_reference,
+                "duration_ms": duration_ms,
+            },
+        )
+        self._action_count += 1
+        return result
