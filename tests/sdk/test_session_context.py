@@ -115,3 +115,94 @@ class TestSessionContext:
             policy_reference="p",
         )
         assert ctx.session_id is None
+
+
+class TestSessionContextV2:
+    @pytest.mark.asyncio
+    async def test_record_action_sends_v2_fields(self) -> None:
+        transport = MockTransport()
+        ctx = SessionContext(
+            transport=transport,  # type: ignore[arg-type]
+            agent_id="agent-1",
+            goal="Test",
+            allowed_tools=[],
+            data_scope=[],
+            policy_reference="p1",
+        )
+        async with ctx:
+            await ctx.record_action(
+                tool_name="query_db",
+                input_data="SELECT *",
+                output_data="result",
+                display_name="Looked up order",
+                depends_on=["dep-1"],
+                status="success",
+                category="payment",
+                input_preview="SELECT *",
+                output_preview="1 row",
+            )
+        # Find the action request
+        action_req = [r for r in transport.requests if "actions" in r[0]][0]
+        payload = action_req[1]
+        assert payload["display_name"] == "Looked up order"
+        assert payload["depends_on"] == ["dep-1"]
+        assert payload["status"] == "success"
+        assert payload["category"] == "payment"
+        assert payload["input_preview"] == "SELECT *"
+        assert payload["output_preview"] == "1 row"
+
+    @pytest.mark.asyncio
+    async def test_record_action_backward_compat(self) -> None:
+        transport = MockTransport()
+        ctx = SessionContext(
+            transport=transport,  # type: ignore[arg-type]
+            agent_id="agent-1",
+            goal="Test",
+            allowed_tools=[],
+            data_scope=[],
+            policy_reference="p1",
+        )
+        async with ctx:
+            await ctx.record_action(
+                tool_name="query_db",
+                input_data="x",
+                output_data="y",
+            )
+        action_req = [r for r in transport.requests if "actions" in r[0]][0]
+        payload = action_req[1]
+        assert payload["display_name"] == ""
+        assert payload["depends_on"] == []
+        assert payload["status"] == "success"
+        assert payload["category"] == "data_access"
+
+    @pytest.mark.asyncio
+    async def test_close_sends_summary(self) -> None:
+        transport = MockTransport()
+        ctx = SessionContext(
+            transport=transport,  # type: ignore[arg-type]
+            agent_id="agent-1",
+            goal="Test",
+            allowed_tools=[],
+            data_scope=[],
+            policy_reference="p1",
+        )
+        async with ctx:
+            await ctx.close(summary="All done")
+        close_req = [r for r in transport.requests if "close" in r[0]][0]
+        assert close_req[1]["summary"] == "All done"
+
+    @pytest.mark.asyncio
+    async def test_close_without_summary(self) -> None:
+        transport = MockTransport()
+        ctx = SessionContext(
+            transport=transport,  # type: ignore[arg-type]
+            agent_id="agent-1",
+            goal="Test",
+            allowed_tools=[],
+            data_scope=[],
+            policy_reference="p1",
+        )
+        async with ctx:
+            pass
+        close_req = [r for r in transport.requests if "close" in r[0]][0]
+        assert close_req[1].get("summary") is None

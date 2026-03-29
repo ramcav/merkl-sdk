@@ -33,6 +33,7 @@ class SessionContext:
         self._policy_reference = policy_reference
         self._session_id: str | None = None
         self._action_count = 0
+        self._summary: str | None = None
 
     @property
     def session_id(self) -> str | None:
@@ -60,10 +61,17 @@ class SessionContext:
         exc_tb: Any,
     ) -> None:
         if self._session_id:
+            payload: dict[str, Any] = {}
+            if self._summary is not None:
+                payload["summary"] = self._summary
             await self._transport.post(
                 f"/v1/sessions/{self._session_id}/close",
-                json={},
+                json=payload,
             )
+
+    async def close(self, summary: str | None = None) -> None:
+        """Set a summary to be included when the session closes."""
+        self._summary = summary
 
     async def record_action(
         self,
@@ -74,6 +82,12 @@ class SessionContext:
         drift_score: float = 0.0,
         guardrail_result: str = "passed",
         duration_ms: int = 0,
+        display_name: str = "",
+        depends_on: list[str] | None = None,
+        status: str = "success",
+        category: str = "data_access",
+        input_preview: str = "",
+        output_preview: str = "",
     ) -> dict[str, Any]:
         """Record an action in this session."""
         if self._session_id is None:
@@ -99,6 +113,12 @@ class SessionContext:
                 "guardrail_result": guardrail_result,
                 "policy_reference": self._policy_reference,
                 "duration_ms": duration_ms,
+                "display_name": display_name,
+                "depends_on": depends_on or [],
+                "status": status,
+                "category": category,
+                "input_preview": input_preview,
+                "output_preview": output_preview,
             },
         )
         self._action_count += 1

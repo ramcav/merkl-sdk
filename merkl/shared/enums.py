@@ -5,6 +5,16 @@ from __future__ import annotations
 import enum
 
 
+class ActionStatus(enum.StrEnum):
+    """Outcome status of an agent action."""
+
+    SUCCESS = "success"
+    FAILED = "failed"
+    BLOCKED = "blocked"
+    PENDING = "pending"
+
+
+
 class ActionType(enum.StrEnum):
     """Type of agent action being recorded."""
 
@@ -13,6 +23,9 @@ class ActionType(enum.StrEnum):
     API_REQUEST = "api_request"
     TRANSACTION = "transaction"
     APPROVAL_REQUEST = "approval_request"
+    REASONING = "reasoning"
+    SUB_AGENT = "sub_agent"
+    HUMAN_INPUT = "human_input"
 
 
 class GuardrailResult(enum.StrEnum):

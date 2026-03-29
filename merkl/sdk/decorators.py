@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 import functools
+import inspect
 import time
 from collections.abc import Callable
 from typing import Any, TypeVar
@@ -31,7 +31,7 @@ def trace(fn: F) -> F:
     If no session is active, the function executes normally without tracing.
     Only works with async functions — sync functions are returned unchanged.
     """
-    if not asyncio.iscoroutinefunction(fn):
+    if not inspect.iscoroutinefunction(fn):
         return fn
 
     @functools.wraps(fn)
@@ -47,6 +47,7 @@ def trace(fn: F) -> F:
                 input_data={"args": str(args), "kwargs": str(kwargs)},
                 output_data=str(result),
                 duration_ms=elapsed_ms,
+                display_name=fn.__name__,
             )
         return result
 

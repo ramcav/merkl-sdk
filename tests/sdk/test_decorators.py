@@ -91,3 +91,17 @@ class TestTrace:
             assert mock.actions[0]["output_data"] == "[1, 2, 3]"
         finally:
             set_current_session(None)
+
+    @pytest.mark.asyncio
+    async def test_trace_passes_display_name(self) -> None:
+        mock = MockSession()
+        set_current_session(mock)
+        try:
+            @trace
+            async def lookup_order(order_id: int) -> str:
+                return "found"
+
+            await lookup_order(42)
+            assert mock.actions[0]["display_name"] == "lookup_order"
+        finally:
+            set_current_session(None)
