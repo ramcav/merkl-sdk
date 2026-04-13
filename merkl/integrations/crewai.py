@@ -23,9 +23,9 @@ class MerklStepCallback:
     It intercepts each step and records tool calls in the Merkl audit trail.
 
     Usage:
-        witness = MerklClient(endpoint="...", agent_id="crew-agent", api_key="key")
+        client = MerklClient(endpoint="...", agent_id="crew-agent", api_key="key")
 
-        async with witness.session(goal="Research task", ...) as session:
+        async with client.session(goal="Research task", ...) as session:
             callback = MerklStepCallback(session)
             task = Task(
                 description="...",

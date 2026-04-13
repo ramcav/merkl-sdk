@@ -27,7 +27,7 @@ def merkl_tool(session: SessionContext, **record_kwargs: Any) -> Callable[[F], F
         **record_kwargs: Extra kwargs passed to record_action (e.g. drift_score).
 
     Usage:
-        async with witness.session(...) as session:
+        async with client.session(...) as session:
             @merkl_tool(session)
             async def my_tool(query: str) -> str:
                 return await do_search(query)

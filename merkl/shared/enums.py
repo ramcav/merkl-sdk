@@ -14,7 +14,6 @@ class ActionStatus(enum.StrEnum):
     PENDING = "pending"
 
 
-
 class ActionType(enum.StrEnum):
     """Type of agent action being recorded."""
 

@@ -8,14 +8,14 @@ from typing import Any
 
 import httpx
 
+from merkl.shared.errors import TransportError
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_RETRIES = 3
 _DEFAULT_BACKOFF = 1.0
 
-
-class TransportError(Exception):
-    """Raised when all transport retries are exhausted."""
+__all__ = ["AsyncTransport", "TransportError"]
 
 
 class AsyncTransport:
@@ -83,7 +83,6 @@ class AsyncTransport:
                     )
                     await asyncio.sleep(wait)
 
-        # Buffer the request for later flush
         self._buffer.append((method, path, json))
         raise TransportError(
             f"All {self._max_retries + 1} attempts failed for {method} {path}: {last_exc}"

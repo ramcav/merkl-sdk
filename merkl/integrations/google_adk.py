@@ -32,9 +32,9 @@ class MerklADKRunner:
         session_service = InMemorySessionService()
         runner = Runner(agent=agent, app_name="demo", session_service=session_service)
 
-        witness = MerklClient(endpoint="http://localhost:8000", agent_id="adk-agent", api_key="key")
+        client = MerklClient(endpoint="http://localhost:8000", agent_id="adk-agent", api_key="key")
 
-        async with witness.session(goal="...", ...) as session:
+        async with client.session(goal="...", ...) as session:
             witness_runner = MerklADKRunner(session, runner)
             adk_session = await session_service.create_session(app_name="demo", user_id="user")
 
