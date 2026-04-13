@@ -15,16 +15,25 @@ Optional env vars:
     MERKL_SESSION_ID   Pin all events to a specific Merkl session
     MERKL_AGENT_ID     Agent label shown in dashboard (default: claude-code)
 
-DAG grouping
-------------
-Claude Code can call multiple tools in a single turn (one assistant message).
-We read the transcript to detect which tools belong to the same turn, then
-record them as siblings (same depends_on) rather than a chain. This produces
-a fan-out / fan-in graph instead of a straight line.
+DAG grouping — two layers
+-------------------------
+Layer 1 (structural): Read transcript_path to detect which tools belong to
+the same assistant turn. Tools in the same turn become siblings (same
+depends_on), producing fan-out / fan-in.
+
+Layer 2 (semantic / data-flow): After each tool, store a snippet of its
+output. Before recording the next tool, scan the incoming tool_input for
+content from previous outputs. If Write's input contains text that came from
+WebFetch's output, we infer a data-flow dependency automatically — no agent
+cooperation needed. This is how data lineage tools work.
+
+Combined result for a weather research session:
 
   Turn 1: ToolSearch                       depends_on=[]
-  Turn 2: WebFetch(A), WebFetch(B)         both depend on ToolSearch
-  Turn 3: Write                            depends on WebFetch(A) + WebFetch(B)
+  Turn 2: WebFetch(Madrid)                 depends_on=[ToolSearch]   ← structural
+          WebFetch(Bogotá)                 depends_on=[ToolSearch]   ← structural (sibling)
+  Turn 3: Write(report)                    depends_on=[WebFetch(Madrid), WebFetch(Bogotá)]
+                                           ← data-flow: report text contains weather data
 """
 
 from __future__ import annotations
@@ -57,6 +66,99 @@ def _session_cache(claude_session_id: str) -> Path:
 def _turn_state_cache(claude_session_id: str) -> Path:
     """JSON file tracking current/prev turn action IDs for DAG grouping."""
     return Path(tempfile.gettempdir()) / f"merkl_turn_{_tag(claude_session_id)}.json"
+
+
+def _dataflow_cache(claude_session_id: str) -> Path:
+    """JSON file storing output snippets keyed by action_id for data-flow matching."""
+    return Path(tempfile.gettempdir()) / f"merkl_dataflow_{_tag(claude_session_id)}.json"
+
+
+# Minimum token length to avoid spurious matches on short/common strings
+_MIN_SNIPPET_LEN = 12
+
+
+def _extract_snippets(data: object, max_snippets: int = 16) -> list[str]:
+    """Pull meaningful string fragments from tool output for data-flow matching.
+
+    Walks the data structure recursively to extract string leaf values.
+    These are the actual content tokens that a downstream tool might reuse
+    (e.g. "21°C" from a weather fetch appearing verbatim in a written report).
+    """
+    snippets: list[str] = []
+
+    def _walk(obj: object) -> None:
+        if isinstance(obj, str):
+            s = obj.strip()
+            if len(s) >= _MIN_SNIPPET_LEN:
+                snippets.append(s)
+            # Also take sub-phrases split by sentence/line boundaries
+            import re
+            for part in re.split(r'[.\n;]+', s):
+                part = part.strip()
+                if len(part) >= _MIN_SNIPPET_LEN and part not in snippets:
+                    snippets.append(part)
+        elif isinstance(obj, dict):
+            for v in obj.values():
+                _walk(v)
+        elif isinstance(obj, (list, tuple)):
+            for item in obj:
+                _walk(item)
+
+    # If data is a raw string (e.g. HTTP response body), parse JSON if possible
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except Exception:
+            pass
+
+    _walk(data)
+
+    # Deduplicate, sort longest first (longer = less likely to be spurious)
+    seen: set[str] = set()
+    result: list[str] = []
+    for s in sorted(snippets, key=len, reverse=True):
+        if s not in seen:
+            seen.add(s)
+            result.append(s)
+        if len(result) >= max_snippets:
+            break
+    return result
+
+
+def _dataflow_depends_on(tool_input: object, claude_session_id: str) -> list[str]:
+    """Return action_ids whose output data appears in tool_input (data lineage)."""
+    cache_path = _dataflow_cache(claude_session_id)
+    if not cache_path.exists():
+        return []
+    try:
+        store: dict[str, list[str]] = json.loads(cache_path.read_text())
+    except Exception:
+        return []
+
+    input_text = json.dumps(tool_input, default=str)
+    matched: list[str] = []
+    for action_id, snippets in store.items():
+        if any(len(s) >= _MIN_SNIPPET_LEN and s in input_text for s in snippets):
+            matched.append(action_id)
+    return matched
+
+
+def _store_dataflow(action_id: str, tool_response: object, claude_session_id: str) -> None:
+    """Save output snippets for this action so future tools can reference it."""
+    cache_path = _dataflow_cache(claude_session_id)
+    try:
+        store: dict[str, list[str]] = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+    except Exception:
+        store = {}
+    snippets = _extract_snippets(tool_response)
+    if snippets:
+        store[action_id] = snippets
+    # Keep store bounded — drop oldest entries beyond 50
+    if len(store) > 50:
+        oldest = list(store.keys())[:-50]
+        for k in oldest:
+            del store[k]
+    cache_path.write_text(json.dumps(store))
 
 
 def _display_name(tool_name: str, tool_input: object) -> str:
@@ -215,7 +317,18 @@ def main() -> None:
     import httpx
 
     session_id = _get_or_create_session(endpoint, api_key, agent_id, claude_session_id)
-    depends_on, turn_state = _resolve_depends_on(transcript_path, claude_session_id)
+
+    # Layer 1: structural grouping via transcript (siblings share a turn)
+    structural_deps, turn_state = _resolve_depends_on(transcript_path, claude_session_id)
+
+    # Layer 2: data-flow deps — which previous outputs does this input reference?
+    dataflow_deps = _dataflow_depends_on(tool_input, claude_session_id)
+
+    # Merge: prefer data-flow when available (more precise), else use structural
+    if dataflow_deps:
+        depends_on = list(dict.fromkeys(dataflow_deps + structural_deps))
+    else:
+        depends_on = structural_deps
 
     resp = httpx.post(
         f"{endpoint}/v1/sessions/{session_id}/actions",
@@ -242,6 +355,8 @@ def main() -> None:
         if action_id:
             turn_state["current_actions"].append(action_id)
             _save_turn_state(claude_session_id, turn_state)
+            # Store this action's output for future data-flow matching
+            _store_dataflow(action_id, tool_response, claude_session_id)
 
 
 if __name__ == "__main__":
