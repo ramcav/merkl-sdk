@@ -8,7 +8,7 @@ Thin Python HTTP client for Merkl. This is what agent developers `pip install` t
 - `SessionContext` — async context manager for session lifecycle
 - `@trace` and `@guardrail` decorators for auto-recording actions
 - Framework integrations: LangChain, OpenAI, Google ADK, CrewAI
-- Shared value objects (SHA256Hash, SessionId, ActionId, Timestamp, enums, errors) imported by both SDK and notary
+- Shared value objects (SHA256Hash, SessionId, ActionId, Timestamp, enums, errors) imported by both SDK and merkl-api
 
 ## What This Package Does NOT Do
 
@@ -43,10 +43,10 @@ pytest  # 66 tests
 
 ## Guidelines
 
-- Keep it thin. Server logic belongs in the notary package.
-- `merkl/shared/` is imported by both SDK and notary — changes affect both.
+- Keep it thin. Server logic belongs in the merkl-api package.
+- `merkl/shared/` is imported by both SDK and merkl-api — changes affect both.
 - Framework integrations follow the same pattern: intercept tool calls → session.record_action().
-- The SDK must never import from `notary.*`.
+- The SDK must never import from `merkl_api.*`.
 - Dependencies must stay minimal (uuid6, httpx, cryptography). This ships to customers.
 
 ## Known Issues

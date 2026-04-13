@@ -1,4 +1,4 @@
-"""Tests for SessionContext — integration with real notary via test app."""
+"""Tests for SessionContext — integration with real merkl-api via test app."""
 
 from __future__ import annotations
 

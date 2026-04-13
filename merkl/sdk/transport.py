@@ -1,4 +1,4 @@
-"""Async HTTP transport to the notary with retry and local buffering."""
+"""Async HTTP transport to the Merkl API with retry and local buffering."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class TransportError(Exception):
 class AsyncTransport:
     """Async HTTP transport with exponential backoff retry and local buffer.
 
-    If the notary is unavailable, actions are buffered locally and
+    If the Merkl API is unavailable, actions are buffered locally and
     flushed when connectivity is restored.
     """
 

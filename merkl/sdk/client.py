@@ -11,7 +11,7 @@ class MerklClient:
 
     Usage:
         client = MerklClient(
-            endpoint="https://notary.merkl.ai",
+            endpoint="https://api.merkl.ai",
             agent_id="agent-customer-support-v2",
             api_key="mk_...",
         )
