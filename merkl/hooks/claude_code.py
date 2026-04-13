@@ -174,6 +174,68 @@ def _display_name(tool_name: str, tool_input: object) -> str:
     return tool_name
 
 
+def _input_preview(tool_name: str, tool_input: object) -> str:
+    """Truncated plaintext describing what the tool was asked to do."""
+    if not isinstance(tool_input, dict):
+        return str(tool_input)[:200]
+    if tool_name == "Bash":
+        return str(tool_input.get("command", ""))[:200]
+    if tool_name == "WebFetch":
+        return str(tool_input.get("url", ""))[:200]
+    if tool_name in ("Read", "Write", "Edit", "NotebookEdit"):
+        path = str(tool_input.get("file_path", ""))
+        extra = tool_input.get("content") or tool_input.get("new_string") or tool_input.get("old_string") or ""
+        return f"{path}: {str(extra)[:140]}".strip(": ") if extra else path
+    if tool_name in ("Glob", "Grep"):
+        pattern = tool_input.get("pattern", "")
+        path = tool_input.get("path", "")
+        return f"{pattern} in {path}" if path else str(pattern)
+    # Generic fallback
+    return " | ".join(f"{k}={str(v)[:40]}" for k, v in list(tool_input.items())[:4])[:200]
+
+
+def _output_preview(tool_response: object) -> str:
+    """Truncated plaintext of what the tool returned."""
+    if isinstance(tool_response, str):
+        return tool_response.strip()[:200]
+    if isinstance(tool_response, dict):
+        for field in ("content", "text", "output", "stdout", "result", "data"):
+            if val := tool_response.get(field):
+                return str(val).strip()[:200]
+        return json.dumps(tool_response, default=str)[:200]
+    if isinstance(tool_response, list):
+        return json.dumps(tool_response[:5], default=str)[:200]
+    return str(tool_response)[:200]
+
+
+def _infer_goal(transcript_path: str | None) -> str:
+    """Read the first human message from the transcript as the session goal."""
+    if not transcript_path:
+        return "Claude Code session"
+    try:
+        path = Path(transcript_path)
+        if not path.exists():
+            return "Claude Code session"
+        for raw in path.read_text().splitlines():
+            if not raw.strip():
+                continue
+            msg = json.loads(raw)
+            role = msg.get("role") or msg.get("message", {}).get("role")
+            content = msg.get("content") or msg.get("message", {}).get("content")
+            if role == "user":
+                if isinstance(content, str) and content.strip():
+                    return content.strip()[:200]
+                if isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            text = block.get("text", "").strip()
+                            if text:
+                                return text[:200]
+    except Exception:
+        pass
+    return "Claude Code session"
+
+
 # ---------------------------------------------------------------------------
 # Session management
 # ---------------------------------------------------------------------------
@@ -183,6 +245,7 @@ def _get_or_create_session(
     api_key: str,
     agent_id: str,
     claude_session_id: str,
+    transcript_path: str | None = None,
 ) -> str:
     import httpx
 
@@ -193,11 +256,12 @@ def _get_or_create_session(
     if cache.exists():
         return cache.read_text().strip()
 
+    goal = _infer_goal(transcript_path)
     resp = httpx.post(
         f"{endpoint}/v1/sessions",
         json={
             "agent_id": agent_id,
-            "goal": f"Claude Code — {claude_session_id[:8]}",
+            "goal": goal,
             "allowed_tools": [],
             "data_scope": [],
             "policy_reference": "claude-code",
@@ -316,7 +380,7 @@ def main() -> None:
 
     import httpx
 
-    session_id = _get_or_create_session(endpoint, api_key, agent_id, claude_session_id)
+    session_id = _get_or_create_session(endpoint, api_key, agent_id, claude_session_id, transcript_path)
 
     # Layer 1: structural grouping via transcript (siblings share a turn)
     structural_deps, turn_state = _resolve_depends_on(transcript_path, claude_session_id)
@@ -345,6 +409,8 @@ def main() -> None:
             "status": "success",
             "category": "data_access",
             "depends_on": depends_on,
+            "input_preview": _input_preview(tool_name, tool_input),
+            "output_preview": _output_preview(tool_response),
         },
         headers={"X-Merkl-API-Key": api_key},
         timeout=5.0,
