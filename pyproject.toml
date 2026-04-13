@@ -5,14 +5,33 @@ build-backend = "hatchling.build"
 [project]
 name = "merkl-sdk"
 version = "0.1.0"
-description = "Merkl SDK — thin HTTP client for agent accountability"
+description = "Merkl SDK — record and verify AI agent actions with cryptographic proofs"
+readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
+license = { text = "MIT" }
+authors = [{ name = "Merkl", email = "hello@merkl.ai" }]
+keywords = ["ai", "agents", "audit", "merkle", "compliance", "verification"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "uuid6>=2025.0.1",
     "httpx>=0.27",
     "cryptography>=42.0",
 ]
+
+[project.urls]
+Homepage = "https://merkl.ai"
+Documentation = "https://docs.merkl.ai"
+Repository = "https://github.com/merklai/merkl-sdk"
+"Bug Tracker" = "https://github.com/merklai/merkl-sdk/issues"
 
 [project.optional-dependencies]
 dev = [
