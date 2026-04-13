@@ -38,6 +38,12 @@ def _session_cache(claude_session_id: str) -> Path:
     return Path(tempfile.gettempdir()) / f"merkl_session_{tag}"
 
 
+def _prev_action_cache(claude_session_id: str) -> Path:
+    """Temp file that holds the last recorded action_id for this session."""
+    tag = claude_session_id[:16].replace("/", "_")
+    return Path(tempfile.gettempdir()) / f"merkl_prev_action_{tag}"
+
+
 def _display_name(tool_name: str, tool_input: object) -> str:
     """Generate a human-readable action label from the tool call."""
     if not isinstance(tool_input, dict):
@@ -120,7 +126,13 @@ def main() -> None:
 
     session_id = _get_or_create_session(endpoint, api_key, agent_id, claude_session_id)
 
-    httpx.post(
+    # Chain to previous action so the flow chart shows edges, not a flat grid
+    prev_cache = _prev_action_cache(claude_session_id)
+    depends_on: list[str] = []
+    if prev_cache.exists():
+        depends_on = [prev_cache.read_text().strip()]
+
+    resp = httpx.post(
         f"{endpoint}/v1/sessions/{session_id}/actions",
         json={
             "agent_id": agent_id,
@@ -134,10 +146,17 @@ def main() -> None:
             "policy_reference": "claude-code",
             "status": "success",
             "category": "data_access",
+            "depends_on": depends_on,
         },
         headers={"X-Merkl-API-Key": api_key},
         timeout=5.0,
     )
+
+    # Persist this action_id so the next hook call can chain to it
+    if resp.is_success:
+        action_id = resp.json().get("action_id", "")
+        if action_id:
+            prev_cache.write_text(action_id)
 
 
 if __name__ == "__main__":
