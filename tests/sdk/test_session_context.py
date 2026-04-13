@@ -206,3 +206,38 @@ class TestSessionContextV2:
             pass
         close_req = [r for r in transport.requests if "close" in r[0]][0]
         assert close_req[1].get("summary") is None
+
+
+class TestWorkspaceExternalId:
+    @pytest.mark.asyncio
+    async def test_workspace_external_id_sent_when_provided(self) -> None:
+        transport = MockTransport()
+        ctx = SessionContext(
+            transport=transport,  # type: ignore[arg-type]
+            agent_id="agent-1",
+            goal="g",
+            allowed_tools=[],
+            data_scope=[],
+            policy_reference="p",
+            workspace_external_id="hospital-sf",
+        )
+        async with ctx:
+            pass
+        create_req = [r for r in transport.requests if r[0] == "/v1/sessions"][0]
+        assert create_req[1]["workspace_external_id"] == "hospital-sf"
+
+    @pytest.mark.asyncio
+    async def test_workspace_external_id_omitted_when_not_provided(self) -> None:
+        transport = MockTransport()
+        ctx = SessionContext(
+            transport=transport,  # type: ignore[arg-type]
+            agent_id="agent-1",
+            goal="g",
+            allowed_tools=[],
+            data_scope=[],
+            policy_reference="p",
+        )
+        async with ctx:
+            pass
+        create_req = [r for r in transport.requests if r[0] == "/v1/sessions"][0]
+        assert "workspace_external_id" not in create_req[1]

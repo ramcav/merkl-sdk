@@ -51,8 +51,13 @@ class MerklClient:
         allowed_tools: list[str] | None = None,
         data_scope: list[str] | None = None,
         policy: str = "default",
+        workspace_external_id: str | None = None,
     ) -> SessionContext:
-        """Create a session context manager."""
+        """Create a session context manager.
+
+        If workspace_external_id is omitted, the server resolves to the org's
+        default workspace.
+        """
         return SessionContext(
             transport=self._transport,
             agent_id=self._agent_id,
@@ -60,6 +65,7 @@ class MerklClient:
             allowed_tools=allowed_tools or [],
             data_scope=data_scope or [],
             policy_reference=policy,
+            workspace_external_id=workspace_external_id,
         )
 
     async def close(self) -> None:

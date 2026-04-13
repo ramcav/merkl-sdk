@@ -24,6 +24,7 @@ class SessionContext:
         allowed_tools: list[str],
         data_scope: list[str],
         policy_reference: str,
+        workspace_external_id: str | None = None,
     ) -> None:
         self._transport = transport
         self._agent_id = agent_id
@@ -31,6 +32,7 @@ class SessionContext:
         self._allowed_tools = allowed_tools
         self._data_scope = data_scope
         self._policy_reference = policy_reference
+        self._workspace_external_id = workspace_external_id
         self._session_id: str | None = None
         self._action_count = 0
         self._summary: str | None = None
@@ -44,13 +46,16 @@ class SessionContext:
         return self._action_count
 
     async def __aenter__(self) -> SessionContext:
-        resp = await self._transport.post("/v1/sessions", json={
+        payload: dict[str, Any] = {
             "agent_id": self._agent_id,
             "goal": self._goal,
             "allowed_tools": self._allowed_tools,
             "data_scope": self._data_scope,
             "policy_reference": self._policy_reference,
-        })
+        }
+        if self._workspace_external_id is not None:
+            payload["workspace_external_id"] = self._workspace_external_id
+        resp = await self._transport.post("/v1/sessions", json=payload)
         self._session_id = resp["session_id"]
         return self
 
