@@ -32,9 +32,9 @@ class MerklCallbackHandler(AsyncCallbackHandler):
     and records them as actions in the Merkl audit trail.
 
     Usage:
-        witness = MerklClient(endpoint="http://localhost:8000", agent_id="my-agent", api_key="key")
+        client = MerklClient(endpoint="http://localhost:8000", agent_id="my-agent", api_key="key")
 
-        async with witness.session(goal="Answer question", allowed_tools=["search"]) as session:
+        async with client.session(goal="Answer question", allowed_tools=["search"]) as session:
             handler = MerklCallbackHandler(session)
             result = await chain.ainvoke({"input": "..."}, config={"callbacks": [handler]})
             # All tool calls are now recorded in the Merkl session

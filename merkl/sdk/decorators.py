@@ -14,7 +14,7 @@ _current_session: Any = None
 
 
 def set_current_session(session: Any) -> None:
-    """Set the global session reference (called by SessionContext.__aenter__)."""
+    """Set the global session used by @trace."""
     global _current_session  # noqa: PLW0603
     _current_session = session
 

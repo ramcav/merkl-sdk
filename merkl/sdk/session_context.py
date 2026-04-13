@@ -1,4 +1,4 @@
-"""Session context manager — async with witness.session(...) as session."""
+"""Session context manager — async with client.session(...) as session."""
 
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ class SessionContext:
             )
 
     async def close(self, summary: str | None = None) -> None:
-        """Set a summary to be included when the session closes."""
+        """Set an optional summary; sent to the API when the session exits."""
         self._summary = summary
 
     async def record_action(
