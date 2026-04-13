@@ -50,14 +50,15 @@ def _install_claude_code(global_: bool = False) -> None:
 
     print(f"Merkl hook installed ({scope}): {settings_path}")
     print()
-    print("Set these environment variables before running Claude Code:")
+    print("Add to your shell profile (~/.zshrc or ~/.bashrc):")
     print()
-    print("  export MERKL_API_KEY=mk_...                    # required")
-    print("  export MERKL_ENDPOINT=https://api.merkl.ai     # or your self-hosted URL")
-    print("  export MERKL_AGENT_ID=claude-code              # optional label")
+    print("  export MERKL_API_KEY=mk_...   # your Merkl API key")
+    print()
+    print("Optional (only needed for self-hosted):")
+    print("  export MERKL_ENDPOINT=https://your-instance.example.com")
     print()
     print("Each Claude Code session will automatically create a Merkl session and")
-    print("record every tool call. View results at your Merkl dashboard.")
+    print("record every tool call. View results at https://app.merkl.ai")
 
 
 def _uninstall_claude_code(global_: bool = False) -> None:

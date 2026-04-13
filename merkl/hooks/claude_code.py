@@ -102,7 +102,7 @@ def main() -> None:
 
     payload: dict = json.loads(raw)
 
-    endpoint = os.environ.get("MERKL_ENDPOINT", "http://localhost:8000").rstrip("/")
+    endpoint = os.environ.get("MERKL_ENDPOINT", "https://api.merkl.ai").rstrip("/")
     api_key = os.environ.get("MERKL_API_KEY", "")
     agent_id = os.environ.get("MERKL_AGENT_ID", "claude-code")
 
