@@ -73,6 +73,16 @@ def _dataflow_cache(claude_session_id: str) -> Path:
     return Path(tempfile.gettempdir()) / f"merkl_dataflow_{_tag(claude_session_id)}.json"
 
 
+def _subagent_parent_cache(parent_claude_session_id: str) -> Path:
+    """JSON file storing the most recent Task action_id for a parent session.
+
+    Sub-agent hooks look this up by the parent's claude_session_id (carried
+    in their own hook payload as `parent_session_id`) to learn which Task
+    action spawned them, so they can link their Merkl session to it.
+    """
+    return Path(tempfile.gettempdir()) / f"merkl_subagent_parent_{_tag(parent_claude_session_id)}.json"
+
+
 # Minimum token length to avoid spurious matches on short/common strings
 _MIN_SNIPPET_LEN = 40
 _MAX_DEPS_PER_ACTION = 5
@@ -273,6 +283,7 @@ def _get_or_create_session(
     agent_id: str,
     claude_session_id: str,
     transcript_path: str | None = None,
+    parent_claude_session_id: str | None = None,
 ) -> str:
     import httpx
 
@@ -283,16 +294,32 @@ def _get_or_create_session(
     if cache.exists():
         return cache.read_text().strip()
 
+    # If this is a sub-agent (parent_claude_session_id set), look up the
+    # Task action that spawned us so the new Merkl session carries
+    # parent_action_id — the dashboard renders these inline under the
+    # parent's Task step.
+    parent_action_id: str | None = None
+    if parent_claude_session_id:
+        parent_cache = _subagent_parent_cache(parent_claude_session_id)
+        if parent_cache.exists():
+            try:
+                parent_action_id = parent_cache.read_text().strip() or None
+            except Exception:
+                parent_action_id = None
+
     goal = _infer_goal(transcript_path)
+    payload: dict = {
+        "agent_id": agent_id,
+        "goal": goal,
+        "allowed_tools": [],
+        "data_scope": [],
+        "policy_reference": "claude-code",
+    }
+    if parent_action_id:
+        payload["parent_action_id"] = parent_action_id
     resp = httpx.post(
         f"{endpoint}/v1/sessions",
-        json={
-            "agent_id": agent_id,
-            "goal": goal,
-            "allowed_tools": [],
-            "data_scope": [],
-            "policy_reference": "claude-code",
-        },
+        json=payload,
         headers={"X-Merkl-API-Key": api_key},
         timeout=5.0,
     )
@@ -444,15 +471,21 @@ def main() -> None:
         _seal_session_on_exit(endpoint, api_key, claude_session_id)
         return
 
-    # Everything below is the PostToolUse path — unchanged behavior.
+    # Everything below is the PostToolUse path.
     tool_name: str = payload.get("tool_name", "unknown")
     tool_input: object = payload.get("tool_input", {})
     tool_response: object = payload.get("tool_response", payload.get("tool_result", ""))
     transcript_path: str | None = payload.get("transcript_path")
+    # Sub-agents see their parent's claude-code session id in the payload —
+    # we use it to link the Merkl session to the parent's Task action.
+    parent_claude_session_id: str | None = payload.get("parent_session_id")
 
     import httpx
 
-    session_id = _get_or_create_session(endpoint, api_key, agent_id, claude_session_id, transcript_path)
+    session_id = _get_or_create_session(
+        endpoint, api_key, agent_id, claude_session_id, transcript_path,
+        parent_claude_session_id=parent_claude_session_id,
+    )
 
     # Layer 1: structural grouping via transcript (siblings share a turn)
     structural_deps, turn_state = _resolve_depends_on(transcript_path, claude_session_id)
@@ -495,6 +528,14 @@ def main() -> None:
             _save_turn_state(claude_session_id, turn_state)
             # Store this action's output for future data-flow matching
             _store_dataflow(action_id, tool_response, claude_session_id)
+            # If this was a Task call, cache the action_id so the
+            # spawned sub-agent's first hook can look it up and set
+            # parent_action_id on its own Merkl session.
+            if tool_name == "Task":
+                try:
+                    _subagent_parent_cache(claude_session_id).write_text(action_id)
+                except Exception:
+                    pass
 
 
 if __name__ == "__main__":
