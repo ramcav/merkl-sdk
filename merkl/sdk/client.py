@@ -34,10 +34,24 @@ class MerklClient:
         api_key: str,
         max_retries: int = 3,
         timeout: float = 10.0,
+        auto_summary: bool = True,
+        include_previews: bool = True,
     ) -> None:
+        """Create a Merkl client.
+
+        auto_summary:
+            When True (default), the notary generates an LLM summary at seal
+            time. Set False for full privacy mode — notary sees only hashes.
+        include_previews:
+            When True (default), the SDK sends truncated input/output
+            plaintext previews so auditors can glance at what happened.
+            Set False to send zero plaintext; only hashes reach the notary.
+        """
         self._endpoint = endpoint
         self._agent_id = agent_id
         self._api_key = api_key
+        self._auto_summary = auto_summary
+        self._include_previews = include_previews
         self._transport = AsyncTransport(
             base_url=endpoint,
             api_key=api_key,
@@ -52,11 +66,14 @@ class MerklClient:
         data_scope: list[str] | None = None,
         policy: str = "default",
         workspace_external_id: str | None = None,
+        auto_summary: bool | None = None,
+        include_previews: bool | None = None,
     ) -> SessionContext:
         """Create a session context manager.
 
         If workspace_external_id is omitted, the server resolves to the org's
-        default workspace.
+        default workspace. Per-session auto_summary / include_previews
+        override the client defaults when set.
         """
         return SessionContext(
             transport=self._transport,
@@ -66,6 +83,10 @@ class MerklClient:
             data_scope=data_scope or [],
             policy_reference=policy,
             workspace_external_id=workspace_external_id,
+            auto_summary=self._auto_summary if auto_summary is None else auto_summary,
+            include_previews=(
+                self._include_previews if include_previews is None else include_previews
+            ),
         )
 
     async def close(self) -> None:

@@ -51,6 +51,6 @@ pytest  # 66 tests
 
 ## Known Issues
 
-- `@trace` decorator only works for async functions; sync is passthrough
-- `@guardrail` decorator only checks tool allowlist, doesn't call server-side evaluation
+- `@trace` and `@guardrail` decorators only wrap async functions; sync is passthrough
+- `@guardrail` runs client-side policy (allowlist or callable); no server-side evaluation yet
 - `_current_session` global is not thread-safe (should use contextvars)

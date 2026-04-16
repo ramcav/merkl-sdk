@@ -25,6 +25,8 @@ class SessionContext:
         data_scope: list[str],
         policy_reference: str,
         workspace_external_id: str | None = None,
+        auto_summary: bool = True,
+        include_previews: bool = True,
     ) -> None:
         self._transport = transport
         self._agent_id = agent_id
@@ -33,6 +35,8 @@ class SessionContext:
         self._data_scope = data_scope
         self._policy_reference = policy_reference
         self._workspace_external_id = workspace_external_id
+        self._auto_summary = auto_summary
+        self._include_previews = include_previews
         self._session_id: str | None = None
         self._action_count = 0
         self._summary: str | None = None
@@ -52,6 +56,7 @@ class SessionContext:
             "allowed_tools": self._allowed_tools,
             "data_scope": self._data_scope,
             "policy_reference": self._policy_reference,
+            "auto_summary": self._auto_summary,
         }
         if self._workspace_external_id is not None:
             payload["workspace_external_id"] = self._workspace_external_id
@@ -131,8 +136,8 @@ class SessionContext:
             "depends_on": depends_on or [],
             "status": status,
             "category": category,
-            "input_preview": input_preview,
-            "output_preview": output_preview,
+            "input_preview": input_preview if self._include_previews else "",
+            "output_preview": output_preview if self._include_previews else "",
         }
 
         result: dict[str, Any] = await self._transport.post(

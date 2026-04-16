@@ -290,3 +290,64 @@ class TestWorkspaceExternalId:
             pass
         create_req = [r for r in transport.requests if r[0] == "/v1/sessions"][0]
         assert "workspace_external_id" not in create_req[1]
+
+
+class TestPrivacyKnobs:
+    @pytest.mark.asyncio
+    async def test_auto_summary_default_sent_true(self) -> None:
+        transport = MockTransport()
+        ctx = SessionContext(
+            transport=transport,  # type: ignore[arg-type]
+            agent_id="a", goal="g", allowed_tools=[], data_scope=[], policy_reference="p",
+        )
+        async with ctx:
+            pass
+        create_req = [r for r in transport.requests if r[0] == "/v1/sessions"][0]
+        assert create_req[1]["auto_summary"] is True
+
+    @pytest.mark.asyncio
+    async def test_auto_summary_false_propagates(self) -> None:
+        transport = MockTransport()
+        ctx = SessionContext(
+            transport=transport,  # type: ignore[arg-type]
+            agent_id="a", goal="g", allowed_tools=[], data_scope=[], policy_reference="p",
+            auto_summary=False,
+        )
+        async with ctx:
+            pass
+        create_req = [r for r in transport.requests if r[0] == "/v1/sessions"][0]
+        assert create_req[1]["auto_summary"] is False
+
+    @pytest.mark.asyncio
+    async def test_include_previews_false_blanks_previews(self) -> None:
+        transport = MockTransport()
+        ctx = SessionContext(
+            transport=transport,  # type: ignore[arg-type]
+            agent_id="a", goal="g", allowed_tools=[], data_scope=[], policy_reference="p",
+            include_previews=False,
+        )
+        async with ctx:
+            await ctx.record_action(
+                tool_name="t", input_data="secret", output_data="reply",
+                input_preview="secret", output_preview="reply",
+            )
+        action_req = [r for r in transport.requests if "actions" in r[0]][0]
+        assert action_req[1]["input_preview"] == ""
+        assert action_req[1]["output_preview"] == ""
+
+    @pytest.mark.asyncio
+    async def test_include_previews_true_sends_previews(self) -> None:
+        transport = MockTransport()
+        ctx = SessionContext(
+            transport=transport,  # type: ignore[arg-type]
+            agent_id="a", goal="g", allowed_tools=[], data_scope=[], policy_reference="p",
+            include_previews=True,
+        )
+        async with ctx:
+            await ctx.record_action(
+                tool_name="t", input_data="x", output_data="y",
+                input_preview="in", output_preview="out",
+            )
+        action_req = [r for r in transport.requests if "actions" in r[0]][0]
+        assert action_req[1]["input_preview"] == "in"
+        assert action_req[1]["output_preview"] == "out"

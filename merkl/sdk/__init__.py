@@ -1,6 +1,6 @@
 """Merkl SDK — developer-facing client for Merkl."""
 
 from merkl.sdk.client import MerklClient
-from merkl.sdk.decorators import trace
+from merkl.sdk.decorators import GuardrailBlocked, guardrail, trace
 
-__all__ = ["MerklClient", "trace"]
+__all__ = ["GuardrailBlocked", "MerklClient", "guardrail", "trace"]
