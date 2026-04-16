@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from merkl.sdk.transport import AsyncTransport
+from merkl.sdk.transport import ApiError, AsyncTransport
 from merkl.shared.hashing import SHA256Hash
 
 
@@ -45,7 +45,7 @@ class SessionContext:
     def action_count(self) -> int:
         return self._action_count
 
-    async def __aenter__(self) -> SessionContext:
+    def _create_session_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "agent_id": self._agent_id,
             "goal": self._goal,
@@ -55,7 +55,12 @@ class SessionContext:
         }
         if self._workspace_external_id is not None:
             payload["workspace_external_id"] = self._workspace_external_id
-        resp = await self._transport.post("/v1/sessions", json=payload)
+        return payload
+
+    async def __aenter__(self) -> SessionContext:
+        resp = await self._transport.post(
+            "/v1/sessions", json=self._create_session_payload()
+        )
         self._session_id = resp["session_id"]
         return self
 
@@ -106,25 +111,42 @@ class SessionContext:
             str(output_data).encode()
         ).hex()
 
-        result: dict[str, Any] = await self._transport.post(
-            f"/v1/sessions/{self._session_id}/actions",
-            json={
-                "agent_id": self._agent_id,
-                "action_type": action_type,
-                "tool_name": tool_name,
-                "input_hash": input_hash,
-                "output_hash": output_hash,
-                "drift_score": drift_score,
-                "guardrail_result": guardrail_result,
-                "policy_reference": self._policy_reference,
-                "duration_ms": duration_ms,
-                "display_name": display_name,
-                "depends_on": depends_on or [],
-                "status": status,
-                "category": category,
-                "input_preview": input_preview,
-                "output_preview": output_preview,
-            },
-        )
+        action_payload = {
+            "agent_id": self._agent_id,
+            "action_type": action_type,
+            "tool_name": tool_name,
+            "input_hash": input_hash,
+            "output_hash": output_hash,
+            "drift_score": drift_score,
+            "guardrail_result": guardrail_result,
+            "policy_reference": self._policy_reference,
+            "duration_ms": duration_ms,
+            "display_name": display_name,
+            "depends_on": depends_on or [],
+            "status": status,
+            "category": category,
+            "input_preview": input_preview,
+            "output_preview": output_preview,
+        }
+
+        try:
+            result: dict[str, Any] = await self._transport.post(
+                f"/v1/sessions/{self._session_id}/actions",
+                json=action_payload,
+            )
+        except ApiError as e:
+            # Auto-resume: the session we were recording to was sealed out
+            # from under us (dashboard force-seal, idle timeout, etc.).
+            # Open a fresh session with the same params and retry once.
+            if e.error_code != "session_sealed":
+                raise
+            new_sess = await self._transport.post(
+                "/v1/sessions", json=self._create_session_payload()
+            )
+            self._session_id = new_sess["session_id"]
+            result = await self._transport.post(
+                f"/v1/sessions/{self._session_id}/actions",
+                json=action_payload,
+            )
         self._action_count += 1
         return result

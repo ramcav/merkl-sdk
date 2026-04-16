@@ -15,7 +15,22 @@ logger = logging.getLogger(__name__)
 _DEFAULT_RETRIES = 3
 _DEFAULT_BACKOFF = 1.0
 
-__all__ = ["AsyncTransport", "TransportError"]
+__all__ = ["AsyncTransport", "ApiError", "TransportError"]
+
+
+class ApiError(Exception):
+    """Raised for 4xx responses from the Merkl API.
+
+    Carries the server's structured error body so callers can branch on
+    `error_code` without re-parsing messages. Not retried by the transport —
+    client errors mean our request was wrong, retrying won't fix it.
+    """
+
+    def __init__(self, status: int, error_code: str, detail: str) -> None:
+        super().__init__(f"{status} {error_code}: {detail}")
+        self.status = status
+        self.error_code = error_code
+        self.detail = detail
 
 
 class AsyncTransport:
@@ -70,9 +85,24 @@ class AsyncTransport:
                     resp = await client.post(path, json=json)
                 else:
                     resp = await client.get(path)
+                # 4xx: client error. Don't retry, surface as ApiError with
+                # the structured body so callers can branch on error_code.
+                if 400 <= resp.status_code < 500:
+                    body: dict[str, Any] = {}
+                    try:
+                        body = resp.json()
+                    except Exception:
+                        pass
+                    raise ApiError(
+                        status=resp.status_code,
+                        error_code=str(body.get("error_code") or body.get("error") or ""),
+                        detail=str(body.get("detail") or resp.text),
+                    )
                 resp.raise_for_status()
                 result: dict[str, Any] = resp.json()
                 return result
+            except ApiError:
+                raise
             except (httpx.HTTPStatusError, httpx.TransportError) as e:
                 last_exc = e
                 if attempt < self._max_retries:
