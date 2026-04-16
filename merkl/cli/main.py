@@ -13,8 +13,24 @@ import sys
 from pathlib import Path
 
 
+def _ensure_hook(hooks: dict, event: str, command: str, matcher_entry: dict) -> None:
+    """Append a hook matcher for `event` if one with the same command isn't already registered."""
+    bucket: list[dict] = hooks.setdefault(event, [])
+    for matcher in bucket:
+        for h in matcher.get("hooks", []):
+            if h.get("command") == command:
+                return
+    bucket.append(matcher_entry)
+
+
 def _install_claude_code(global_: bool = False) -> None:
-    """Write a PostToolUse hook entry into Claude Code's settings.json."""
+    """Write PostToolUse + SessionEnd hook entries into Claude Code's settings.json.
+
+    PostToolUse records every tool call into Merkl. SessionEnd seals the
+    Merkl session when the user runs /exit, /clear, or closes the window,
+    so the dashboard flips the session out of "Live" immediately instead
+    of waiting for the idle timeout.
+    """
     if global_:
         settings_path = Path.home() / ".claude" / "settings.json"
         scope = "global"
@@ -33,19 +49,13 @@ def _install_claude_code(global_: bool = False) -> None:
 
     hook_command = "python -m merkl.hooks.claude_code"
     hook_entry = {"type": "command", "command": hook_command}
-    matcher_entry = {"matcher": ".*", "hooks": [hook_entry]}
 
     hooks = existing.setdefault("hooks", {})
-    post_tool_use: list[dict] = hooks.setdefault("PostToolUse", [])
+    _ensure_hook(hooks, "PostToolUse", hook_command, {"matcher": ".*", "hooks": [hook_entry]})
+    # SessionEnd payloads have no tool; matcher is omitted per Claude Code
+    # docs for non-tool events.
+    _ensure_hook(hooks, "SessionEnd", hook_command, {"hooks": [hook_entry]})
 
-    # Idempotent: skip if already present
-    for matcher in post_tool_use:
-        for h in matcher.get("hooks", []):
-            if h.get("command") == hook_command:
-                print(f"Merkl hook already installed ({scope}: {settings_path})")
-                return
-
-    post_tool_use.append(matcher_entry)
     settings_path.write_text(json.dumps(existing, indent=2) + "\n")
 
     print(f"Merkl hook installed ({scope}): {settings_path}")
@@ -62,7 +72,7 @@ def _install_claude_code(global_: bool = False) -> None:
 
 
 def _uninstall_claude_code(global_: bool = False) -> None:
-    """Remove the PostToolUse hook entry from Claude Code's settings.json."""
+    """Remove Merkl hook entries (PostToolUse + SessionEnd) from settings.json."""
     if global_:
         settings_path = Path.home() / ".claude" / "settings.json"
         scope = "global"
@@ -76,24 +86,24 @@ def _uninstall_claude_code(global_: bool = False) -> None:
 
     existing: dict = json.loads(settings_path.read_text())
     hook_command = "python -m merkl.hooks.claude_code"
-
     hooks = existing.get("hooks", {})
-    post_tool_use: list[dict] = hooks.get("PostToolUse", [])
 
-    new_matchers = []
-    removed = False
-    for matcher in post_tool_use:
-        new_hooks = [h for h in matcher.get("hooks", []) if h.get("command") != hook_command]
-        if len(new_hooks) < len(matcher.get("hooks", [])):
-            removed = True
-        if new_hooks:
-            new_matchers.append({**matcher, "hooks": new_hooks})
+    removed_any = False
+    for event in ("PostToolUse", "SessionEnd"):
+        bucket = hooks.get(event, [])
+        new_matchers = []
+        for matcher in bucket:
+            new_hooks = [h for h in matcher.get("hooks", []) if h.get("command") != hook_command]
+            if len(new_hooks) < len(matcher.get("hooks", [])):
+                removed_any = True
+            if new_hooks:
+                new_matchers.append({**matcher, "hooks": new_hooks})
+        hooks[event] = new_matchers
 
-    if not removed:
+    if not removed_any:
         print("Merkl hook not found in settings.")
         return
 
-    hooks["PostToolUse"] = new_matchers
     settings_path.write_text(json.dumps(existing, indent=2) + "\n")
     print(f"Merkl hook removed ({scope}): {settings_path}")
 

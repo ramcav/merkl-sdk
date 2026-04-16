@@ -358,6 +358,42 @@ def _resolve_depends_on(
 # Main
 # ---------------------------------------------------------------------------
 
+def _seal_session_on_exit(
+    endpoint: str, api_key: str, claude_session_id: str
+) -> None:
+    """On SessionEnd, seal the Merkl session so the dashboard flips it out
+    of Live. If we never opened one for this conversation (user quit
+    before any tool call), there's nothing to seal.
+    """
+    import httpx
+
+    cache = _session_cache(claude_session_id)
+    if not cache.exists():
+        return
+    merkl_session_id = cache.read_text().strip()
+    if not merkl_session_id:
+        return
+    try:
+        httpx.post(
+            f"{endpoint}/v1/sessions/{merkl_session_id}/seal",
+            headers={"X-Merkl-API-Key": api_key},
+            timeout=5.0,
+        )
+    except Exception:
+        # Hook must never block Claude Code's exit flow.
+        return
+    # Cleanup per-conversation caches; a fresh conversation will recreate.
+    for path in (
+        _session_cache(claude_session_id),
+        _turn_state_cache(claude_session_id),
+        _dataflow_cache(claude_session_id),
+    ):
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def main() -> None:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -372,10 +408,19 @@ def main() -> None:
     if not api_key:
         return
 
+    event = payload.get("hook_event_name", "PostToolUse")
+    claude_session_id: str = payload.get("session_id", "unknown")
+
+    # SessionEnd: user ran /exit, /clear, or closed the window. Seal the
+    # Merkl session immediately instead of waiting for the idle timeout.
+    if event == "SessionEnd":
+        _seal_session_on_exit(endpoint, api_key, claude_session_id)
+        return
+
+    # Everything below is the PostToolUse path — unchanged behavior.
     tool_name: str = payload.get("tool_name", "unknown")
     tool_input: object = payload.get("tool_input", {})
     tool_response: object = payload.get("tool_response", payload.get("tool_result", ""))
-    claude_session_id: str = payload.get("session_id", "unknown")
     transcript_path: str | None = payload.get("transcript_path")
 
     import httpx
