@@ -72,56 +72,37 @@ class TestSessionContext:
         assert ctx.action_count == 1
 
     @pytest.mark.asyncio
-    async def test_record_action_auto_resumes_after_seal(self) -> None:
-        """If the server reports the session is already sealed (e.g. a
-        dashboard force-seal or the idle timeout fired), the SDK starts a
-        fresh session with the same params and retries once. Caller sees
-        success; the new session_id is reflected on the context."""
+    async def test_syncs_session_id_when_server_routes_to_successor(self) -> None:
+        """Server-driven continuation: when an action POST to a sealed
+        session auto-routes to a successor, the action response carries
+        the successor's session_id. The SDK syncs its ctx.session_id to
+        match, so subsequent calls go to the right place."""
 
-        class _SealAfterFirstAction:
+        class _ServerDrivenSuccessor:
             def __init__(self) -> None:
-                self.requests: list[tuple[str, dict[str, object]]] = []
-                self._session_counter = 0
-                self._first_record_done = False
+                self._first_action_done = False
 
             async def post(self, path: str, json: dict[str, object]) -> dict[str, object]:
-                self.requests.append((path, json))
                 if path == "/v1/sessions":
-                    self._session_counter += 1
-                    return {
-                        "session_id": f"sess-{self._session_counter}",
-                        "commitment_hash": "a" * 64,
-                    }
+                    return {"session_id": "sess-1", "commitment_hash": "a" * 64}
                 if "close" in path:
                     return {"session_id": path.split("/")[3], "status": "closed"}
                 if "actions" in path:
-                    # First action succeeds on sess-1; second action on sess-1
-                    # triggers a seal error; retry on sess-2 succeeds.
-                    if not self._first_record_done:
-                        self._first_record_done = True
+                    if not self._first_action_done:
+                        self._first_action_done = True
                         return {"action_id": "act-1", "session_id": "sess-1", "leaf_index": 0}
-                    session_in_path = path.split("/")[3]
-                    if session_in_path == "sess-1":
-                        from merkl.sdk.transport import ApiError
-                        raise ApiError(
-                            status=422,
-                            error_code="session_sealed",
-                            detail="Session sess-1 is already sealed.",
-                        )
-                    return {"action_id": "act-2", "session_id": session_in_path, "leaf_index": 0}
+                    # Server routed to successor: response carries new id
+                    return {"action_id": "act-2", "session_id": "sess-2", "leaf_index": 1}
                 return {}
 
             async def get(self, path: str) -> dict[str, object]:
                 return {}
 
-        transport = _SealAfterFirstAction()
+        transport = _ServerDrivenSuccessor()
         ctx = SessionContext(
             transport=transport,  # type: ignore[arg-type]
-            agent_id="agent-1",
-            goal="T",
-            allowed_tools=[],
-            data_scope=[],
-            policy_reference="p1",
+            agent_id="agent-1", goal="T", allowed_tools=[],
+            data_scope=[], policy_reference="p1",
         )
         async with ctx:
             assert ctx.session_id == "sess-1"
@@ -129,12 +110,13 @@ class TestSessionContext:
                 tool_name="t", input_data="i1", output_data="o1",
             )
             assert r1["session_id"] == "sess-1"
+            assert ctx.session_id == "sess-1"
 
             r2 = await ctx.record_action(
                 tool_name="t", input_data="i2", output_data="o2",
             )
-            # Auto-resumed onto a new session
             assert r2["session_id"] == "sess-2"
+            # SDK followed the server's route
             assert ctx.session_id == "sess-2"
             assert ctx.action_count == 2
 

@@ -18,18 +18,12 @@ class DomainError(MerklError):
 class ValidationError(DomainError):
     """Raised when a value object or entity fails validation.
 
-    Subclasses carry a stable machine-readable `error_code` so clients
-    (SDK, dashboard) can branch on the cause without regex-matching the
-    human-readable message.
+    Subclasses may override `error_code` with a stable machine-readable
+    identifier so clients (SDK, dashboard) can branch on the cause
+    without regex-matching the human-readable message.
     """
 
     error_code: str = "validation_error"
-
-
-class SessionAlreadySealedError(ValidationError):
-    """Raised when an operation is attempted on a session that is already sealed."""
-
-    error_code = "session_sealed"
 
 
 class EntityNotFoundError(DomainError):

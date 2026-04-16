@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from merkl.sdk.transport import ApiError, AsyncTransport
+from merkl.sdk.transport import AsyncTransport
 from merkl.shared.hashing import SHA256Hash
 
 
@@ -70,14 +70,20 @@ class SessionContext:
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> None:
-        if self._session_id:
-            payload: dict[str, Any] = {}
-            if self._summary is not None:
-                payload["summary"] = self._summary
+        if not self._session_id:
+            return
+        payload: dict[str, Any] = {}
+        if self._summary is not None:
+            payload["summary"] = self._summary
+        try:
             await self._transport.post(
                 f"/v1/sessions/{self._session_id}/close",
                 json=payload,
             )
+        except Exception:
+            # Session may already be closed (force-seal, idle timeout).
+            # __aexit__ is best-effort cleanup — don't raise inside it.
+            pass
 
     async def close(self, summary: str | None = None) -> None:
         """Set an optional summary; sent to the API when the session exits."""
@@ -129,24 +135,15 @@ class SessionContext:
             "output_preview": output_preview,
         }
 
-        try:
-            result: dict[str, Any] = await self._transport.post(
-                f"/v1/sessions/{self._session_id}/actions",
-                json=action_payload,
-            )
-        except ApiError as e:
-            # Auto-resume: the session we were recording to was sealed out
-            # from under us (dashboard force-seal, idle timeout, etc.).
-            # Open a fresh session with the same params and retry once.
-            if e.error_code != "session_sealed":
-                raise
-            new_sess = await self._transport.post(
-                "/v1/sessions", json=self._create_session_payload()
-            )
-            self._session_id = new_sess["session_id"]
-            result = await self._transport.post(
-                f"/v1/sessions/{self._session_id}/actions",
-                json=action_payload,
-            )
+        result: dict[str, Any] = await self._transport.post(
+            f"/v1/sessions/{self._session_id}/actions",
+            json=action_payload,
+        )
+        # Server may have routed the action to a continuation session if
+        # ours was sealed (force-seal or idle timeout). Sync our state to
+        # the session the server actually recorded on.
+        returned_id = result.get("session_id")
+        if returned_id and returned_id != self._session_id:
+            self._session_id = returned_id
         self._action_count += 1
         return result
