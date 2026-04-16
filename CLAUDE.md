@@ -31,7 +31,7 @@ from witness.sdk import MerklClient
 client = MerklClient(endpoint="http://localhost:8000", agent_id="my-agent", api_key="mk_...")
 async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as session:
     result = await session.record_action(tool_name="query_db", input_data="SELECT ...", output_data={...})
-    # result includes batch_id and leaf_index
+    # result includes leaf_index
 ```
 
 ## Testing

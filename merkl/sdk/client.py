@@ -24,7 +24,7 @@ class MerklClient:
                 input_data="SELECT ...",
                 output_data={"rows": 42},
             )
-            # result includes batch_id and leaf_index
+            # result includes leaf_index
     """
 
     def __init__(
