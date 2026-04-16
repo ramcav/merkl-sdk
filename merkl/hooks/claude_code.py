@@ -74,7 +74,23 @@ def _dataflow_cache(claude_session_id: str) -> Path:
 
 
 # Minimum token length to avoid spurious matches on short/common strings
-_MIN_SNIPPET_LEN = 12
+_MIN_SNIPPET_LEN = 40
+_MAX_DEPS_PER_ACTION = 5
+
+
+def _strip_common_prefixes(s: str) -> str:
+    """Strip tokens shared across a session's working environment (cwd, home).
+
+    A path like `/Users/ricardomendezcavalieri/Developer/projects/witness/foo.py`
+    gets trimmed to `foo.py`. Without this, every Read/Edit of a file in the
+    repo shares a 53-char prefix that spuriously links every action to every
+    other.
+    """
+    import os
+    for prefix in (os.getcwd(), str(Path.home())):
+        if prefix and prefix in s:
+            s = s.replace(prefix, "")
+    return s
 
 
 def _extract_snippets(data: object, max_snippets: int = 16) -> list[str]:
@@ -88,7 +104,7 @@ def _extract_snippets(data: object, max_snippets: int = 16) -> list[str]:
 
     def _walk(obj: object) -> None:
         if isinstance(obj, str):
-            s = obj.strip()
+            s = _strip_common_prefixes(obj.strip())
             if len(s) >= _MIN_SNIPPET_LEN:
                 snippets.append(s)
             # Also take sub-phrases split by sentence/line boundaries
@@ -126,7 +142,13 @@ def _extract_snippets(data: object, max_snippets: int = 16) -> list[str]:
 
 
 def _dataflow_depends_on(tool_input: object, claude_session_id: str) -> list[str]:
-    """Return action_ids whose output data appears in tool_input (data lineage)."""
+    """Return action_ids whose output data appears in tool_input (data lineage).
+
+    Scored by the longest snippet that matches, so when many actions' outputs
+    match, we keep the strongest evidence (longer = less likely spurious).
+    Capped at _MAX_DEPS_PER_ACTION — 48 incoming edges from one action is an
+    audit-graph bug masquerading as data lineage.
+    """
     cache_path = _dataflow_cache(claude_session_id)
     if not cache_path.exists():
         return []
@@ -135,12 +157,17 @@ def _dataflow_depends_on(tool_input: object, claude_session_id: str) -> list[str
     except Exception:
         return []
 
-    input_text = json.dumps(tool_input, default=str)
-    matched: list[str] = []
+    input_text = _strip_common_prefixes(json.dumps(tool_input, default=str))
+    scored: list[tuple[int, str]] = []
     for action_id, snippets in store.items():
-        if any(len(s) >= _MIN_SNIPPET_LEN and s in input_text for s in snippets):
-            matched.append(action_id)
-    return matched
+        best = 0
+        for s in snippets:
+            if len(s) >= _MIN_SNIPPET_LEN and s in input_text and len(s) > best:
+                best = len(s)
+        if best > 0:
+            scored.append((best, action_id))
+    scored.sort(reverse=True)  # longest match first
+    return [aid for _, aid in scored[:_MAX_DEPS_PER_ACTION]]
 
 
 def _store_dataflow(action_id: str, tool_response: object, claude_session_id: str) -> None:
