@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextvars
 import functools
 import inspect
 import time
@@ -10,18 +11,31 @@ from typing import Any, Literal, TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])
 
-_current_session: Any = None
+# ContextVar so concurrent asyncio tasks and sub-agents each see their own
+# active session instead of racing over a module-level global.
+_current_session_var: contextvars.ContextVar[Any] = contextvars.ContextVar(
+    "merkl_current_session", default=None,
+)
 
 
-def set_current_session(session: Any) -> None:
-    """Set the global session used by @trace and @guardrail."""
-    global _current_session  # noqa: PLW0603
-    _current_session = session
+def set_current_session(session: Any) -> contextvars.Token[Any]:
+    """Set the active session used by @trace and @guardrail.
+
+    Returns a token that can be passed to :func:`reset_current_session` to
+    restore the previous value. ``SessionContext`` does this automatically
+    inside ``async with``.
+    """
+    return _current_session_var.set(session)
+
+
+def reset_current_session(token: contextvars.Token[Any]) -> None:
+    """Restore the prior session bound before the matching ``set_current_session``."""
+    _current_session_var.reset(token)
 
 
 def get_current_session() -> Any:
-    """Get the current active session."""
-    return _current_session
+    """Get the current active session (contextvar-scoped)."""
+    return _current_session_var.get()
 
 
 def trace(fn: F) -> F:

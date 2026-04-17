@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import functools
 import time
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
+from merkl.integrations._common import record_tool_call
 from merkl.sdk.session_context import SessionContext
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -42,7 +44,8 @@ def merkl_tool(session: SessionContext, **record_kwargs: Any) -> Callable[[F], F
             try:
                 result = await fn(*args, **kwargs)
                 duration_ms = int((time.monotonic() - start) * 1000)
-                await session.record_action(
+                await record_tool_call(
+                    session,
                     tool_name=fn.__name__,
                     input_data={"args": args, "kwargs": kwargs},
                     output_data=result,
@@ -53,13 +56,15 @@ def merkl_tool(session: SessionContext, **record_kwargs: Any) -> Callable[[F], F
                 return result
             except Exception as e:
                 duration_ms = int((time.monotonic() - start) * 1000)
-                await session.record_action(
+                await record_tool_call(
+                    session,
                     tool_name=fn.__name__,
                     input_data={"args": args, "kwargs": kwargs},
                     output_data=f"ERROR: {e}",
                     duration_ms=duration_ms,
                     guardrail_result="blocked",
                     drift_score=record_kwargs.get("drift_score", 0.0),
+                    status="failed",
                 )
                 raise
         return wrapper  # type: ignore[return-value]

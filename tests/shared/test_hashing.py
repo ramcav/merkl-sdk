@@ -8,7 +8,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from merkl.shared.hashing import SHA256Hash
+from merkl.shared.hashing import SHA256Hash, canonical_bytes, canonical_hash
 
 
 class TestSHA256Hash:
@@ -64,3 +64,40 @@ class TestSHA256HashProperties:
         if a == b:
             return
         assert SHA256Hash.from_bytes(a) != SHA256Hash.from_bytes(b)
+
+
+class TestCanonicalHash:
+    def test_dict_key_order_independent(self) -> None:
+        a = {"b": 2, "a": 1, "c": 3}
+        b = {"c": 3, "a": 1, "b": 2}
+        assert canonical_hash(a) == canonical_hash(b)
+
+    def test_nested_dict_key_order_independent(self) -> None:
+        a = {"outer": {"b": 2, "a": 1}, "z": [1, 2, 3]}
+        b = {"z": [1, 2, 3], "outer": {"a": 1, "b": 2}}
+        assert canonical_hash(a) == canonical_hash(b)
+
+    def test_list_order_matters(self) -> None:
+        assert canonical_hash([1, 2, 3]) != canonical_hash([3, 2, 1])
+
+    def test_different_values_differ(self) -> None:
+        assert canonical_hash({"x": 1}) != canonical_hash({"x": 2})
+
+    def test_non_json_types_use_str(self) -> None:
+        class Obj:
+            def __str__(self) -> str:
+                return "abc"
+
+        expected = canonical_bytes("abc")
+        assert canonical_bytes(Obj()) == expected
+
+    def test_bytes_output_is_deterministic(self) -> None:
+        payload = {"agent": "a", "goal": "g", "tools": ["t1", "t2"]}
+        assert canonical_bytes(payload) == canonical_bytes(payload)
+
+    def test_matches_session_context_hash(self) -> None:
+        """Regression: SessionContext and hooks/claude_code.py must agree."""
+        from merkl.hooks.claude_code import _sha256
+
+        payload = {"b": 2, "a": 1, "nested": {"y": "z", "x": [1, 2]}}
+        assert _sha256(payload) == canonical_hash(payload).hex()

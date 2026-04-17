@@ -22,6 +22,7 @@ except ImportError as e:
         "Install it with: pip install langchain-core"
     ) from e
 
+from merkl.integrations._common import record_tool_call
 from merkl.sdk.session_context import SessionContext
 
 
@@ -81,7 +82,8 @@ class MerklCallbackHandler(AsyncCallbackHandler):
         )
         duration_ms = int((time.monotonic() - start_time) * 1000)
 
-        await self._session.record_action(
+        await record_tool_call(
+            self._session,
             tool_name=tool_name,
             input_data=input_str,
             output_data=str(output),
@@ -104,11 +106,13 @@ class MerklCallbackHandler(AsyncCallbackHandler):
         )
         duration_ms = int((time.monotonic() - start_time) * 1000)
 
-        await self._session.record_action(
+        await record_tool_call(
+            self._session,
             tool_name=tool_name,
             input_data=input_str,
             output_data=f"ERROR: {error}",
             duration_ms=duration_ms,
             drift_score=self._drift_score,
             guardrail_result="blocked",
+            status="failed",
         )

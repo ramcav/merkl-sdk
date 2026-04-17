@@ -27,23 +27,24 @@ content from previous outputs. If Write's input contains text that came from
 WebFetch's output, we infer a data-flow dependency automatically — no agent
 cooperation needed. This is how data lineage tools work.
 
-Combined result for a weather research session:
-
-  Turn 1: ToolSearch                       depends_on=[]
-  Turn 2: WebFetch(Madrid)                 depends_on=[ToolSearch]   ← structural
-          WebFetch(Bogotá)                 depends_on=[ToolSearch]   ← structural (sibling)
-  Turn 3: Write(report)                    depends_on=[WebFetch(Madrid), WebFetch(Bogotá)]
-                                           ← data-flow: report text contains weather data
+All per-Claude-session state is held in one ``HookState`` JSON file
+(``merkl_hookstate_{tag}.json``) so reads and writes are atomic.
 """
 
 from __future__ import annotations
 
-import hashlib
+import dataclasses
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
+
+import httpx
+
+from merkl.shared.hashing import canonical_hash
 
 
 # ---------------------------------------------------------------------------
@@ -51,52 +52,141 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 def _sha256(data: object) -> str:
-    serialized = json.dumps(data, sort_keys=True, default=str).encode()
-    return hashlib.sha256(serialized).hexdigest()
+    return canonical_hash(data).hex()
 
 
 def _tag(claude_session_id: str) -> str:
     return claude_session_id[:16].replace("/", "_")
 
 
-def _session_cache(claude_session_id: str) -> Path:
-    return Path(tempfile.gettempdir()) / f"merkl_session_{_tag(claude_session_id)}"
-
-
-def _turn_state_cache(claude_session_id: str) -> Path:
-    """JSON file tracking current/prev turn action IDs for DAG grouping."""
-    return Path(tempfile.gettempdir()) / f"merkl_turn_{_tag(claude_session_id)}.json"
-
-
-def _dataflow_cache(claude_session_id: str) -> Path:
-    """JSON file storing output snippets keyed by action_id for data-flow matching."""
-    return Path(tempfile.gettempdir()) / f"merkl_dataflow_{_tag(claude_session_id)}.json"
-
-
-def _subagent_parent_cache(parent_claude_session_id: str) -> Path:
-    """JSON file storing the most recent Task action_id for a parent session.
-
-    Sub-agent hooks look this up by the parent's claude_session_id (carried
-    in their own hook payload as `parent_session_id`) to learn which Task
-    action spawned them, so they can link their Merkl session to it.
-    """
-    return Path(tempfile.gettempdir()) / f"merkl_subagent_parent_{_tag(parent_claude_session_id)}.json"
-
-
 # Minimum token length to avoid spurious matches on short/common strings
 _MIN_SNIPPET_LEN = 40
 _MAX_DEPS_PER_ACTION = 5
+_MAX_DATAFLOW_ENTRIES = 50
+
+
+# ---------------------------------------------------------------------------
+# HookState — single JSON file per Claude Code session
+# ---------------------------------------------------------------------------
+
+@dataclasses.dataclass
+class HookState:
+    """All per-Claude-session scratch state the hook needs.
+
+    One ``merkl_hookstate_{tag}.json`` file owns: the Merkl session_id,
+    turn-rotation tracking, output snippets for data-flow matching, and
+    the last Task action_id used for sub-agent linkage.
+    """
+
+    claude_session_id: str
+    session_id: str | None = None
+    turn_id: str | None = None
+    current_actions: list[str] = dataclasses.field(default_factory=list)
+    prev_actions: list[str] = dataclasses.field(default_factory=list)
+    dataflow: dict[str, list[str]] = dataclasses.field(default_factory=dict)
+    last_task_action_id: str | None = None
+
+    @staticmethod
+    def _path(claude_session_id: str) -> Path:
+        return Path(tempfile.gettempdir()) / f"merkl_hookstate_{_tag(claude_session_id)}.json"
+
+    @classmethod
+    def load(cls, claude_session_id: str) -> HookState:
+        path = cls._path(claude_session_id)
+        if path.exists():
+            try:
+                data = json.loads(path.read_text())
+                return cls(
+                    claude_session_id=claude_session_id,
+                    session_id=data.get("session_id"),
+                    turn_id=data.get("turn_id"),
+                    current_actions=list(data.get("current_actions", [])),
+                    prev_actions=list(data.get("prev_actions", [])),
+                    dataflow=dict(data.get("dataflow", {})),
+                    last_task_action_id=data.get("last_task_action_id"),
+                )
+            except Exception:
+                pass
+        return cls(claude_session_id=claude_session_id)
+
+    def save(self) -> None:
+        path = self._path(self.claude_session_id)
+        path.write_text(json.dumps({
+            "session_id": self.session_id,
+            "turn_id": self.turn_id,
+            "current_actions": self.current_actions,
+            "prev_actions": self.prev_actions,
+            "dataflow": self.dataflow,
+            "last_task_action_id": self.last_task_action_id,
+        }))
+
+    def delete(self) -> None:
+        try:
+            self._path(self.claude_session_id).unlink()
+        except FileNotFoundError:
+            pass
+
+    def rotate_turn(self, new_turn_id: str) -> None:
+        if new_turn_id != self.turn_id:
+            self.prev_actions = self.current_actions
+            self.current_actions = []
+            self.turn_id = new_turn_id
+
+    def depends_on_prev_turn(self) -> list[str]:
+        return list(self.prev_actions)
+
+    def last_linear(self) -> list[str]:
+        """Fallback when the transcript is unreadable."""
+        if self.current_actions:
+            return self.current_actions[-1:]
+        return self.prev_actions[-1:]
+
+    def record_action(
+        self,
+        action_id: str,
+        tool_response: object,
+        is_task: bool,
+    ) -> None:
+        self.current_actions.append(action_id)
+        snippets = _extract_snippets(tool_response)
+        if snippets:
+            self.dataflow[action_id] = snippets
+        if len(self.dataflow) > _MAX_DATAFLOW_ENTRIES:
+            # drop oldest entries beyond the cap
+            for k in list(self.dataflow.keys())[:-_MAX_DATAFLOW_ENTRIES]:
+                del self.dataflow[k]
+        if is_task:
+            self.last_task_action_id = action_id
+
+    def dataflow_depends_on(self, tool_input: object) -> list[str]:
+        """Return action_ids whose output snippets appear in this input.
+
+        Scored by longest matching snippet (longer = less likely spurious).
+        Capped at ``_MAX_DEPS_PER_ACTION`` so a shared prefix can't explode
+        the DAG fan-in.
+        """
+        if not self.dataflow:
+            return []
+        input_text = _strip_common_prefixes(json.dumps(tool_input, default=str))
+        scored: list[tuple[int, str]] = []
+        for action_id, snippets in self.dataflow.items():
+            best = 0
+            for s in snippets:
+                if len(s) >= _MIN_SNIPPET_LEN and s in input_text and len(s) > best:
+                    best = len(s)
+            if best > 0:
+                scored.append((best, action_id))
+        scored.sort(reverse=True)
+        return [aid for _, aid in scored[:_MAX_DEPS_PER_ACTION]]
 
 
 def _strip_common_prefixes(s: str) -> str:
     """Strip tokens shared across a session's working environment (cwd, home).
 
-    A path like `/Users/ricardomendezcavalieri/Developer/projects/witness/foo.py`
-    gets trimmed to `foo.py`. Without this, every Read/Edit of a file in the
-    repo shares a 53-char prefix that spuriously links every action to every
-    other.
+    A path like `/Users/.../witness/foo.py` gets trimmed to `foo.py`.
+    Without this, every Read/Edit of a file in the same repo shares a long
+    prefix that spuriously links every action to every other.
     """
-    import os
     for prefix in (os.getcwd(), str(Path.home())):
         if prefix and prefix in s:
             s = s.replace(prefix, "")
@@ -106,9 +196,8 @@ def _strip_common_prefixes(s: str) -> str:
 def _extract_snippets(data: object, max_snippets: int = 16) -> list[str]:
     """Pull meaningful string fragments from tool output for data-flow matching.
 
-    Walks the data structure recursively to extract string leaf values.
-    These are the actual content tokens that a downstream tool might reuse
-    (e.g. "21°C" from a weather fetch appearing verbatim in a written report).
+    Walks the structure recursively; collects string leaves plus sentence /
+    line fragments that exceed ``_MIN_SNIPPET_LEN``.
     """
     snippets: list[str] = []
 
@@ -117,9 +206,7 @@ def _extract_snippets(data: object, max_snippets: int = 16) -> list[str]:
             s = _strip_common_prefixes(obj.strip())
             if len(s) >= _MIN_SNIPPET_LEN:
                 snippets.append(s)
-            # Also take sub-phrases split by sentence/line boundaries
-            import re
-            for part in re.split(r'[.\n;]+', s):
+            for part in re.split(r"[.\n;]+", s):
                 part = part.strip()
                 if len(part) >= _MIN_SNIPPET_LEN and part not in snippets:
                     snippets.append(part)
@@ -130,7 +217,6 @@ def _extract_snippets(data: object, max_snippets: int = 16) -> list[str]:
             for item in obj:
                 _walk(item)
 
-    # If data is a raw string (e.g. HTTP response body), parse JSON if possible
     if isinstance(data, str):
         try:
             data = json.loads(data)
@@ -139,7 +225,6 @@ def _extract_snippets(data: object, max_snippets: int = 16) -> list[str]:
 
     _walk(data)
 
-    # Deduplicate, sort longest first (longer = less likely to be spurious)
     seen: set[str] = set()
     result: list[str] = []
     for s in sorted(snippets, key=len, reverse=True):
@@ -149,53 +234,6 @@ def _extract_snippets(data: object, max_snippets: int = 16) -> list[str]:
         if len(result) >= max_snippets:
             break
     return result
-
-
-def _dataflow_depends_on(tool_input: object, claude_session_id: str) -> list[str]:
-    """Return action_ids whose output data appears in tool_input (data lineage).
-
-    Scored by the longest snippet that matches, so when many actions' outputs
-    match, we keep the strongest evidence (longer = less likely spurious).
-    Capped at _MAX_DEPS_PER_ACTION — 48 incoming edges from one action is an
-    audit-graph bug masquerading as data lineage.
-    """
-    cache_path = _dataflow_cache(claude_session_id)
-    if not cache_path.exists():
-        return []
-    try:
-        store: dict[str, list[str]] = json.loads(cache_path.read_text())
-    except Exception:
-        return []
-
-    input_text = _strip_common_prefixes(json.dumps(tool_input, default=str))
-    scored: list[tuple[int, str]] = []
-    for action_id, snippets in store.items():
-        best = 0
-        for s in snippets:
-            if len(s) >= _MIN_SNIPPET_LEN and s in input_text and len(s) > best:
-                best = len(s)
-        if best > 0:
-            scored.append((best, action_id))
-    scored.sort(reverse=True)  # longest match first
-    return [aid for _, aid in scored[:_MAX_DEPS_PER_ACTION]]
-
-
-def _store_dataflow(action_id: str, tool_response: object, claude_session_id: str) -> None:
-    """Save output snippets for this action so future tools can reference it."""
-    cache_path = _dataflow_cache(claude_session_id)
-    try:
-        store: dict[str, list[str]] = json.loads(cache_path.read_text()) if cache_path.exists() else {}
-    except Exception:
-        store = {}
-    snippets = _extract_snippets(tool_response)
-    if snippets:
-        store[action_id] = snippets
-    # Keep store bounded — drop oldest entries beyond 50
-    if len(store) > 50:
-        oldest = list(store.keys())[:-50]
-        for k in oldest:
-            del store[k]
-    cache_path.write_text(json.dumps(store))
 
 
 def _display_name(tool_name: str, tool_input: object) -> str:
@@ -227,7 +265,6 @@ def _input_preview(tool_name: str, tool_input: object) -> str:
         pattern = tool_input.get("pattern", "")
         path = tool_input.get("path", "")
         return f"{pattern} in {path}" if path else str(pattern)
-    # Generic fallback
     return " | ".join(f"{k}={str(v)[:40]}" for k, v in list(tool_input.items())[:4])[:200]
 
 
@@ -273,71 +310,11 @@ def _infer_goal(transcript_path: str | None) -> str:
     return "Claude Code session"
 
 
-# ---------------------------------------------------------------------------
-# Session management
-# ---------------------------------------------------------------------------
-
-def _get_or_create_session(
-    endpoint: str,
-    api_key: str,
-    agent_id: str,
-    claude_session_id: str,
-    transcript_path: str | None = None,
-    parent_claude_session_id: str | None = None,
-) -> str:
-    import httpx
-
-    if pinned := os.environ.get("MERKL_SESSION_ID"):
-        return pinned
-
-    cache = _session_cache(claude_session_id)
-    if cache.exists():
-        return cache.read_text().strip()
-
-    # If this is a sub-agent (parent_claude_session_id set), look up the
-    # Task action that spawned us so the new Merkl session carries
-    # parent_action_id — the dashboard renders these inline under the
-    # parent's Task step.
-    parent_action_id: str | None = None
-    if parent_claude_session_id:
-        parent_cache = _subagent_parent_cache(parent_claude_session_id)
-        if parent_cache.exists():
-            try:
-                parent_action_id = parent_cache.read_text().strip() or None
-            except Exception:
-                parent_action_id = None
-
-    goal = _infer_goal(transcript_path)
-    payload: dict = {
-        "agent_id": agent_id,
-        "goal": goal,
-        "allowed_tools": [],
-        "data_scope": [],
-        "policy_reference": "claude-code",
-    }
-    if parent_action_id:
-        payload["parent_action_id"] = parent_action_id
-    resp = httpx.post(
-        f"{endpoint}/v1/sessions",
-        json=payload,
-        headers={"X-Merkl-API-Key": api_key},
-        timeout=5.0,
-    )
-    resp.raise_for_status()
-    session_id = resp.json()["session_id"]
-    cache.write_text(session_id)
-    return session_id
-
-
-# ---------------------------------------------------------------------------
-# DAG turn grouping
-# ---------------------------------------------------------------------------
-
 def _current_turn_id(transcript_path: str | None) -> str | None:
-    """Read the transcript and return a fingerprint of the last assistant turn.
+    """Fingerprint of the last assistant turn (tool_use IDs joined).
 
     Claude Code writes the full assistant message (including all tool_use
-    blocks) before executing any tool in that turn. So when the first hook
+    blocks) before executing any tool in that turn, so when the first hook
     fires for turn N, the transcript already contains the complete turn-N
     assistant message — letting us identify all siblings.
     """
@@ -350,7 +327,6 @@ def _current_turn_id(transcript_path: str | None) -> str | None:
         lines = [ln for ln in path.read_text().splitlines() if ln.strip()]
         for raw in reversed(lines):
             msg = json.loads(raw)
-            # Handle both plain messages and wrapped Claude Code transcript entries
             content = msg.get("content") or msg.get("message", {}).get("content")
             role = msg.get("role") or msg.get("message", {}).get("role")
             if role == "assistant" and isinstance(content, list):
@@ -366,46 +342,53 @@ def _current_turn_id(transcript_path: str | None) -> str | None:
     return None
 
 
-def _load_turn_state(claude_session_id: str) -> dict:
-    path = _turn_state_cache(claude_session_id)
-    if path.exists():
-        try:
-            return json.loads(path.read_text())
-        except Exception:
-            pass
-    return {"turn_id": None, "current_actions": [], "prev_actions": []}
+# ---------------------------------------------------------------------------
+# Session management
+# ---------------------------------------------------------------------------
+
+def _resolve_parent_task_action_id(parent_claude_session_id: str | None) -> str | None:
+    """Look up the parent's last Task action_id from their HookState."""
+    if not parent_claude_session_id:
+        return None
+    parent_state = HookState.load(parent_claude_session_id)
+    return parent_state.last_task_action_id
 
 
-def _save_turn_state(claude_session_id: str, state: dict) -> None:
-    _turn_state_cache(claude_session_id).write_text(json.dumps(state))
-
-
-def _resolve_depends_on(
+def _ensure_session(
+    endpoint: str,
+    api_key: str,
+    agent_id: str,
+    state: HookState,
     transcript_path: str | None,
-    claude_session_id: str,
-) -> tuple[list[str], dict]:
-    """Return (depends_on, state) for the current tool call.
+    parent_claude_session_id: str | None,
+) -> str | None:
+    """Return an existing merkl session_id or create one. Returns None on failure."""
+    if pinned := os.environ.get("MERKL_SESSION_ID"):
+        return pinned
+    if state.session_id:
+        return state.session_id
 
-    depends_on points to last turn's action IDs (siblings share the same
-    depends_on, producing a fan-out from the previous turn's outputs).
+    parent_action_id = _resolve_parent_task_action_id(parent_claude_session_id)
 
-    Falls back to simple linear chaining if transcript is unreadable.
-    """
-    state = _load_turn_state(claude_session_id)
-    new_turn_id = _current_turn_id(transcript_path)
+    payload: dict[str, Any] = {
+        "agent_id": agent_id,
+        "goal": _infer_goal(transcript_path),
+        "allowed_tools": [],
+        "data_scope": [],
+        "policy_reference": "claude-code",
+    }
+    if parent_action_id:
+        payload["parent_action_id"] = parent_action_id
 
-    if new_turn_id and new_turn_id != state.get("turn_id"):
-        # New turn detected — rotate current → prev
-        state["prev_actions"] = state["current_actions"]
-        state["current_actions"] = []
-        state["turn_id"] = new_turn_id
-    elif not new_turn_id:
-        # Transcript unreadable — fall back to linear chain
-        last = state["current_actions"][-1:] if state["current_actions"] else state["prev_actions"][-1:]
-        return last, state
-
-    depends_on = state["prev_actions"]
-    return depends_on, state
+    resp = httpx.post(
+        f"{endpoint}/v1/sessions",
+        json=payload,
+        headers={"X-Merkl-API-Key": api_key},
+        timeout=5.0,
+    )
+    resp.raise_for_status()
+    state.session_id = resp.json()["session_id"]
+    return state.session_id
 
 
 # ---------------------------------------------------------------------------
@@ -413,39 +396,25 @@ def _resolve_depends_on(
 # ---------------------------------------------------------------------------
 
 def _seal_session_on_exit(
-    endpoint: str, api_key: str, claude_session_id: str
+    endpoint: str, api_key: str, claude_session_id: str,
 ) -> None:
-    """On SessionEnd, seal the Merkl session so the dashboard flips it out
-    of Live. If we never opened one for this conversation (user quit
-    before any tool call), there's nothing to seal.
-    """
-    import httpx
+    """On SessionEnd, seal the Merkl session so the dashboard flips it out of Live.
 
-    cache = _session_cache(claude_session_id)
-    if not cache.exists():
-        return
-    merkl_session_id = cache.read_text().strip()
-    if not merkl_session_id:
+    If the user quit before any tool call, there's no session to seal.
+    """
+    state = HookState.load(claude_session_id)
+    if not state.session_id:
         return
     try:
         httpx.post(
-            f"{endpoint}/v1/sessions/{merkl_session_id}/seal",
+            f"{endpoint}/v1/sessions/{state.session_id}/seal",
             headers={"X-Merkl-API-Key": api_key},
             timeout=5.0,
         )
     except Exception:
         # Hook must never block Claude Code's exit flow.
         return
-    # Cleanup per-conversation caches; a fresh conversation will recreate.
-    for path in (
-        _session_cache(claude_session_id),
-        _turn_state_cache(claude_session_id),
-        _dataflow_cache(claude_session_id),
-    ):
-        try:
-            path.unlink()
-        except FileNotFoundError:
-            pass
+    state.delete()
 
 
 def main() -> None:
@@ -465,35 +434,36 @@ def main() -> None:
     event = payload.get("hook_event_name", "PostToolUse")
     claude_session_id: str = payload.get("session_id", "unknown")
 
-    # SessionEnd: user ran /exit, /clear, or closed the window. Seal the
-    # Merkl session immediately instead of waiting for the idle timeout.
     if event == "SessionEnd":
         _seal_session_on_exit(endpoint, api_key, claude_session_id)
         return
 
-    # Everything below is the PostToolUse path.
+    # PostToolUse path
     tool_name: str = payload.get("tool_name", "unknown")
     tool_input: object = payload.get("tool_input", {})
     tool_response: object = payload.get("tool_response", payload.get("tool_result", ""))
     transcript_path: str | None = payload.get("transcript_path")
-    # Sub-agents see their parent's claude-code session id in the payload —
-    # we use it to link the Merkl session to the parent's Task action.
     parent_claude_session_id: str | None = payload.get("parent_session_id")
 
-    import httpx
+    state = HookState.load(claude_session_id)
 
-    session_id = _get_or_create_session(
-        endpoint, api_key, agent_id, claude_session_id, transcript_path,
-        parent_claude_session_id=parent_claude_session_id,
+    session_id = _ensure_session(
+        endpoint, api_key, agent_id, state, transcript_path, parent_claude_session_id,
     )
+    if not session_id:
+        return
 
-    # Layer 1: structural grouping via transcript (siblings share a turn)
-    structural_deps, turn_state = _resolve_depends_on(transcript_path, claude_session_id)
+    # Layer 1 — structural grouping via transcript turn rotation
+    new_turn_id = _current_turn_id(transcript_path)
+    if new_turn_id is not None:
+        state.rotate_turn(new_turn_id)
+        structural_deps = state.depends_on_prev_turn()
+    else:
+        structural_deps = state.last_linear()
 
-    # Layer 2: data-flow deps — which previous outputs does this input reference?
-    dataflow_deps = _dataflow_depends_on(tool_input, claude_session_id)
+    # Layer 2 — data-flow deps from previous outputs
+    dataflow_deps = state.dataflow_depends_on(tool_input)
 
-    # Merge: prefer data-flow when available (more precise), else use structural
     if dataflow_deps:
         depends_on = list(dict.fromkeys(dataflow_deps + structural_deps))
     else:
@@ -524,18 +494,11 @@ def main() -> None:
     if resp.is_success:
         action_id = resp.json().get("action_id", "")
         if action_id:
-            turn_state["current_actions"].append(action_id)
-            _save_turn_state(claude_session_id, turn_state)
-            # Store this action's output for future data-flow matching
-            _store_dataflow(action_id, tool_response, claude_session_id)
-            # If this was a Task call, cache the action_id so the
-            # spawned sub-agent's first hook can look it up and set
-            # parent_action_id on its own Merkl session.
-            if tool_name == "Task":
-                try:
-                    _subagent_parent_cache(claude_session_id).write_text(action_id)
-                except Exception:
-                    pass
+            state.record_action(action_id, tool_response, is_task=(tool_name == "Task"))
+
+    # One atomic write captures session_id, turn state, dataflow cache,
+    # and last_task_action_id for the next hook invocation.
+    state.save()
 
 
 if __name__ == "__main__":

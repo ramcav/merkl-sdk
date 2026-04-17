@@ -6,10 +6,10 @@ from merkl.shared.errors import (
     DomainError,
     EntityNotFoundError,
     InfrastructureError,
+    MerklError,
     RepositoryError,
     TransportError,
     ValidationError,
-    MerklError,
 )
 from merkl.shared.events import DomainEvent
 from merkl.shared.hashing import SHA256Hash

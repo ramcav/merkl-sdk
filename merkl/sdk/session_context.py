@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import contextvars
 from typing import Any
 
 from merkl.sdk.transport import AsyncTransport
-from merkl.shared.hashing import SHA256Hash
+from merkl.shared.hashing import canonical_hash
 
 
 class SessionContext:
@@ -40,6 +41,7 @@ class SessionContext:
         self._session_id: str | None = None
         self._action_count = 0
         self._summary: str | None = None
+        self._session_token: contextvars.Token[Any] | None = None
 
     @property
     def session_id(self) -> str | None:
@@ -67,6 +69,12 @@ class SessionContext:
             "/v1/sessions", json=self._create_session_payload()
         )
         self._session_id = resp["session_id"]
+        # Bind this session to the contextvar so @trace/@guardrail inside
+        # the `async with` block see it automatically. Inner contexts
+        # shadow outer ones; __aexit__ restores.
+        from merkl.sdk.decorators import set_current_session
+
+        self._session_token = set_current_session(self)
         return self
 
     async def __aexit__(
@@ -75,6 +83,12 @@ class SessionContext:
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> None:
+        # Restore the previous session binding first — even if close() fails.
+        if self._session_token is not None:
+            from merkl.sdk.decorators import reset_current_session
+
+            reset_current_session(self._session_token)
+            self._session_token = None
         if not self._session_id:
             return
         payload: dict[str, Any] = {}
@@ -115,12 +129,8 @@ class SessionContext:
             msg = "Session not opened. Use 'async with' context manager."
             raise RuntimeError(msg)
 
-        input_hash = SHA256Hash.from_bytes(
-            str(input_data).encode()
-        ).hex()
-        output_hash = SHA256Hash.from_bytes(
-            str(output_data).encode()
-        ).hex()
+        input_hash = canonical_hash(input_data).hex()
+        output_hash = canonical_hash(output_data).hex()
 
         action_payload = {
             "agent_id": self._agent_id,

@@ -11,9 +11,10 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any
 from collections.abc import AsyncIterator
+from typing import Any
 
+from merkl.integrations._common import record_tool_call
 from merkl.sdk.session_context import SessionContext
 
 
@@ -78,7 +79,8 @@ class MerklADKRunner:
                 for fc in function_calls:
                     tool_name = fc.name
                     tool_input = dict(fc.args) if fc.args else {}
-                    await self._session.record_action(
+                    await record_tool_call(
+                        self._session,
                         tool_name=tool_name,
                         input_data=tool_input,
                         output_data="(pending)",

@@ -220,3 +220,32 @@ class TestGuardrail:
             return x * 2
 
         assert sync_tool(3) == 6
+
+
+class TestContextVarIsolation:
+    @pytest.mark.asyncio
+    async def test_concurrent_tasks_see_own_session(self) -> None:
+        """Two asyncio tasks must not see each other's active session."""
+        import asyncio
+
+        from merkl.sdk.decorators import get_current_session
+
+        a = MockSession()
+        b = MockSession()
+
+        seen: dict[str, object] = {}
+
+        async def run_with(tag: str, session: MockSession) -> None:
+            token = set_current_session(session)
+            try:
+                # Yield so the other task runs inside the window.
+                await asyncio.sleep(0)
+                seen[tag] = get_current_session()
+            finally:
+                from merkl.sdk.decorators import reset_current_session
+
+                reset_current_session(token)
+
+        await asyncio.gather(run_with("a", a), run_with("b", b))
+        assert seen["a"] is a
+        assert seen["b"] is b

@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from merkl.integrations._common import record_tool_call
 from merkl.sdk.session_context import SessionContext
 
 
@@ -56,26 +57,17 @@ class MerklStepCallback:
         tool_input = getattr(step_output, "tool_input", "")
         result = getattr(step_output, "result", "")
 
+        coro = record_tool_call(
+            self._session,
+            tool_name=str(tool_name),
+            input_data=tool_input,
+            output_data=result,
+            drift_score=self._drift_score,
+            guardrail_result=self._guardrail_result,
+        )
         # CrewAI runs synchronously, so we need to bridge to async
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(
-                self._session.record_action(
-                    tool_name=str(tool_name),
-                    input_data=tool_input,
-                    output_data=result,
-                    drift_score=self._drift_score,
-                    guardrail_result=self._guardrail_result,
-                )
-            )
+            loop.create_task(coro)
         except RuntimeError:
-            # No running event loop — run synchronously
-            asyncio.run(
-                self._session.record_action(
-                    tool_name=str(tool_name),
-                    input_data=tool_input,
-                    output_data=result,
-                    drift_score=self._drift_score,
-                    guardrail_result=self._guardrail_result,
-                )
-            )
+            asyncio.run(coro)

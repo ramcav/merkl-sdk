@@ -64,11 +64,13 @@ def test_session_end_seals_the_session(merkl_env, tmp_path, capture_httpx):  # n
     """When Claude Code fires SessionEnd (user /exit, /clear, or window
     close), the hook seals the Merkl session so the dashboard no longer
     shows it as Live."""
-    # Seed the session cache as if a prior PostToolUse had created one.
+    # Seed HookState as if a prior PostToolUse had created one.
+    from merkl.hooks.claude_code import HookState
+
     claude_sid = "claude-sess-abc123"
     merkl_sid = "019d9999-0000-7000-8000-000000000042"
-    cache = tmp_path / f"merkl_session_{claude_sid[:16].replace('/', '_')}"
-    cache.write_text(merkl_sid)
+    state = HookState(claude_session_id=claude_sid, session_id=merkl_sid)
+    state.save()
 
     _run_hook_with({
         "hook_event_name": "SessionEnd",
@@ -105,3 +107,73 @@ def test_post_tool_use_still_records_actions(merkl_env, capture_httpx, tmp_path)
     _run_hook_with(payload)
     action_calls = [c for c in capture_httpx if "/actions" in c["url"]]
     assert len(action_calls) == 1
+
+
+def test_hook_state_rotates_turns(merkl_env, tmp_path):  # noqa: ANN001
+    from merkl.hooks.claude_code import HookState
+
+    state = HookState(claude_session_id="s1")
+    state.rotate_turn("turn-a")
+    state.current_actions.append("a1")
+    state.current_actions.append("a2")
+
+    state.rotate_turn("turn-b")
+    assert state.turn_id == "turn-b"
+    assert state.prev_actions == ["a1", "a2"]
+    assert state.current_actions == []
+    assert state.depends_on_prev_turn() == ["a1", "a2"]
+
+
+def test_hook_state_dataflow_links_matching_snippet(merkl_env, tmp_path):  # noqa: ANN001
+    from merkl.hooks.claude_code import HookState
+
+    state = HookState(claude_session_id="s2")
+    state.record_action(
+        action_id="a1",
+        tool_response="the quick brown fox jumps over the lazy dog by the river",
+        is_task=False,
+    )
+    deps = state.dataflow_depends_on(
+        {"content": "Report: the quick brown fox jumps over the lazy dog by the river"}
+    )
+    assert deps == ["a1"]
+
+
+def test_hook_state_dataflow_caps_fanin(merkl_env, tmp_path):  # noqa: ANN001
+    """Cap ``_MAX_DEPS_PER_ACTION`` prevents spurious fan-in explosions."""
+    from merkl.hooks.claude_code import _MAX_DEPS_PER_ACTION, HookState
+
+    state = HookState(claude_session_id="s3")
+    shared = "X" * 60
+    for i in range(_MAX_DEPS_PER_ACTION * 3):
+        state.record_action(action_id=f"a{i}", tool_response=shared, is_task=False)
+    deps = state.dataflow_depends_on({"content": shared})
+    assert len(deps) == _MAX_DEPS_PER_ACTION
+
+
+def test_hook_state_task_link_sets_last_task_action_id(merkl_env, tmp_path):  # noqa: ANN001
+    from merkl.hooks.claude_code import HookState
+
+    state = HookState(claude_session_id="parent")
+    state.record_action(action_id="task-77", tool_response="spawned", is_task=True)
+    state.save()
+
+    reloaded = HookState.load("parent")
+    assert reloaded.last_task_action_id == "task-77"
+
+
+def test_hook_state_round_trip(merkl_env, tmp_path):  # noqa: ANN001
+    from merkl.hooks.claude_code import HookState
+
+    original = HookState(
+        claude_session_id="round",
+        session_id="sid-1",
+        turn_id="t-2",
+        current_actions=["c1"],
+        prev_actions=["p1", "p2"],
+        dataflow={"c1": ["long snippet value that exceeds min"]},
+        last_task_action_id="task-1",
+    )
+    original.save()
+    reloaded = HookState.load("round")
+    assert reloaded == original
