@@ -1,8 +1,9 @@
-"""Merkl CLI — install and manage integrations.
+"""Merkl CLI — install integrations and prepare disclosures.
 
 Usage:
     merkl install --claude-code            # install hook in .claude/settings.json
     merkl install --claude-code --global   # install in ~/.claude/settings.json
+    merkl disclose <action_id>             # package one action's evidence for an auditor
 """
 
 from __future__ import annotations
@@ -143,9 +144,38 @@ def main() -> None:
         help="Target ~/.claude/settings.json",
     )
 
+    # disclose
+    disclose_p = sub.add_parser(
+        "disclose", help="Package one action's evidence + verifier for an auditor"
+    )
+    disclose_p.add_argument("action_id", help="Action to disclose (from dashboard or API)")
+    disclose_p.add_argument(
+        "--evidence-dir", type=Path, default=None,
+        help="Evidence directory (default: $MERKL_EVIDENCE_DIR or ~/.merkl/evidence)",
+    )
+    disclose_p.add_argument(
+        "--endpoint", default=None, help="Merkl API base URL (default: $MERKL_ENDPOINT)"
+    )
+    disclose_p.add_argument(
+        "--api-key", default=None, help="API key (default: $MERKL_API_KEY)"
+    )
+    disclose_p.add_argument(
+        "--out", type=Path, default=None, help="Output folder (default: ./disclosure-<id>)"
+    )
+
     args = parser.parse_args()
 
-    if args.command == "install":
+    if args.command == "disclose":
+        from merkl.cli.disclose import disclose
+
+        disclose(
+            args.action_id,
+            evidence_dir=args.evidence_dir,
+            endpoint=args.endpoint,
+            api_key=args.api_key,
+            out_dir=args.out,
+        )
+    elif args.command == "install":
         if args.claude_code:
             _install_claude_code(global_=args.global_)
         else:
