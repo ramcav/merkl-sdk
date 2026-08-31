@@ -322,3 +322,30 @@ def test_evidence_capture_can_be_disabled(merkl_env, capture_httpx, tmp_path, mo
     })
     assert not (Path.home() / ".merkl").exists() or True  # no crash is the contract
     assert len([c for c in capture_httpx if "/actions" in c["url"]]) == 1
+
+
+def test_infer_goal_skips_synthetic_user_messages(tmp_path, merkl_env):  # noqa: ANN001
+    """Caveat wrappers and slash-command expansions are user-role lines in
+    the transcript but not the human's prompt — the goal must skip them."""
+    from merkl.hooks.claude_code import _infer_goal
+
+    transcript = tmp_path / "t.jsonl"
+    lines = [
+        {"message": {"role": "user", "content": "<local-command-caveat>Caveat: The messages below were generated..."}},
+        {"message": {"role": "user", "content": [{"type": "text", "text": "<command-name>/hooks</command-name>"}]}},
+        {"isMeta": True, "message": {"role": "user", "content": "meta noise"}},
+        {"message": {"role": "assistant", "content": "hi"}},
+        {"message": {"role": "user", "content": "Fix the billing rate bug"}},
+    ]
+    transcript.write_text("\n".join(json.dumps(x) for x in lines))
+    assert _infer_goal(str(transcript)) == "Fix the billing rate bug"
+
+
+def test_infer_goal_falls_back_when_only_synthetic(tmp_path, merkl_env):  # noqa: ANN001
+    from merkl.hooks.claude_code import _infer_goal
+
+    transcript = tmp_path / "t.jsonl"
+    transcript.write_text(json.dumps(
+        {"message": {"role": "user", "content": "<local-command-caveat>only noise"}}
+    ))
+    assert _infer_goal(str(transcript)) == "Claude Code session"

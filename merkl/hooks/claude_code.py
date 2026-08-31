@@ -47,7 +47,6 @@ import httpx
 
 from merkl.shared.hashing import canonical_hash
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -443,8 +442,34 @@ def _clean_goal(text: str) -> str:
     return text[:160] if text else "Claude Code session"
 
 
+# Harness-generated "user" messages that are not the human's prompt. The
+# transcript wraps local-command output, slash-command expansions, and
+# system notes as user-role messages; a goal built from one of these reads
+# as garbage in the dashboard ("<local-command-caveat>Caveat: ...").
+_SYNTHETIC_PREFIXES = (
+    "<local-command-caveat>",
+    "<command-name>",
+    "<command-message>",
+    "<command-args>",
+    "<bash-input>",
+    "<bash-stdout>",
+    "<bash-stderr>",
+    "<system-reminder>",
+    "<task-notification>",
+    "[Request interrupted",
+)
+
+
+def _is_synthetic_user_text(text: str) -> bool:
+    return text.lstrip().startswith(_SYNTHETIC_PREFIXES)
+
+
 def _infer_goal(transcript_path: str | None) -> str:
-    """Read the first human message from the transcript as the session goal."""
+    """Read the first REAL human message from the transcript as the goal.
+
+    Skips harness-synthesized user messages (caveat wrappers, slash-command
+    expansions, meta lines) and keeps scanning until actual prompt text.
+    """
     if not transcript_path:
         return "Claude Code session"
     try:
@@ -455,17 +480,22 @@ def _infer_goal(transcript_path: str | None) -> str:
             if not raw.strip():
                 continue
             msg = json.loads(raw)
+            if msg.get("isMeta"):
+                continue
             role = msg.get("role") or msg.get("message", {}).get("role")
             content = msg.get("content") or msg.get("message", {}).get("content")
-            if role == "user":
-                if isinstance(content, str) and content.strip():
-                    return _clean_goal(content)
-                if isinstance(content, list):
-                    for block in content:
-                        if isinstance(block, dict) and block.get("type") == "text":
-                            text = block.get("text", "").strip()
-                            if text:
-                                return _clean_goal(text)
+            if role != "user":
+                continue
+            if isinstance(content, str) and content.strip():
+                if _is_synthetic_user_text(content):
+                    continue
+                return _clean_goal(content)
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        text = block.get("text", "").strip()
+                        if text and not _is_synthetic_user_text(text):
+                            return _clean_goal(text)
     except Exception:
         pass
     return "Claude Code session"
