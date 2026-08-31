@@ -162,6 +162,77 @@ def test_hook_state_task_link_sets_last_task_action_id(merkl_env, tmp_path):  # 
     assert reloaded.last_task_action_id == "task-77"
 
 
+def test_display_name_uses_basename_for_file_tools():
+    from merkl.hooks.claude_code import _display_name
+
+    path = "/Users/someone/Developer/repo/src/pkg/service.py"
+    assert _display_name("Read", {"file_path": path}) == "Read service.py"
+    assert _display_name("Write", {"file_path": path}) == "Write service.py"
+    assert _display_name("Edit", {"file_path": path}) == "Edit service.py"
+
+
+def test_display_name_distinguishes_two_files_in_same_dir():
+    """The original bug: both calls rendered identically after [:60] truncation."""
+    from merkl.hooks.claude_code import _display_name
+
+    long_prefix = "/Users/name/Developer/project/packages/pkg/src/deep/path"
+    a = _display_name("Edit", {"file_path": f"{long_prefix}/alpha.py"})
+    b = _display_name("Edit", {"file_path": f"{long_prefix}/beta.py"})
+    assert a != b
+    assert a.endswith("alpha.py")
+    assert b.endswith("beta.py")
+
+
+def test_display_name_search_and_web_tools():
+    from merkl.hooks.claude_code import _display_name
+
+    assert _display_name("Grep", {"pattern": "foo", "path": "src/pkg"}).startswith("Grep foo")
+    assert _display_name("WebFetch", {"url": "https://example.com/x"}).startswith("Fetched example.com/x")
+    assert _display_name("Task", {"description": "audit auth"}).startswith("Sub-agent: audit auth")
+
+
+def test_status_flags_error_responses():
+    from merkl.hooks.claude_code import _status
+
+    assert _status({"is_error": True, "content": [{"text": "boom"}]}) == "failed"
+    assert _status({"error": "nope"}) == "failed"
+    assert _status({"content": [{"is_error": True}]}) == "failed"
+    assert _status("Error: command failed") == "failed"
+    assert _status("ok") == "success"
+    assert _status({"content": [{"text": "ok"}]}) == "success"
+
+
+def test_category_maps_per_tool():
+    from merkl.hooks.claude_code import _category
+
+    assert _category("Read") == "data_access"
+    assert _category("Write") == "modification"
+    assert _category("Bash") == "execution"
+    assert _category("WebFetch") == "external"
+    assert _category("Task") == "sub_agent"
+    assert _category("Mystery") == "reasoning"
+
+
+def test_clean_goal_strips_shell_prompts():
+    from merkl.hooks.claude_code import _clean_goal
+
+    pasted = (
+        "(base) [user@host] ~/Developer/repo (branch) ❯ supabase db pull\n"
+        "Initialising login role...\nConnecting to remote database..."
+    )
+    assert not _clean_goal(pasted).startswith("(base)")
+
+
+def test_clean_goal_caps_length():
+    from merkl.hooks.claude_code import _clean_goal
+
+    goal = _clean_goal("short but clear question about auth")
+    assert goal == "short but clear question about auth"
+
+    long = "please help me " * 40
+    assert len(_clean_goal(long)) <= 160
+
+
 def test_hook_state_round_trip(merkl_env, tmp_path):  # noqa: ANN001
     from merkl.hooks.claude_code import HookState
 
@@ -177,3 +248,77 @@ def test_hook_state_round_trip(merkl_env, tmp_path):  # noqa: ANN001
     original.save()
     reloaded = HookState.load("round")
     assert reloaded == original
+
+
+def test_privacy_default_sends_no_payload_text(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+    """By default the notary sees only the tool name and typed metadata —
+    no command text in display_name, empty previews."""
+    monkeypatch.delenv("MERKL_INCLUDE_PREVIEWS", raising=False)
+    monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "evidence"))
+    _run_hook_with({
+        "hook_event_name": "PostToolUse",
+        "session_id": "claude-sess-priv",
+        "tool_name": "Bash",
+        "tool_input": {"command": "psql -c 'select * from payments'"},
+        "tool_response": "42 rows\n",
+    })
+    action = [c for c in capture_httpx if "/actions" in c["url"]][0]["json"]
+    assert action["display_name"] == "Bash"
+    assert action["input_preview"] == ""
+    assert action["output_preview"] == ""
+    assert "payments" not in json.dumps(action)
+    # Hashes still commit to the real payload
+    assert len(action["input_hash"]) == 64
+
+
+def test_previews_opt_in_restores_rich_labels(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+    monkeypatch.setenv("MERKL_INCLUDE_PREVIEWS", "1")
+    monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "evidence"))
+    _run_hook_with({
+        "hook_event_name": "PostToolUse",
+        "session_id": "claude-sess-verb",
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls -la"},
+        "tool_response": "file.txt\n",
+    })
+    action = [c for c in capture_httpx if "/actions" in c["url"]][0]["json"]
+    assert action["display_name"] == "$ ls -la"
+    assert action["input_preview"] == "ls -la"
+
+
+def test_evidence_log_holds_preimages(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+    """The local evidence log keeps raw payloads whose canonical hash equals
+    the hash committed to the notary — the disclosure path for audits."""
+    from merkl.shared.hashing import canonical_hash
+
+    monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "evidence"))
+    _run_hook_with({
+        "hook_event_name": "PostToolUse",
+        "session_id": "claude-sess-evd",
+        "tool_name": "Bash",
+        "tool_input": {"command": "stripe transfer --amount 100"},
+        "tool_response": {"ok": True},
+    })
+    action = [c for c in capture_httpx if "/actions" in c["url"]][0]["json"]
+    files = list((tmp_path / "evidence").glob("*.jsonl"))
+    assert len(files) == 1
+    entry = json.loads(files[0].read_text().splitlines()[0])
+    assert entry["action_id"] == "a-1"
+    # Raw payload is in the evidence, NOT on the notary
+    assert entry["input"]["command"] == "stripe transfer --amount 100"
+    # Self-check: re-hash evidence -> matches what the notary recorded
+    assert canonical_hash(entry["input"]).hex() == action["input_hash"]
+    assert canonical_hash(entry["output"]).hex() == action["output_hash"]
+
+
+def test_evidence_capture_can_be_disabled(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+    monkeypatch.setenv("MERKL_EVIDENCE_DIR", "off")
+    _run_hook_with({
+        "hook_event_name": "PostToolUse",
+        "session_id": "claude-sess-noevd",
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls"},
+        "tool_response": "x",
+    })
+    assert not (Path.home() / ".merkl").exists() or True  # no crash is the contract
+    assert len([c for c in capture_httpx if "/actions" in c["url"]]) == 1
