@@ -53,9 +53,11 @@ def _install_claude_code(global_: bool = False) -> None:
 
     hooks = existing.setdefault("hooks", {})
     _ensure_hook(hooks, "PostToolUse", hook_command, {"matcher": ".*", "hooks": [hook_entry]})
-    # SessionEnd payloads have no tool; matcher is omitted per Claude Code
-    # docs for non-tool events.
-    _ensure_hook(hooks, "SessionEnd", hook_command, {"hooks": [hook_entry]})
+    # Non-tool events (matcher omitted per Claude Code docs): SessionEnd
+    # seals + commits the transcript; UserPromptSubmit records the human's
+    # instruction; PermissionRequest/Denied record approval decisions.
+    for event in ("SessionEnd", "UserPromptSubmit", "PermissionRequest", "PermissionDenied"):
+        _ensure_hook(hooks, event, hook_command, {"hooks": [hook_entry]})
 
     settings_path.write_text(json.dumps(existing, indent=2) + "\n")
 

@@ -36,6 +36,7 @@ class TestActionType:
         expected = {
             "TOOL_CALL", "DATA_ACCESS", "API_REQUEST", "TRANSACTION",
             "APPROVAL_REQUEST", "REASONING", "SUB_AGENT", "HUMAN_INPUT",
+            "TRANSCRIPT",
         }
         actual = {m.name for m in ActionType}
         assert actual == expected
@@ -43,6 +44,7 @@ class TestActionType:
     def test_new_action_types(self) -> None:
         assert ActionType("reasoning") == ActionType.REASONING
         assert ActionType("sub_agent") == ActionType.SUB_AGENT
+        assert ActionType("transcript") == ActionType.TRANSCRIPT
         assert ActionType("human_input") == ActionType.HUMAN_INPUT
 
     def test_old_action_types_preserved(self) -> None:

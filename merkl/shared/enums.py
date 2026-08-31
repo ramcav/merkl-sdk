@@ -25,6 +25,7 @@ class ActionType(enum.StrEnum):
     REASONING = "reasoning"
     SUB_AGENT = "sub_agent"
     HUMAN_INPUT = "human_input"
+    TRANSCRIPT = "transcript"
 
 
 class GuardrailResult(enum.StrEnum):

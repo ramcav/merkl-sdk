@@ -586,17 +586,160 @@ def _ensure_session(
 # Main
 # ---------------------------------------------------------------------------
 
+def _record_event_action(
+    *,
+    endpoint: str,
+    api_key: str,
+    agent_id: str,
+    state: HookState,
+    session_id: str,
+    action_type: str,
+    tool_name: str,
+    display_name: str,
+    input_data: object,
+    output_data: object,
+    guardrail_result: str = "not_evaluated",
+    status: str = "success",
+    category: str,
+    input_preview: str = "",
+    output_preview: str = "",
+) -> str | None:
+    """Record a non-tool session event (user prompt, permission decision,
+    transcript commitment) as an action. Same hashing + evidence path as
+    tool calls so the event is a first-class Merkle leaf."""
+    input_hash = _sha256(input_data)
+    output_hash = _sha256(output_data)
+    resp = httpx.post(
+        f"{endpoint}/v1/sessions/{session_id}/actions",
+        json={
+            "agent_id": agent_id,
+            "action_type": action_type,
+            "tool_name": tool_name,
+            "display_name": display_name,
+            "input_hash": input_hash,
+            "output_hash": output_hash,
+            "drift_score": 0.0,
+            "guardrail_result": guardrail_result,
+            "policy_reference": "claude-code",
+            "status": status,
+            "category": category,
+            "depends_on": state.last_linear(),
+            "input_preview": input_preview,
+            "output_preview": output_preview,
+        },
+        headers={"X-Merkl-API-Key": api_key},
+        timeout=5.0,
+    )
+    if not resp.is_success:
+        return None
+    action_id = resp.json().get("action_id", "")
+    if action_id:
+        state.record_action(action_id, output_data, is_task=False)
+        _append_evidence(
+            session_id=session_id,
+            action_id=action_id,
+            tool_name=tool_name,
+            tool_input=input_data,
+            tool_response=output_data,
+            input_hash=input_hash,
+            output_hash=output_hash,
+        )
+    return action_id or None
+
+
+def _record_user_prompt(
+    endpoint: str, api_key: str, agent_id: str, payload: dict,
+) -> None:
+    """UserPromptSubmit → human_input leaf. The instruction becomes part of
+    the committed record, so 'the agent did this unprompted' vs 'the user
+    told it to' is decidable from the proof chain."""
+    prompt = str(payload.get("prompt", ""))
+    if not prompt.strip() or _is_synthetic_user_text(prompt):
+        return
+    claude_session_id: str = payload.get("session_id", "unknown")
+    state = HookState.load(claude_session_id)
+    session_id = _ensure_session(
+        endpoint, api_key, agent_id, state,
+        payload.get("transcript_path"), payload.get("parent_session_id"),
+    )
+    if not session_id:
+        return
+    verbose = _previews_enabled()
+    _record_event_action(
+        endpoint=endpoint, api_key=api_key, agent_id=agent_id,
+        state=state, session_id=session_id,
+        action_type="human_input",
+        tool_name="user_prompt",
+        display_name=prompt.split("\n")[0][:72] if verbose else "User prompt",
+        input_data={"prompt": prompt},
+        output_data="",
+        category="human",
+        input_preview=prompt[:200] if verbose else "",
+    )
+    state.save()
+
+
+def _record_permission_event(
+    endpoint: str, api_key: str, agent_id: str, event: str, payload: dict,
+) -> None:
+    """PermissionRequest / PermissionDenied → approval_request leaf.
+
+    A denial is the audit jackpot: the agent provably attempted something
+    and a human provably said no. Tool name only — arguments stay hashed.
+    """
+    claude_session_id: str = payload.get("session_id", "unknown")
+    state = HookState.load(claude_session_id)
+    if not state.session_id:
+        # No session yet: a permission prompt before any recorded activity
+        # would create a session just to hold it; skip instead.
+        return
+    tool = str(payload.get("tool_name", "unknown"))
+    denied = event == "PermissionDenied"
+    _record_event_action(
+        endpoint=endpoint, api_key=api_key, agent_id=agent_id,
+        state=state, session_id=state.session_id,
+        action_type="approval_request",
+        tool_name=tool,
+        display_name=(
+            f"Permission denied: {tool}" if denied else f"Permission requested: {tool}"
+        ),
+        input_data={"tool_name": tool, "tool_input": payload.get("tool_input", {})},
+        output_data={"decision": "denied" if denied else "requested"},
+        guardrail_result="blocked" if denied else "pending_approval",
+        status="blocked" if denied else "pending",
+        category="approval",
+    )
+    state.save()
+
+
 def _seal_session_on_exit(
     endpoint: str, api_key: str, claude_session_id: str,
+    transcript_path: str | None = None,
 ) -> None:
-    """On SessionEnd, seal the Merkl session so the dashboard flips it out of Live.
+    """On SessionEnd, commit the full transcript and seal the session.
 
-    If the user quit before any tool call, there's no session to seal.
+    The transcript leaf is the completeness proof: one SHA-256 over the
+    whole conversation file. Any later dispute about anything said in the
+    session resolves by re-hashing the operator's transcript copy. If the
+    user quit before any tool call, there's no session to seal.
     """
     state = HookState.load(claude_session_id)
     if not state.session_id:
         return
+    agent_id = os.environ.get("MERKL_AGENT_ID", "claude-code")
     try:
+        if transcript_path and Path(transcript_path).exists():
+            digest = _sha256_file(Path(transcript_path))
+            _record_event_action(
+                endpoint=endpoint, api_key=api_key, agent_id=agent_id,
+                state=state, session_id=state.session_id,
+                action_type="transcript",
+                tool_name="session_transcript",
+                display_name="Session transcript",
+                input_data={"transcript_sha256": digest},
+                output_data={"transcript_path": str(transcript_path)},
+                category="transcript",
+            )
         httpx.post(
             f"{endpoint}/v1/sessions/{state.session_id}/seal",
             headers={"X-Merkl-API-Key": api_key},
@@ -606,6 +749,16 @@ def _seal_session_on_exit(
         # Hook must never block Claude Code's exit flow.
         return
     state.delete()
+
+
+def _sha256_file(path: Path) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def main() -> None:
@@ -626,7 +779,17 @@ def main() -> None:
     claude_session_id: str = payload.get("session_id", "unknown")
 
     if event == "SessionEnd":
-        _seal_session_on_exit(endpoint, api_key, claude_session_id)
+        _seal_session_on_exit(
+            endpoint, api_key, claude_session_id, payload.get("transcript_path")
+        )
+        return
+
+    if event == "UserPromptSubmit":
+        _record_user_prompt(endpoint, api_key, agent_id, payload)
+        return
+
+    if event in ("PermissionRequest", "PermissionDenied"):
+        _record_permission_event(endpoint, api_key, agent_id, event, payload)
         return
 
     # PostToolUse path

@@ -349,3 +349,85 @@ def test_infer_goal_falls_back_when_only_synthetic(tmp_path, merkl_env):  # noqa
         {"message": {"role": "user", "content": "<local-command-caveat>only noise"}}
     ))
     assert _infer_goal(str(transcript)) == "Claude Code session"
+
+
+def test_user_prompt_submit_records_human_input(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+    monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "ev"))
+    _run_hook_with({
+        "hook_event_name": "UserPromptSubmit",
+        "session_id": "claude-sess-prompt",
+        "prompt": "Refund order #4821 and email the customer",
+    })
+    actions = [c for c in capture_httpx if c["url"].endswith("/actions")]
+    assert len(actions) == 1
+    a = actions[0]["json"]
+    assert a["action_type"] == "human_input"
+    assert a["tool_name"] == "user_prompt"
+    assert a["category"] == "human"
+    # Privacy default: prompt text stays local, only the hash leaves
+    assert a["display_name"] == "User prompt"
+    assert a["input_preview"] == ""
+    assert "Refund" not in json.dumps(a)
+
+
+def test_user_prompt_skips_synthetic(merkl_env, capture_httpx):  # noqa: ANN001
+    _run_hook_with({
+        "hook_event_name": "UserPromptSubmit",
+        "session_id": "claude-sess-prompt2",
+        "prompt": "<command-name>/hooks</command-name>",
+    })
+    assert [c for c in capture_httpx if c["url"].endswith("/actions")] == []
+
+
+def test_permission_denied_records_blocked_approval(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+    from merkl.hooks.claude_code import HookState
+
+    monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "ev"))
+    state = HookState(claude_session_id="claude-sess-perm",
+                      session_id="019d9999-0000-7000-8000-000000000077")
+    state.save()
+    _run_hook_with({
+        "hook_event_name": "PermissionDenied",
+        "session_id": "claude-sess-perm",
+        "tool_name": "Bash",
+        "tool_input": {"command": "rm -rf /"},
+    })
+    actions = [c for c in capture_httpx if c["url"].endswith("/actions")]
+    assert len(actions) == 1
+    a = actions[0]["json"]
+    assert a["action_type"] == "approval_request"
+    assert a["guardrail_result"] == "blocked"
+    assert a["status"] == "blocked"
+    assert a["display_name"] == "Permission denied: Bash"
+    # Arguments stay hashed — never in plaintext fields
+    assert "rm -rf" not in json.dumps(a)
+
+
+def test_session_end_commits_transcript_then_seals(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+    import hashlib
+
+    from merkl.hooks.claude_code import HookState
+
+    monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "ev"))
+    transcript = tmp_path / "t.jsonl"
+    transcript.write_text('{"role":"user","content":"hi"}\n')
+    expected_digest = hashlib.sha256(transcript.read_bytes()).hexdigest()
+
+    state = HookState(claude_session_id="claude-sess-tx",
+                      session_id="019d9999-0000-7000-8000-000000000088")
+    state.save()
+    _run_hook_with({
+        "hook_event_name": "SessionEnd",
+        "session_id": "claude-sess-tx",
+        "transcript_path": str(transcript),
+    })
+    actions = [c for c in capture_httpx if c["url"].endswith("/actions")]
+    seals = [c for c in capture_httpx if c["url"].endswith("/seal")]
+    assert len(actions) == 1 and len(seals) == 1
+    a = actions[0]["json"]
+    assert a["action_type"] == "transcript"
+    assert a["tool_name"] == "session_transcript"
+    # The evidence entry carries the digest an auditor re-computes from
+    # the operator's transcript copy
+    ev = list((tmp_path / "ev").glob("*.jsonl"))[0].read_text()
+    assert expected_digest in ev
