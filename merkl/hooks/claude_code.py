@@ -126,6 +126,22 @@ class HookState:
         except FileNotFoundError:
             pass
 
+    def reset_for_resume(self) -> None:
+        """Keep the Merkl session id, drop per-run scratch.
+
+        Called at SessionEnd instead of delete(): if the user later
+        ``--resume``s this conversation, the hook targets the sealed
+        session and the server opens a bound successor — the chain
+        survives a clean exit. Turn/dataflow scratch is stale across a
+        resume, so it goes.
+        """
+        self.turn_id = None
+        self.current_actions = []
+        self.prev_actions = []
+        self.dataflow = {}
+        self.last_task_action_id = None
+        self.save()
+
     def rotate_turn(self, new_turn_id: str) -> None:
         if new_turn_id != self.turn_id:
             self.prev_actions = self.current_actions
@@ -750,7 +766,9 @@ def _seal_session_on_exit(
     except Exception:
         # Hook must never block Claude Code's exit flow.
         return
-    state.delete()
+    # Keep the session id so a --resume of this conversation chains to the
+    # sealed session instead of starting an unlinked fresh one.
+    state.reset_for_resume()
 
 
 def _sha256_file(path: Path) -> str:

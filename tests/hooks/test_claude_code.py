@@ -432,3 +432,22 @@ def test_session_end_commits_transcript_then_seals(merkl_env, capture_httpx, tmp
     # the operator's transcript copy
     ev = list((tmp_path / "ev").glob("*.jsonl"))[0].read_text()
     assert expected_digest in ev
+
+
+def test_session_end_keeps_session_id_for_resume(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+    """After a clean exit, a --resume of the same conversation must chain to
+    the sealed session — so SessionEnd keeps the Merkl session id."""
+    from merkl.hooks.claude_code import HookState
+
+    monkeypatch.setenv("MERKL_EVIDENCE_DIR", "off")
+    sid = "019d9999-0000-7000-8000-000000000099"
+    state = HookState(claude_session_id="claude-sess-resume", session_id=sid,
+                      turn_id="t1", current_actions=["a-1"], dataflow={"a-1": ["xxxx"]})
+    state.save()
+    _run_hook_with({"hook_event_name": "SessionEnd", "session_id": "claude-sess-resume"})
+
+    reloaded = HookState.load("claude-sess-resume")
+    assert reloaded.session_id == sid          # chain identity survives
+    assert reloaded.current_actions == []      # scratch does not
+    assert reloaded.dataflow == {}
+    assert reloaded.turn_id is None
