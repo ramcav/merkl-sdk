@@ -333,6 +333,7 @@ def test_infer_goal_skips_synthetic_user_messages(tmp_path, merkl_env):  # noqa:
     lines = [
         {"message": {"role": "user", "content": "<local-command-caveat>Caveat: The messages below were generated..."}},
         {"message": {"role": "user", "content": [{"type": "text", "text": "<command-name>/hooks</command-name>"}]}},
+        {"message": {"role": "user", "content": "<local-command-stdout>Set model to Opus 5</local-command-stdout>"}},
         {"isMeta": True, "message": {"role": "user", "content": "meta noise"}},
         {"message": {"role": "assistant", "content": "hi"}},
         {"message": {"role": "user", "content": "Fix the billing rate bug"}},

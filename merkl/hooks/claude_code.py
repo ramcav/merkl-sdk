@@ -448,6 +448,8 @@ def _clean_goal(text: str) -> str:
 # as garbage in the dashboard ("<local-command-caveat>Caveat: ...").
 _SYNTHETIC_PREFIXES = (
     "<local-command-caveat>",
+    "<local-command-stdout>",
+    "<local-command-stderr>",
     "<command-name>",
     "<command-message>",
     "<command-args>",
