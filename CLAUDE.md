@@ -2,6 +2,8 @@
 
 Thin Python HTTP client for Merkl. This is what agent developers `pip install` to instrument their agents.
 
+Developed in the merkl monorepo (`packages/merkl-sdk`); the standalone `merkl-sdk` repo is a read-only export — change things there via the monorepo, then re-run the subtree split.
+
 ## What This Package Does
 
 - `MerklClient` — main entry point (endpoint URL, agent_id, API key)
@@ -32,7 +34,7 @@ No domain logic, no Merkle trees, no batching, no Solana, no persistence. Pure H
 ## Usage
 
 ```python
-from witness.sdk import MerklClient
+from merkl.sdk import MerklClient
 
 client = MerklClient(endpoint="http://localhost:8000", agent_id="my-agent", api_key="mk_...")
 async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as session:
@@ -44,13 +46,13 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 pip install -e ".[dev]"
-pytest  # 100 tests
+pytest  # 137 tests
 ```
 
 ## Guidelines
 
 - Keep it thin. Server logic belongs in the merkl-api package.
-- `merkl/shared/` is imported by both SDK and merkl-api — changes affect both.
+- `merkl/shared/` is imported by both the SDK and the merkl-api server (in the monorepo) — changes affect both, and `canonical_hash` / leaf encodings are proof-format-critical.
 - Framework integrations should end at `record_tool_call()` in `_common.py`, not call `session.record_action()` directly. New action fields flow through one site.
 - Input/output hashing must go through `canonical_hash()`. Raw `str()` is non-deterministic for dicts; the SDK and the Claude Code hook must produce identical leaf hashes for the same logical payload.
 - The SDK must never import from `merkl_api.*`.

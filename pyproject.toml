@@ -5,6 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "merkl-sdk"
 version = "0.1.0"
+readme = "README.md"
 description = "Merkl SDK — record and verify AI agent actions with cryptographic proofs"
 requires-python = ">=3.11"
 license = { text = "MIT" }
