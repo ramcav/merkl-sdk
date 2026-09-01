@@ -43,10 +43,7 @@ merkl disclose <action_id>
 
 Send the folder. The auditor opens `verify.html` in any browser — no install, no network, no account — drops the evidence on it, and every record is re-hashed against the Merkle leaves committed at execution time. A record altered after the fact fails, mathematically.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/verification-dark.svg">
-  <img alt="Verification flow: the operator packages verify.html plus one evidence record; the auditor's browser re-hashes the record offline and matches it against the committed Merkle leaf — match proves the exact payload ran, mismatch exposes an altered or fabricated record." src="docs/verification-light.svg">
-</picture>
+<img alt="Verification flow: the operator runs merkl disclose and emails verify.html plus one evidence record; the auditor opens it offline with no account, drops the evidence file, and the record is re-hashed and compared to the committed Merkle leaf — a match verifies via Merkle proof, log inclusion and signature; a mismatch means the payload was altered." src="docs/verification.png">
 
 The proof was committed *at execution time*; the disclosure happens later. That ordering is the whole point — the operator cannot retro-fit a record to a dispute, and the auditor never has to trust Merkl, the operator, or the network.
 
