@@ -14,10 +14,7 @@ That's it. Every session now records: tool calls, your prompts, permission decis
 
 ## How it works
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/recording-dark.svg">
-  <img alt="Recording flow: the agent's actions are hashed locally; raw payloads stay in the local evidence log; only hashes reach the Merkl API, where leaves roll up to a session root, the transparency log, and an Ed25519-signed checkpoint." src="docs/recording-light.svg">
-</picture>
+<img alt="Recording flow: the agent&#39;s actions and prompts are hashed locally; raw payloads stay in the local evidence log; only hashes and metadata reach the Merkl API, where leaves form a Merkle tree at seal, the root is appended to the append-only log, and the log state is Ed25519-signed as a checkpoint." src="docs/recording.png">
 
 The hook hashes locally and sends **only the hash**; the raw payload stays in your evidence log. Sealing a session pins its Merkle root into an append-only, signed transparency log — after that, nobody (including Merkl) can alter or reorder the history without breaking the math.
 
