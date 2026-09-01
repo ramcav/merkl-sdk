@@ -22,6 +22,8 @@ The hook computes a SHA-256 hash of each action on your machine and sends only t
 
 When a session ends, its hashes are combined into a Merkle tree and the result is added to a log that can only grow. Merkl signs that log. If anyone changed or deleted an old entry (including us), the hashes would stop lining up and any auditor who checks would see it.
 
+On a timer, the signed log's fingerprint is submitted to [OpenTimestamps](https://opentimestamps.org), which commits it into the Bitcoin blockchain. Once that lands, the timestamp is anchored to Bitcoin: not even Merkl can backdate what happened, and anyone can check it against the chain with the standard `ots` tool — without trusting Merkl or the calendar.
+
 ## What leaves your machine
 
 Merkl's servers see three things: tool names, timestamps and status, and hashes. The raw data goes into a local file that is never uploaded:
@@ -72,7 +74,7 @@ Adapters for LangChain, OpenAI, CrewAI and Google ADK live in `merkl.integration
 
 ## A note on the crypto
 
-Everything here is built from boring, public building blocks: SHA-256, Merkle trees (RFC 6962), Ed25519 signatures. There is no proprietary math and nothing you have to take our word for. Sessions that continue after a pause are chained to their sealed predecessor, so a conversation resumed tomorrow still belongs to the same verifiable history.
+Everything here is built from boring, public building blocks: SHA-256, Merkle trees (RFC 6962), Ed25519 signatures, and Bitcoin timestamping via OpenTimestamps. There is no proprietary math and nothing you have to take our word for. Sessions that continue after a pause are chained to their sealed predecessor, so a conversation resumed tomorrow still belongs to the same verifiable history.
 
 ## Development
 
