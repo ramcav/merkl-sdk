@@ -12,6 +12,25 @@ export MERKL_API_KEY=mk_...        # from your Merkl dashboard
 
 That's it. Every session now records: tool calls, your prompts, permission decisions, and a hash of the full transcript at exit — each as a Merkle leaf.
 
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph yours["Your machine"]
+        A["Agent<br/>(Claude Code)"] -->|"every action"| H["Merkl hook"]
+        H -->|"raw payload"| E[("evidence log<br/>~/.merkl/evidence")]
+        H -->|"SHA-256 + metadata"| API
+    end
+    subgraph merkl["Merkl API"]
+        API["record action"] --> L["Merkle leaf"]
+        L --> R["session root<br/>(at seal)"]
+        R --> T["transparency log<br/>(RFC 6962 tree)"]
+        T --> C["signed checkpoint<br/>(Ed25519)"]
+    end
+```
+
+The hook hashes locally and sends **only the hash**; the raw payload stays in your evidence log. Sealing a session pins its Merkle root into an append-only, signed transparency log — after that, nobody (including Merkl) can alter or reorder the history without breaking the math.
+
 ## What leaves your machine (and what doesn't)
 
 By default the notary receives **only tool names, typed metadata, and SHA-256 hashes**. The raw payloads — commands, file contents, prompts — go to a local, append-only evidence log:
@@ -37,6 +56,23 @@ merkl disclose <action_id>
 
 Send the folder. The auditor opens `verify.html` in any browser — no install, no network, no account — drops the evidence on it, and every record is re-hashed against the Merkle leaves committed at execution time. A record altered after the fact fails, mathematically.
 
+```mermaid
+flowchart LR
+    subgraph operator["Operator"]
+        D["merkl disclose &lt;action_id&gt;"] --> P["verify.html +<br/>evidence.jsonl"]
+    end
+    P -->|"email / zip"| B
+    subgraph auditor["Auditor's browser — fully offline"]
+        B["drop evidence file"] --> RH["re-hash raw record"]
+        RH --> M{"matches leaf<br/>in Merkle proof?"}
+        M -->|yes| OK["✓ this exact payload ran,<br/>at that time, in that order"]
+        M -->|no| BAD["✗ record altered<br/>or fabricated"]
+        OK --> CK["checkpoint signature +<br/>log inclusion verified"]
+    end
+```
+
+The proof was committed *at execution time*; the disclosure happens later. That ordering is the whole point — the operator cannot retro-fit a record to a dispute, and the auditor never has to trust Merkl, the operator, or the network.
+
 ## Python SDK
 
 ```python
@@ -59,8 +95,6 @@ action ──sha256──▶ leaf ──▶ session root ──▶ transparency 
 Sessions resumed after a seal chain cryptographically to their parent (leaf 0 binds the parent's root). The transparency log is an RFC 6962 Merkle tree; auditors pin signed checkpoints and any rewrite of history breaks the consistency proof. All algorithms are public standards: SHA-256, RFC 6962/9162, Ed25519.
 
 ## Development
-
-This repo is a read-only export of `packages/merkl-sdk` in the Merkl monorepo.
 
 ```bash
 pip install -e ".[dev]"
