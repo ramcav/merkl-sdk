@@ -12,6 +12,8 @@ export MERKL_API_KEY=mk_...        # from your Merkl dashboard
 
 That's it. From now on every session records what the agent did, what you asked it, which permissions you granted or denied, and a fingerprint of the whole conversation when you exit.
 
+**Prefer to have your agent do it?** `INSTALL.md` is a runbook written for Claude Code: tell your agent "install Merkl, the instructions are in INSTALL.md" and it drives the whole thing — installs the package, wires the hook, and verifies a real session records — asking you only for your API key.
+
 ## How it works
 
 <img alt="Recording flow: the agent's actions and prompts are hashed locally; raw payloads stay in the local evidence log; only hashes and metadata reach the Merkl API, where leaves form a Merkle tree at seal, the root is appended to the append-only log, and the log state is Ed25519-signed as a checkpoint." src="docs/recording.png">

@@ -47,6 +47,9 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["merkl"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"INSTALL.md" = "merkl/INSTALL.md"
+
 [tool.mypy]
 strict = true
 python_version = "3.11"
