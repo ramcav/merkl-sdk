@@ -26,7 +26,6 @@ class SessionContext:
         data_scope: list[str],
         policy_reference: str,
         workspace_external_id: str | None = None,
-        auto_summary: bool = True,
         include_previews: bool = True,
     ) -> None:
         self._transport = transport
@@ -36,11 +35,9 @@ class SessionContext:
         self._data_scope = data_scope
         self._policy_reference = policy_reference
         self._workspace_external_id = workspace_external_id
-        self._auto_summary = auto_summary
         self._include_previews = include_previews
         self._session_id: str | None = None
         self._action_count = 0
-        self._summary: str | None = None
         self._session_token: contextvars.Token[Any] | None = None
 
     @property
@@ -58,7 +55,6 @@ class SessionContext:
             "allowed_tools": self._allowed_tools,
             "data_scope": self._data_scope,
             "policy_reference": self._policy_reference,
-            "auto_summary": self._auto_summary,
         }
         if self._workspace_external_id is not None:
             payload["workspace_external_id"] = self._workspace_external_id
@@ -91,22 +87,15 @@ class SessionContext:
             self._session_token = None
         if not self._session_id:
             return
-        payload: dict[str, Any] = {}
-        if self._summary is not None:
-            payload["summary"] = self._summary
         try:
             await self._transport.post(
                 f"/v1/sessions/{self._session_id}/close",
-                json=payload,
+                json={},
             )
         except Exception:
             # Session may already be closed (force-seal, idle timeout).
             # __aexit__ is best-effort cleanup — don't raise inside it.
             pass
-
-    async def close(self, summary: str | None = None) -> None:
-        """Set an optional summary; sent to the API when the session exits."""
-        self._summary = summary
 
     async def record_action(
         self,

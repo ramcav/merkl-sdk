@@ -224,37 +224,6 @@ class TestSessionContextV2:
         assert payload["status"] == "success"
         assert payload["category"] == "data_access"
 
-    @pytest.mark.asyncio
-    async def test_close_sends_summary(self) -> None:
-        transport = MockTransport()
-        ctx = SessionContext(
-            transport=transport,  # type: ignore[arg-type]
-            agent_id="agent-1",
-            goal="Test",
-            allowed_tools=[],
-            data_scope=[],
-            policy_reference="p1",
-        )
-        async with ctx:
-            await ctx.close(summary="All done")
-        close_req = [r for r in transport.requests if "close" in r[0]][0]
-        assert close_req[1]["summary"] == "All done"
-
-    @pytest.mark.asyncio
-    async def test_close_without_summary(self) -> None:
-        transport = MockTransport()
-        ctx = SessionContext(
-            transport=transport,  # type: ignore[arg-type]
-            agent_id="agent-1",
-            goal="Test",
-            allowed_tools=[],
-            data_scope=[],
-            policy_reference="p1",
-        )
-        async with ctx:
-            pass
-        close_req = [r for r in transport.requests if "close" in r[0]][0]
-        assert close_req[1].get("summary") is None
 
 
 class TestWorkspaceExternalId:
@@ -293,31 +262,6 @@ class TestWorkspaceExternalId:
 
 
 class TestPrivacyKnobs:
-    @pytest.mark.asyncio
-    async def test_auto_summary_default_sent_true(self) -> None:
-        transport = MockTransport()
-        ctx = SessionContext(
-            transport=transport,  # type: ignore[arg-type]
-            agent_id="a", goal="g", allowed_tools=[], data_scope=[], policy_reference="p",
-        )
-        async with ctx:
-            pass
-        create_req = [r for r in transport.requests if r[0] == "/v1/sessions"][0]
-        assert create_req[1]["auto_summary"] is True
-
-    @pytest.mark.asyncio
-    async def test_auto_summary_false_propagates(self) -> None:
-        transport = MockTransport()
-        ctx = SessionContext(
-            transport=transport,  # type: ignore[arg-type]
-            agent_id="a", goal="g", allowed_tools=[], data_scope=[], policy_reference="p",
-            auto_summary=False,
-        )
-        async with ctx:
-            pass
-        create_req = [r for r in transport.requests if r[0] == "/v1/sessions"][0]
-        assert create_req[1]["auto_summary"] is False
-
     @pytest.mark.asyncio
     async def test_include_previews_false_blanks_previews(self) -> None:
         transport = MockTransport()
