@@ -1,6 +1,6 @@
 # merkl-sdk
 
-Tamper-evident audit trails for AI agents. Merkl records every action an agent takes, hashes it into a Merkle tree, and commits the roots to a signed transparency log — while raw payloads stay on **your** machine. Anyone can later verify what happened, in the browser, without trusting anyone's word.
+Merkl gives your AI agent a paper trail that holds up. It records everything the agent does, fingerprints each action with a hash, and stores those fingerprints where nobody can quietly edit them afterwards. The actual data (commands, file contents, prompts) never leaves your computer. If anyone later asks "did the agent really do this?", you can prove the answer in a browser.
 
 ## Install (Claude Code)
 
@@ -10,44 +10,52 @@ merkl install --claude-code --global
 export MERKL_API_KEY=mk_...        # from your Merkl dashboard
 ```
 
-That's it. Every session now records: tool calls, your prompts, permission decisions, and a hash of the full transcript at exit — each as a Merkle leaf.
+That's it. From now on every session records what the agent did, what you asked it, which permissions you granted or denied, and a fingerprint of the whole conversation when you exit.
 
 ## How it works
 
-<img alt="Recording flow: the agent&#39;s actions and prompts are hashed locally; raw payloads stay in the local evidence log; only hashes and metadata reach the Merkl API, where leaves form a Merkle tree at seal, the root is appended to the append-only log, and the log state is Ed25519-signed as a checkpoint." src="docs/recording.png">
+<img alt="Recording flow: the agent's actions and prompts are hashed locally; raw payloads stay in the local evidence log; only hashes and metadata reach the Merkl API, where leaves form a Merkle tree at seal, the root is appended to the append-only log, and the log state is Ed25519-signed as a checkpoint." src="docs/recording.png">
 
-The hook hashes locally and sends **only the hash**; the raw payload stays in your evidence log. Sealing a session pins its Merkle root into an append-only, signed transparency log — after that, nobody (including Merkl) can alter or reorder the history without breaking the math.
+The hook computes a SHA-256 hash of each action on your machine and sends only the hash to the Merkl API. A hash works like a fingerprint: it identifies the data exactly, but you cannot reconstruct the data from it.
 
-## What leaves your machine (and what doesn't)
+When a session ends, its hashes are combined into a Merkle tree and the result is added to a log that can only grow. Merkl signs that log. If anyone changed or deleted an old entry (including us), the hashes would stop lining up and any auditor who checks would see it.
 
-By default the notary receives **only tool names, typed metadata, and SHA-256 hashes**. The raw payloads — commands, file contents, prompts — go to a local, append-only evidence log:
+## What leaves your machine
+
+Merkl's servers see three things: tool names, timestamps and status, and hashes. The raw data goes into a local file that is never uploaded:
 
 ```
-~/.merkl/evidence/<session>.jsonl     # yours; never uploaded
+~/.merkl/evidence/<session>.jsonl
 ```
 
-- `MERKL_INCLUDE_PREVIEWS=1` — opt in to sending truncated plaintext previews
-- `MERKL_EVIDENCE_DIR=off` — disable local evidence capture
-- `MERKL_AGENT_ID`, `MERKL_ENDPOINT` — label your agent, point at your instance
+You control the rest with environment variables:
 
-## When it matters
+- `MERKL_INCLUDE_PREVIEWS=1` sends short plaintext previews along with the hashes, if you want them in the dashboard
+- `MERKL_EVIDENCE_DIR=off` turns off local evidence capture
+- `MERKL_AGENT_ID` and `MERKL_ENDPOINT` set the agent's label and the server to talk to
 
-Someone disputes what your agent did:
+## When you actually need it
+
+Say a customer claims your agent refunded the wrong amount. You look up the action and run:
 
 ```bash
 merkl disclose <action_id>
 # → disclosure-<id>/
-#     verify.html      standalone verifier with the session's proofs
-#     evidence.jsonl   only the disclosed action's raw record
+#     verify.html      the verification page, with the session's proofs baked in
+#     evidence.jsonl   the raw record of that one action, nothing else
 ```
 
-Send the folder. The auditor opens `verify.html` in any browser — no install, no network, no account — drops the evidence on it, and every record is re-hashed against the Merkle leaves committed at execution time. A record altered after the fact fails, mathematically.
+Send them the folder. They open `verify.html` in any browser. It works offline, needs no account and installs nothing. They drop the evidence file on the page, and it recomputes the hashes and compares them against what was recorded when the action ran. If the record was edited afterwards, even by one character, the numbers won't match and the page says so.
 
-<img alt="Verification flow: the operator runs merkl disclose and emails verify.html plus one evidence record; the auditor opens it offline with no account, drops the evidence file, and the record is re-hashed and compared to the committed Merkle leaf — a match verifies via Merkle proof, log inclusion and signature; a mismatch means the payload was altered." src="docs/verification.png">
+<img alt="Verification flow: the operator runs merkl disclose and emails verify.html plus one evidence record; the auditor opens it offline with no account, drops the evidence file, and the record is re-hashed and compared to the committed Merkle leaf. A match verifies via Merkle proof, log inclusion and signature; a mismatch means the payload was altered." src="docs/verification.png">
 
-The proof was committed *at execution time*; the disclosure happens later. That ordering is the whole point — the operator cannot retro-fit a record to a dispute, and the auditor never has to trust Merkl, the operator, or the network.
+The part that matters: the fingerprint was recorded when the action ran, and the dispute comes later. You cannot go back and doctor a record to fit your story. Neither can we.
+
+You disclose only what you choose. The other actions in the session stay as hashes, which reveal nothing.
 
 ## Python SDK
+
+If you are not using Claude Code, you can record actions directly:
 
 ```python
 from merkl.sdk import MerklClient
@@ -55,18 +63,14 @@ from merkl.sdk import MerklClient
 client = MerklClient(endpoint="https://api.merkl.ai", agent_id="my-agent", api_key="mk_...")
 async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as session:
     await session.record_action(tool_name="query_db", input_data="SELECT ...", output_data={...})
-# session seals on exit: Merkle root pinned, committed to the transparency log
+# the session seals on exit and its root is added to the log
 ```
 
-Framework adapters for LangChain, OpenAI, CrewAI, and Google ADK ship as experimental (`merkl.integrations.*`).
+Adapters for LangChain, OpenAI, CrewAI and Google ADK live in `merkl.integrations.*`. They work but are less battle-tested than the Claude Code hook.
 
-## How verification works
+## A note on the crypto
 
-```
-action ──sha256──▶ leaf ──▶ session root ──▶ transparency log ──▶ Ed25519-signed checkpoint
-```
-
-Sessions resumed after a seal chain cryptographically to their parent (leaf 0 binds the parent's root). The transparency log is an RFC 6962 Merkle tree; auditors pin signed checkpoints and any rewrite of history breaks the consistency proof. All algorithms are public standards: SHA-256, RFC 6962/9162, Ed25519.
+Everything here is built from boring, public building blocks: SHA-256, Merkle trees (RFC 6962), Ed25519 signatures. There is no proprietary math and nothing you have to take our word for. Sessions that continue after a pause are chained to their sealed predecessor, so a conversation resumed tomorrow still belongs to the same verifiable history.
 
 ## Development
 
