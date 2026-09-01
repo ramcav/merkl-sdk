@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -24,7 +25,23 @@ def _ensure_hook(hooks: dict, event: str, command: str, matcher_entry: dict) -> 
     bucket.append(matcher_entry)
 
 
-def _install_claude_code(global_: bool = False) -> None:
+def _resolve_api_key(cli_value: str | None) -> str | None:
+    """API key for the hook command: flag > env > interactive prompt."""
+    if cli_value:
+        return cli_value
+    if env := os.environ.get("MERKL_API_KEY"):
+        return env
+    if sys.stdin.isatty():
+        entered = input("Merkl API key (mk_..., from your dashboard — enter to skip): ").strip()
+        return entered or None
+    return None
+
+
+def _install_claude_code(
+    global_: bool = False,
+    api_key: str | None = None,
+    endpoint: str | None = None,
+) -> None:
     """Write PostToolUse + SessionEnd hook entries into Claude Code's settings.json.
 
     PostToolUse records every tool call into Merkl. SessionEnd seals the
@@ -46,9 +63,21 @@ def _install_claude_code(global_: bool = False) -> None:
         try:
             existing = json.loads(settings_path.read_text())
         except json.JSONDecodeError:
-            print(f"Warning: {settings_path} contains invalid JSON — will overwrite.", file=sys.stderr)
+            print(
+                f"Warning: {settings_path} contains invalid JSON — will overwrite.",
+                file=sys.stderr,
+            )
 
-    hook_command = "python -m merkl.hooks.claude_code"
+    # sys.executable, not bare "python": the hook must run under the
+    # interpreter that actually has merkl installed, and hook commands
+    # inherit no shell profile.
+    resolved_key = _resolve_api_key(api_key)
+    env_prefix = ""
+    if resolved_key:
+        env_prefix += f"MERKL_API_KEY={resolved_key} "
+    if endpoint:
+        env_prefix += f"MERKL_ENDPOINT={endpoint} "
+    hook_command = f"{env_prefix}{sys.executable} -m merkl.hooks.claude_code"
     hook_entry = {"type": "command", "command": hook_command}
 
     hooks = existing.setdefault("hooks", {})
@@ -63,15 +92,15 @@ def _install_claude_code(global_: bool = False) -> None:
 
     print(f"Merkl hook installed ({scope}): {settings_path}")
     print()
-    print("Add to your shell profile (~/.zshrc or ~/.bashrc):")
+    if resolved_key:
+        print("API key baked into the hook — you're done. Restart Claude Code")
+        print("(or run /hooks) and every session records automatically.")
+    else:
+        print("No API key provided. Add to your shell profile before it records:")
+        print()
+        print("  export MERKL_API_KEY=mk_...   # from your dashboard")
     print()
-    print("  export MERKL_API_KEY=mk_...   # your Merkl API key")
-    print()
-    print("Optional (only needed for self-hosted):")
-    print("  export MERKL_ENDPOINT=https://your-instance.example.com")
-    print()
-    print("Each Claude Code session will automatically create a Merkl session and")
-    print("record every tool call. View results at https://app.merkl.ai")
+    print("View sessions at https://app.merkl.ai")
 
 
 def _uninstall_claude_code(global_: bool = False) -> None:
@@ -88,15 +117,20 @@ def _uninstall_claude_code(global_: bool = False) -> None:
         return
 
     existing: dict = json.loads(settings_path.read_text())
-    hook_command = "python -m merkl.hooks.claude_code"
     hooks = existing.get("hooks", {})
 
     removed_any = False
-    for event in ("PostToolUse", "SessionEnd"):
+    for event in (
+        "PostToolUse", "SessionEnd", "UserPromptSubmit",
+        "PermissionRequest", "PermissionDenied",
+    ):
         bucket = hooks.get(event, [])
         new_matchers = []
         for matcher in bucket:
-            new_hooks = [h for h in matcher.get("hooks", []) if h.get("command") != hook_command]
+            new_hooks = [
+                h for h in matcher.get("hooks", [])
+                if "merkl.hooks.claude_code" not in h.get("command", "")
+            ]
             if len(new_hooks) < len(matcher.get("hooks", [])):
                 removed_any = True
             if new_hooks:
@@ -130,6 +164,14 @@ def main() -> None:
         dest="global_",
         action="store_true",
         help="Write to ~/.claude/settings.json instead of .claude/settings.json",
+    )
+    install_p.add_argument(
+        "--api-key", default=None,
+        help="API key to bake into the hook (default: $MERKL_API_KEY, else prompt)",
+    )
+    install_p.add_argument(
+        "--endpoint", default=None,
+        help="Self-hosted API URL (default: api.merkl.ai, hardcoded in the hook)",
     )
 
     # uninstall
@@ -179,7 +221,9 @@ def main() -> None:
         )
     elif args.command == "install":
         if args.claude_code:
-            _install_claude_code(global_=args.global_)
+            _install_claude_code(
+                global_=args.global_, api_key=args.api_key, endpoint=args.endpoint
+            )
         else:
             install_p.print_help()
     elif args.command == "uninstall":
