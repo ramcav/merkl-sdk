@@ -34,11 +34,13 @@ All per-Claude-session state is held in one ``HookState`` JSON file
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import os
 import re
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -57,6 +59,48 @@ def _sha256(data: object) -> str:
 
 def _tag(claude_session_id: str) -> str:
     return claude_session_id[:16].replace("/", "_")
+
+
+def _target_tag() -> str:
+    """Fingerprint of the notary this hook process talks to.
+
+    State is scoped per (conversation, endpoint, API key). A machine can run
+    the hook twice against different notaries — a local dev server and
+    production. Sharing one state file made them race in _ensure_session,
+    each open a session on its own backend, and then post every later action
+    to a session id the other backend has never heard of: a silent 404 for
+    whichever process lost the write.
+    """
+    endpoint = os.environ.get("MERKL_ENDPOINT", "https://api.merkl.ai").rstrip("/")
+    api_key = os.environ.get("MERKL_API_KEY", "")
+    return hashlib.sha256(f"{endpoint}\x00{api_key}".encode()).hexdigest()[:8]
+
+
+def _debug(msg: str) -> None:
+    """Opt-in diagnostics (MERKL_DEBUG=1). Silent by default."""
+    if os.environ.get("MERKL_DEBUG", "").lower() in ("1", "true", "yes"):
+        print(f"[merkl-hook] {msg}", file=sys.stderr)
+
+
+_STATE_MAX_AGE_SECONDS = 7 * 24 * 3600
+
+
+def _gc_state_files() -> None:
+    """Drop hook state for conversations nobody will resume.
+
+    reset_for_resume() deliberately keeps the file past SessionEnd, so one
+    file per (conversation, notary) accumulates in the temp dir forever.
+    """
+    cutoff = time.time() - _STATE_MAX_AGE_SECONDS
+    try:
+        for path in Path(tempfile.gettempdir()).glob("merkl_hookstate_*.json"):
+            try:
+                if path.stat().st_mtime < cutoff:
+                    path.unlink()
+            except OSError:
+                continue
+    except OSError:
+        pass
 
 
 # Minimum token length to avoid spurious matches on short/common strings
@@ -88,7 +132,10 @@ class HookState:
 
     @staticmethod
     def _path(claude_session_id: str) -> Path:
-        return Path(tempfile.gettempdir()) / f"merkl_hookstate_{_tag(claude_session_id)}.json"
+        return (
+            Path(tempfile.gettempdir())
+            / f"merkl_hookstate_{_tag(claude_session_id)}_{_target_tag()}.json"
+        )
 
     @classmethod
     def load(cls, claude_session_id: str) -> HookState:
@@ -110,15 +157,37 @@ class HookState:
         return cls(claude_session_id=claude_session_id)
 
     def save(self) -> None:
+        """Write the state file atomically.
+
+        Tool calls inside one assistant turn run concurrently, so two hook
+        processes can write here at the same instant. A plain write_text
+        truncates first; the other reader then parses half a file, falls back
+        to a blank state, and opens a duplicate session.
+        """
         path = self._path(self.claude_session_id)
-        path.write_text(json.dumps({
+        payload = json.dumps({
             "session_id": self.session_id,
             "turn_id": self.turn_id,
             "current_actions": self.current_actions,
             "prev_actions": self.prev_actions,
             "dataflow": self.dataflow,
             "last_task_action_id": self.last_task_action_id,
-        }))
+        })
+        try:
+            fd, tmp = tempfile.mkstemp(
+                dir=str(path.parent), prefix=path.name, suffix=".tmp"
+            )
+        except OSError:
+            return
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(payload)
+            os.replace(tmp, path)
+        except OSError:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
 
     def delete(self) -> None:
         try:
@@ -199,7 +268,7 @@ class HookState:
 def _strip_common_prefixes(s: str) -> str:
     """Strip tokens shared across a session's working environment (cwd, home).
 
-    A path like `/Users/.../witness/foo.py` gets trimmed to `foo.py`.
+    A path like `/Users/.../merkl/foo.py` gets trimmed to `foo.py`.
     Without this, every Read/Edit of a file in the same repo shares a long
     prefix that spuriously links every action to every other.
     """
@@ -570,18 +639,33 @@ def _ensure_session(
     state: HookState,
     transcript_path: str | None,
     parent_claude_session_id: str | None,
+    goal_hint: str | None = None,
 ) -> str | None:
-    """Return an existing merkl session_id or create one. Returns None on failure."""
+    """Return an existing merkl session_id or create one. Returns None on failure.
+
+    ``goal_hint`` is the human prompt when the caller already holds it. The
+    session is opened at UserPromptSubmit, *before* Claude Code flushes that
+    prompt to the transcript, so reading the transcript at this moment yields
+    nothing and every session lands in the dashboard as the placeholder goal.
+    The hint is the same text _infer_goal would eventually have found, so the
+    commitment stays derived from the first real prompt.
+    """
     if pinned := os.environ.get("MERKL_SESSION_ID"):
         return pinned
     if state.session_id:
         return state.session_id
 
+    _gc_state_files()
     parent_action_id = _resolve_parent_task_action_id(parent_claude_session_id)
+
+    if goal_hint and goal_hint.strip():
+        goal = _clean_goal(goal_hint)
+    else:
+        goal = _infer_goal(transcript_path)
 
     payload: dict[str, Any] = {
         "agent_id": agent_id,
-        "goal": _infer_goal(transcript_path),
+        "goal": goal,
         "allowed_tools": [],
         "data_scope": [],
         "policy_reference": "claude-code",
@@ -589,15 +673,84 @@ def _ensure_session(
     if parent_action_id:
         payload["parent_action_id"] = parent_action_id
 
-    resp = httpx.post(
-        f"{endpoint}/v1/sessions",
-        json=payload,
-        headers={"X-Merkl-API-Key": api_key},
-        timeout=5.0,
-    )
-    resp.raise_for_status()
+    try:
+        resp = httpx.post(
+            f"{endpoint}/v1/sessions",
+            json=payload,
+            headers={"X-Merkl-API-Key": api_key},
+            timeout=5.0,
+        )
+        resp.raise_for_status()
+    except Exception as exc:
+        _debug(f"session create failed against {endpoint}: {exc}")
+        return None
     state.session_id = resp.json()["session_id"]
     return state.session_id
+
+
+def _post_action(
+    *,
+    endpoint: str,
+    api_key: str,
+    state: HookState,
+    session_id: str,
+    body: dict[str, Any],
+    transcript_path: str | None = None,
+    parent_claude_session_id: str | None = None,
+    goal_hint: str | None = None,
+) -> tuple[str | None, str | None]:
+    """POST one action, recovering from a session id this notary never issued.
+
+    Stale state is routine — an in-memory dev server restarts, or the file was
+    written against a different notary. The previous code only checked
+    ``resp.is_success``, so a 404 dropped the action with no signal and a whole
+    conversation could vanish. On 404 we forget the session, open a fresh one
+    and retry once with the dependency edges cleared: they point at leaves in a
+    session that no longer exists.
+
+    Returns ``(session_id, action_id)``; either may be None.
+    """
+    headers = {"X-Merkl-API-Key": api_key}
+    try:
+        resp = httpx.post(
+            f"{endpoint}/v1/sessions/{session_id}/actions",
+            json=body, headers=headers, timeout=5.0,
+        )
+    except Exception as exc:
+        _debug(f"action POST to {endpoint} failed: {exc}")
+        return session_id, None
+
+    if resp.status_code == 404 and not os.environ.get("MERKL_SESSION_ID"):
+        _debug(f"{endpoint} does not know session {session_id} — reopening")
+        state.session_id = None
+        state.turn_id = None
+        state.current_actions = []
+        state.prev_actions = []
+        state.dataflow = {}
+        state.last_task_action_id = None
+        fresh = _ensure_session(
+            endpoint, api_key, body.get("agent_id", "claude-code"), state,
+            transcript_path, parent_claude_session_id, goal_hint=goal_hint,
+        )
+        if not fresh:
+            return None, None
+        session_id = fresh
+        body = dict(body, depends_on=[])
+        try:
+            resp = httpx.post(
+                f"{endpoint}/v1/sessions/{session_id}/actions",
+                json=body, headers=headers, timeout=5.0,
+            )
+        except Exception as exc:
+            _debug(f"action POST retry to {endpoint} failed: {exc}")
+            return session_id, None
+
+    if not resp.is_success:
+        _debug(
+            f"action rejected by {endpoint}: HTTP {resp.status_code} {resp.text[:200]}"
+        )
+        return session_id, None
+    return session_id, resp.json().get("action_id") or None
 
 
 # ---------------------------------------------------------------------------
@@ -621,15 +774,21 @@ def _record_event_action(
     category: str,
     input_preview: str = "",
     output_preview: str = "",
+    transcript_path: str | None = None,
+    parent_claude_session_id: str | None = None,
+    goal_hint: str | None = None,
 ) -> str | None:
     """Record a non-tool session event (user prompt, permission decision,
     transcript commitment) as an action. Same hashing + evidence path as
     tool calls so the event is a first-class Merkle leaf."""
     input_hash = _sha256(input_data)
     output_hash = _sha256(output_data)
-    resp = httpx.post(
-        f"{endpoint}/v1/sessions/{session_id}/actions",
-        json={
+    session_id, action_id = _post_action(
+        endpoint=endpoint,
+        api_key=api_key,
+        state=state,
+        session_id=session_id,
+        body={
             "agent_id": agent_id,
             "action_type": action_type,
             "tool_name": tool_name,
@@ -645,24 +804,23 @@ def _record_event_action(
             "input_preview": input_preview,
             "output_preview": output_preview,
         },
-        headers={"X-Merkl-API-Key": api_key},
-        timeout=5.0,
+        transcript_path=transcript_path,
+        parent_claude_session_id=parent_claude_session_id,
+        goal_hint=goal_hint,
     )
-    if not resp.is_success:
+    if not action_id or not session_id:
         return None
-    action_id = resp.json().get("action_id", "")
-    if action_id:
-        state.record_action(action_id, output_data, is_task=False)
-        _append_evidence(
-            session_id=session_id,
-            action_id=action_id,
-            tool_name=tool_name,
-            tool_input=input_data,
-            tool_response=output_data,
-            input_hash=input_hash,
-            output_hash=output_hash,
-        )
-    return action_id or None
+    state.record_action(action_id, output_data, is_task=False)
+    _append_evidence(
+        session_id=session_id,
+        action_id=action_id,
+        tool_name=tool_name,
+        tool_input=input_data,
+        tool_response=output_data,
+        input_hash=input_hash,
+        output_hash=output_hash,
+    )
+    return action_id
 
 
 def _record_user_prompt(
@@ -679,6 +837,7 @@ def _record_user_prompt(
     session_id = _ensure_session(
         endpoint, api_key, agent_id, state,
         payload.get("transcript_path"), payload.get("parent_session_id"),
+        goal_hint=prompt,
     )
     if not session_id:
         return
@@ -693,6 +852,9 @@ def _record_user_prompt(
         output_data="",
         category="human",
         input_preview=prompt[:200] if verbose else "",
+        transcript_path=payload.get("transcript_path"),
+        parent_claude_session_id=payload.get("parent_session_id"),
+        goal_hint=prompt,
     )
     state.save()
 
@@ -726,6 +888,8 @@ def _record_permission_event(
         guardrail_result="blocked" if denied else "pending_approval",
         status="blocked" if denied else "pending",
         category="approval",
+        transcript_path=payload.get("transcript_path"),
+        parent_claude_session_id=payload.get("parent_session_id"),
     )
     state.save()
 
@@ -757,7 +921,9 @@ def _seal_session_on_exit(
                 input_data={"transcript_sha256": digest},
                 output_data={"transcript_path": str(transcript_path)},
                 category="transcript",
+                transcript_path=transcript_path,
             )
+        # _record_event_action may have reopened the session under a new id.
         httpx.post(
             f"{endpoint}/v1/sessions/{state.session_id}/seal",
             headers={"X-Merkl-API-Key": api_key},
@@ -802,6 +968,7 @@ def main() -> None:
         _seal_session_on_exit(
             endpoint, api_key, claude_session_id, payload.get("transcript_path")
         )
+        _gc_state_files()
         return
 
     if event == "UserPromptSubmit":
@@ -848,9 +1015,12 @@ def main() -> None:
     verbose = _previews_enabled()
     input_hash = _sha256(tool_input)
     output_hash = _sha256(tool_response)
-    resp = httpx.post(
-        f"{endpoint}/v1/sessions/{session_id}/actions",
-        json={
+    session_id, action_id = _post_action(
+        endpoint=endpoint,
+        api_key=api_key,
+        state=state,
+        session_id=session_id,
+        body={
             "agent_id": agent_id,
             "action_type": "tool_call",
             "tool_name": tool_name,
@@ -866,23 +1036,21 @@ def main() -> None:
             "input_preview": _input_preview(tool_name, tool_input) if verbose else "",
             "output_preview": _output_preview(tool_response) if verbose else "",
         },
-        headers={"X-Merkl-API-Key": api_key},
-        timeout=5.0,
+        transcript_path=transcript_path,
+        parent_claude_session_id=parent_claude_session_id,
     )
 
-    if resp.is_success:
-        action_id = resp.json().get("action_id", "")
-        if action_id:
-            state.record_action(action_id, tool_response, is_task=(tool_name == "Task"))
-            _append_evidence(
-                session_id=session_id,
-                action_id=action_id,
-                tool_name=tool_name,
-                tool_input=tool_input,
-                tool_response=tool_response,
-                input_hash=input_hash,
-                output_hash=output_hash,
-            )
+    if session_id and action_id:
+        state.record_action(action_id, tool_response, is_task=(tool_name == "Task"))
+        _append_evidence(
+            session_id=session_id,
+            action_id=action_id,
+            tool_name=tool_name,
+            tool_input=tool_input,
+            tool_response=tool_response,
+            input_hash=input_hash,
+            output_hash=output_hash,
+        )
 
     # One atomic write captures session_id, turn state, dataflow cache,
     # and last_task_action_id for the next hook invocation.

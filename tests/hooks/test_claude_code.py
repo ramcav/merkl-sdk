@@ -451,3 +451,177 @@ def test_session_end_keeps_session_id_for_resume(merkl_env, capture_httpx, tmp_p
     assert reloaded.current_actions == []      # scratch does not
     assert reloaded.dataflow == {}
     assert reloaded.turn_id is None
+
+
+# ---------------------------------------------------------------------------
+# Multi-notary state isolation, stale-session recovery, goal derivation
+# ---------------------------------------------------------------------------
+
+def test_state_file_is_scoped_per_notary(merkl_env, tmp_path, monkeypatch):  # noqa: ANN001
+    """Two hooks against different notaries must not share a state file.
+
+    A single machine commonly runs the hook twice — a local dev server and
+    production. When both wrote merkl_hookstate_{claude_sid}.json they raced
+    to create a session, and the loser then posted every later action to a
+    session id the other backend had never issued.
+    """
+    from merkl.hooks.claude_code import HookState
+
+    claude_sid = "claude-sess-two-notaries"
+    prod_path = HookState._path(claude_sid)
+    monkeypatch.setenv("MERKL_ENDPOINT", "http://127.0.0.1:8902")
+    local_path = HookState._path(claude_sid)
+
+    assert prod_path != local_path
+
+    # The API key alone is enough to separate two workspaces on one notary.
+    monkeypatch.setenv("MERKL_ENDPOINT", "https://test.merkl.local")
+    monkeypatch.setenv("MERKL_API_KEY", "mk_other_workspace")
+    assert HookState._path(claude_sid) != prod_path
+
+
+def test_save_is_atomic_and_leaves_no_partial_file(merkl_env, tmp_path):  # noqa: ANN001
+    """Concurrent hook processes must never read a truncated state file."""
+    from merkl.hooks.claude_code import HookState
+
+    state = HookState(claude_session_id="claude-sess-atomic", session_id="s-1")
+    state.current_actions = ["a-1", "a-2"]
+    state.save()
+
+    path = HookState._path("claude-sess-atomic")
+    assert json.loads(path.read_text())["current_actions"] == ["a-1", "a-2"]
+    assert not list(tmp_path.glob("*.tmp")), "temp file was not renamed away"
+
+
+def test_unknown_session_is_reopened_and_the_action_retried(merkl_env, tmp_path, monkeypatch):  # noqa: ANN001
+    """A session id this notary never issued must not silently drop actions.
+
+    Stale hookstate is routine (dev server restart, state written against a
+    different notary). Previously the 404 failed the `resp.is_success` check
+    and the action vanished with no signal.
+    """
+    import httpx
+
+    from merkl.hooks.claude_code import HookState
+
+    calls: list[dict] = []
+
+    class _Resp:
+        def __init__(self, status: int, body: dict) -> None:
+            self.status_code = status
+            self.is_success = status < 400
+            self.text = ""
+            self._body = body
+
+        def raise_for_status(self) -> None:
+            if not self.is_success:
+                raise RuntimeError(self.status_code)
+
+        def json(self) -> dict:
+            return self._body
+
+    def fake_post(url, **kw):
+        calls.append({"url": url, "json": kw.get("json")})
+        if url.endswith("/v1/sessions"):
+            return _Resp(201, {"session_id": "s-fresh"})
+        if "/sessions/s-stale/actions" in url:
+            return _Resp(404, {})
+        return _Resp(201, {"action_id": "a-new"})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    claude_sid = "claude-sess-stale"
+    HookState(
+        claude_session_id=claude_sid,
+        session_id="s-stale",
+        current_actions=["a-from-dead-session"],
+    ).save()
+
+    _run_hook_with({
+        "hook_event_name": "PostToolUse",
+        "session_id": claude_sid,
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls"},
+        "tool_response": "ok",
+    })
+
+    assert any(c["url"].endswith("/v1/sessions") for c in calls), "session not reopened"
+    retry = [c for c in calls if "/sessions/s-fresh/actions" in c["url"]]
+    assert len(retry) == 1
+    # Edges into the dead session are not valid leaves in the new one.
+    assert retry[0]["json"]["depends_on"] == []
+    assert HookState.load(claude_sid).session_id == "s-fresh"
+
+
+def test_pinned_session_id_is_never_reopened(merkl_env, tmp_path, monkeypatch):  # noqa: ANN001
+    """MERKL_SESSION_ID is an operator instruction; a 404 must not override it."""
+    import httpx
+
+    monkeypatch.setenv("MERKL_SESSION_ID", "s-pinned")
+    calls: list[str] = []
+
+    class _Resp:
+        status_code = 404
+        is_success = False
+        text = ""
+
+        def json(self) -> dict:
+            return {}
+
+    def fake_post(url, **kw):
+        calls.append(url)
+        return _Resp()
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    _run_hook_with({
+        "hook_event_name": "PostToolUse",
+        "session_id": "claude-sess-pinned",
+        "tool_name": "Bash",
+        "tool_input": {"command": "ls"},
+        "tool_response": "ok",
+    })
+
+    assert not [u for u in calls if u.endswith("/v1/sessions")]
+
+
+def test_goal_comes_from_the_prompt_when_transcript_is_empty(merkl_env, capture_httpx, tmp_path):  # noqa: ANN001
+    """The session opens at UserPromptSubmit, before Claude Code flushes the
+    prompt to the transcript — so the goal has to come from the payload or
+    every session lands in the dashboard as the placeholder."""
+    transcript = tmp_path / "transcript.jsonl"
+    transcript.write_text("")
+
+    _run_hook_with({
+        "hook_event_name": "UserPromptSubmit",
+        "session_id": "claude-sess-goal",
+        "transcript_path": str(transcript),
+        "prompt": "Fix the checkpoint signing key rotation. It drops old keys.",
+    })
+
+    create = [c for c in capture_httpx if c["url"].endswith("/v1/sessions")]
+    assert len(create) == 1
+    assert create[0]["json"]["goal"] == "Fix the checkpoint signing key rotation"
+
+
+def test_gc_drops_only_stale_state_files(merkl_env, tmp_path):  # noqa: ANN001
+    """reset_for_resume() keeps state past SessionEnd, so files accumulate."""
+    import os
+    import time
+
+    from merkl.hooks.claude_code import _STATE_MAX_AGE_SECONDS, _gc_state_files
+
+    fresh = tmp_path / "merkl_hookstate_fresh_aaaaaaaa.json"
+    stale = tmp_path / "merkl_hookstate_stale_bbbbbbbb.json"
+    unrelated = tmp_path / "something_else.json"
+    for f in (fresh, stale, unrelated):
+        f.write_text("{}")
+    old = time.time() - _STATE_MAX_AGE_SECONDS - 60
+    os.utime(stale, (old, old))
+    os.utime(unrelated, (old, old))
+
+    _gc_state_files()
+
+    assert fresh.exists()
+    assert not stale.exists()
+    assert unrelated.exists(), "GC must only touch its own files"
