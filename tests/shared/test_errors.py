@@ -17,7 +17,7 @@ from merkl.shared.errors import (
 class TestMerklErrorHierarchy:
     """Verify the exception class hierarchy is correct."""
 
-    def test_witness_error_is_base_exception(self) -> None:
+    def test_merkl_error_is_base_exception(self) -> None:
         err = MerklError("base error")
         assert isinstance(err, Exception)
         assert str(err) == "base error"

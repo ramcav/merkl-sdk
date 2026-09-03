@@ -272,10 +272,10 @@ class MerklADKRunner:
         client = MerklClient(endpoint="http://localhost:8000", agent_id="adk-agent", api_key="key")
 
         async with client.session(goal="...", ...) as session:
-            witness_runner = MerklADKRunner(session, runner)
+            merkl_runner = MerklADKRunner(session, runner)
             adk_session = await session_service.create_session(app_name="demo", user_id="user")
 
-            async for event in witness_runner.run(
+            async for event in merkl_runner.run(
                 user_id="user", session_id=adk_session.id, message=user_msg
             ):
                 # Events pass through — final text, etc.

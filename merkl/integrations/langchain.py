@@ -3,7 +3,7 @@
 Usage:
     from merkl.integrations.langchain import MerklCallbackHandler
 
-    async with witness.session(goal="...", ...) as session:
+    async with merkl.session(goal="...", ...) as session:
         handler = MerklCallbackHandler(session)
         result = await chain.ainvoke(input, config={"callbacks": [handler]})
 """

@@ -13,8 +13,8 @@ from merkl.shared.hashing import SHA256Hash, canonical_bytes, canonical_hash
 
 class TestSHA256Hash:
     def test_from_bytes_deterministic(self) -> None:
-        h1 = SHA256Hash.from_bytes(b"hello witness")
-        h2 = SHA256Hash.from_bytes(b"hello witness")
+        h1 = SHA256Hash.from_bytes(b"hello merkl")
+        h2 = SHA256Hash.from_bytes(b"hello merkl")
         assert h1 == h2
 
     def test_different_inputs_different_hashes(self) -> None:

@@ -3,7 +3,7 @@
 Usage:
     from merkl.integrations.crewai import MerklStepCallback
 
-    async with witness.session(...) as session:
+    async with merkl.session(...) as session:
         callback = MerklStepCallback(session)
         task = Task(..., callback=callback)
 """
