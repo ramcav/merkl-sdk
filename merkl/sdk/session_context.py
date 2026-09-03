@@ -26,7 +26,7 @@ class SessionContext:
         data_scope: list[str],
         policy_reference: str,
         workspace_external_id: str | None = None,
-        include_previews: bool = True,
+        include_previews: bool = False,
     ) -> None:
         self._transport = transport
         self._agent_id = agent_id

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "merkl-sdk"
 version = "0.1.0"
 readme = "README.md"
-description = "Merkl SDK — record and verify AI agent actions with cryptographic proofs"
+description = "Record AI agent actions as independently verifiable cryptographic proofs"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Merkl", email = "hello@merkl.ai" }]
@@ -29,9 +29,9 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://merkl.ai"
-Documentation = "https://docs.merkl.ai"
-Repository = "https://github.com/merklai/merkl-sdk"
-"Bug Tracker" = "https://github.com/merklai/merkl-sdk/issues"
+Documentation = "https://merkl.ai"
+Repository = "https://github.com/ramcav/merkl-sdk"
+"Bug Tracker" = "https://github.com/ramcav/merkl-sdk/issues"
 
 [project.scripts]
 merkl = "merkl.cli.main:main"
@@ -42,6 +42,13 @@ dev = [
     "pytest-asyncio>=0.23",
     "mypy>=1.8",
     "ruff>=0.3",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.hypothesis",
+    "/.pytest_cache",
+    "/.ruff_cache",
 ]
 
 [tool.hatch.build.targets.wheel]

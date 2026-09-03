@@ -7,7 +7,7 @@ description: Install Merkl into the user's Claude Code and verify it records a r
 
 You are driving this install. Do as much as you can yourself; ask the user only for the one thing you cannot get — their API key — and only when you actually need it. After every step, verify before moving on.
 
-Merkl records what an AI agent does, hashes each action into a Merkle tree, and lets anyone verify what happened later. Installing it into Claude Code means registering a hook that fires on every tool call. Full reference: `README.md`. What each field means and how verification works: the diagrams in `README.md`.
+Merkl records what an AI agent does, hashes each action into a Merkle tree, and lets anyone verify what happened later. Installing it into Claude Code means registering a hook that fires on every tool call. Full reference: `README.md`.
 
 ## Install prompt contract
 

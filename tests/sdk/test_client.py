@@ -40,3 +40,13 @@ class TestMerklClient:
         assert ctx._allowed_tools == []
         assert ctx._data_scope == []
         assert ctx._policy_reference == "default"
+        assert ctx._include_previews is False
+
+    def test_session_can_opt_in_to_previews(self) -> None:
+        client = MerklClient(
+            endpoint="http://localhost:8000",
+            agent_id="agent-1",
+            api_key="mk_test",
+        )
+        ctx = client.session(goal="Test", include_previews=True)
+        assert ctx._include_previews is True

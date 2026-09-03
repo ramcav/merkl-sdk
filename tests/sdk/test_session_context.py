@@ -177,6 +177,7 @@ class TestSessionContextV2:
             allowed_tools=[],
             data_scope=[],
             policy_reference="p1",
+            include_previews=True,
         )
         async with ctx:
             await ctx.record_action(

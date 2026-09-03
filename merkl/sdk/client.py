@@ -34,14 +34,13 @@ class MerklClient:
         api_key: str,
         max_retries: int = 3,
         timeout: float = 10.0,
-        include_previews: bool = True,
+        include_previews: bool = False,
     ) -> None:
         """Create a Merkl client.
 
         include_previews:
-            When True (default), the SDK sends truncated input/output
-            plaintext previews so auditors can glance at what happened.
-            Set False to send zero plaintext; only hashes reach the notary.
+            When False (default), only hashes and typed metadata reach the
+            notary. Set True to also send truncated input/output plaintext.
         """
         self._endpoint = endpoint
         self._agent_id = agent_id
