@@ -147,9 +147,7 @@ class TestReceiptLeaf:
         assert RECEIPT_LEAF_TAG == b"merkl-receipt-leaf-v1"
 
     def test_null_content_is_the_literal_null(self) -> None:
-        expected = hashlib.sha256(
-            b"merkl-receipt-leaf-v1\x00signer_attestation\x00null"
-        ).digest()
+        expected = hashlib.sha256(b"merkl-receipt-leaf-v1\x00signer_attestation\x00null").digest()
         assert receipt_leaf("signer_attestation", None).digest == expected
 
     def test_null_differs_per_name(self) -> None:

@@ -190,9 +190,7 @@ class MerkleTree:
         ``subtree_proof(1, 2)`` proves leaf 1 against LEFT of an eight-leaf tree.
         """
         if index < 0 or index >= self._original_leaf_count:
-            raise IndexError(
-                f"Leaf index {index} out of range [0, {self._original_leaf_count})"
-            )
+            raise IndexError(f"Leaf index {index} out of range [0, {self._original_leaf_count})")
         self._check_level(level)
 
         siblings: list[SHA256Hash] = []

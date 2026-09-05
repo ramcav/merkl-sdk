@@ -121,9 +121,10 @@ class TestProperties:
         import json
 
         ensure_canonical_content(value)
-        assert canonical_bytes(value) == json.dumps(
-            value, sort_keys=True, separators=(",", ":")
-        ).encode()
+        assert (
+            canonical_bytes(value)
+            == json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+        )
 
     @given(value=_json)
     def test_canonicalization_is_stable(self, value: Any) -> None:

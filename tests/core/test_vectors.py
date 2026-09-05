@@ -183,9 +183,12 @@ class TestReceiptVectors:
         assert build_left(padded[0:4]).hex() == case["left"]
         assert build_right(padded[4:8]).hex() == case["right"]
         assert build_root(padded).hex() == case["root"]
-        assert SHA256Hash.from_bytes(
-            from_hex(case["left"]).bytes + from_hex(case["right"]).bytes
-        ).hex() == case["root"]
+        assert (
+            SHA256Hash.from_bytes(
+                from_hex(case["left"]).bytes + from_hex(case["right"]).bytes
+            ).hex()
+            == case["root"]
+        )
 
     @pytest.mark.parametrize("case", RECEIPTS["cases"], ids=ids(RECEIPTS["cases"]))
     def test_envelope_and_its_hash(self, case: dict[str, Any]) -> None:

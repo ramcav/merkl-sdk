@@ -1164,9 +1164,7 @@ def verify_disclosure(disclosure: Disclosure, root: SHA256Hash) -> VerificationR
 
     left = build_left(disclosure.leaf_hashes[LEFT_LEAVES])
     right = build_right(disclosure.leaf_hashes[RIGHT_LEAVES])
-    checks.append(
-        _check(CHECK_LEFT, left == disclosure.left, f"recomputed LEFT {left.hex()}")
-    )
+    checks.append(_check(CHECK_LEFT, left == disclosure.left, f"recomputed LEFT {left.hex()}"))
     recomputed_root = SHA256Hash.from_bytes(left.bytes + right.bytes)
     checks.append(
         _check(CHECK_ROOT, recomputed_root == root, f"recomputed ROOT {recomputed_root.hex()}")
@@ -1432,7 +1430,5 @@ class Receipt:
 
 def _agree(given: str | None, derived: str, field: str) -> str:
     if given is not None and given != derived:
-        raise ReceiptError(
-            f"envelope {field} {given!r} disagrees with the leaves ({derived!r})"
-        )
+        raise ReceiptError(f"envelope {field} {given!r} disagrees with the leaves ({derived!r})")
     return derived

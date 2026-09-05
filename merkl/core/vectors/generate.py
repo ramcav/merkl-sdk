@@ -929,8 +929,7 @@ def build_all() -> dict[str, JSONObject]:
         "seed": SEED,
         "generator": "python -m merkl.core.vectors.generate",
         "files": [
-            {"file": name, "cases": len(_cases(content))}
-            for name, content in files.items()
+            {"file": name, "cases": len(_cases(content))} for name, content in files.items()
         ],
     }
     return files

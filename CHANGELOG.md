@@ -9,6 +9,31 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+### Added
+
+- **`merkl.core` — the pure core of Merkl's proof formats.** No HTTP, no
+  database, no filesystem, no clock, and no dependency beyond the standard
+  library and `merkl.shared`. It holds the Merkle tree and inclusion proofs
+  (moved out of merkl-api with byte-identical semantics, plus subtree roots so
+  the halves of a receipt tree are addressable), `merkl-leaf-v1` as a function of
+  plain fields rather than a server record, and the new co-signer receipt:
+  `merkl-receipt-leaf-v1`, Intent v1, the seven-leaf split tree, the envelope,
+  selective disclosure and structural verification.
+- **`docs/RECEIPT-SPEC.md`** — normative, every byte. Leaf encodings, leaf order,
+  the 7-to-8 padding and the LEFT/RIGHT split, the envelope's canonical form, the
+  disclosure format, and the verification order with each check marked
+  implemented or deferred to a named phase.
+- **Test vectors** in `merkl/core/vectors/`: Merkle trees, action leaves, receipt
+  leaves, three complete receipts (allowed, denied, escalated-then-approved) and
+  22 tamper cases, each naming the exact checks a conforming verifier must fail.
+  Plain JSON with lowercase hex and no floats, so a second implementation in
+  another language can load the same files. Regenerate with
+  `python -m merkl.core.vectors.generate`.
+
+Nothing existing changed: `merkl.shared`, `merkl.sdk`, the hook, the CLI and the
+integrations are untouched, and the frozen `merkl-leaf-v1` encoding is pinned
+byte-for-byte against merkl-api's own implementation by a committed fixture.
+
 ## [0.1.1] - 2026-09-04
 
 ### Fixed

@@ -223,9 +223,7 @@ class TestProofs:
 
     def test_every_leaf_proves_to_its_half(self) -> None:
         receipt = make_receipt()
-        for i, (name, digest_) in enumerate(
-            zip(LEAF_NAMES, receipt.leaves.hashes(), strict=True)
-        ):
+        for i, (name, digest_) in enumerate(zip(LEAF_NAMES, receipt.leaves.hashes(), strict=True)):
             half = receipt.left if i < 4 else receipt.right
             assert receipt.half_proof(name).verify(digest_, half) is True
 
@@ -467,9 +465,7 @@ class TestDisclosure:
             siblings=(SHA256Hash.from_bytes(b"wrong"), *leaf.proof.siblings[1:]),
             directions=leaf.proof.directions,
         )
-        tampered = dataclass_replace(
-            disclosure, leaves=(dataclass_replace(leaf, proof=broken),)
-        )
+        tampered = dataclass_replace(disclosure, leaves=(dataclass_replace(leaf, proof=broken),))
         result = verify_disclosure(tampered, receipt.root)
         assert {c.name for c in result.failures} == {proof_check("settlement")}
 
@@ -519,9 +515,7 @@ class TestLeafModels:
     def test_escalation_quorum_must_be_a_positive_integer(self) -> None:
         for quorum in (0, -1, True, "2"):
             with pytest.raises(ReceiptError, match="quorum"):
-                Escalation(
-                    challenge=digest("c"), expires_at="2026-01-02T03:04:05Z", quorum=quorum
-                )
+                Escalation(challenge=digest("c"), expires_at="2026-01-02T03:04:05Z", quorum=quorum)
 
     def test_escalation_approvals_must_be_canonical(self) -> None:
         with pytest.raises(ContentError):
