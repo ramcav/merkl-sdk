@@ -87,7 +87,7 @@ Order is part of the format. Index 0 is hashed first and no leaf ever moves.
 | 1 | `intent` | see section 3.1 |
 | 2 | `policy_decision` | `policy_hash` (digest), `rules[]` of `{name, outcome, detail}`, `outcome` (`allow` \| `deny` \| `escalate`), `tier`, `escalation`? |
 | 3 | `signer_attestation` | `{format, document, policy_public_key}` or `null` |
-| 4 | `settlement` | `rail`, `tx_hash`, `ledger_index` (integer), `close_time` (instant), `signed_tx_blob`?, `observed_anchor`?, `settlement_proof_ref`? |
+| 4 | `settlement` | `rail`, `tx_hash`, `ledger_index` (integer), `close_time` (instant), `signed_tx_blob`?, `observed_anchor`?, `settlement_proof_ref`?, `policy_signature`? |
 | 5 | `result` | `outcome` (`settled` \| `denied` \| `failed` \| `expired`), `engine_result`?, `balance_deltas[]`, `outcome_hash`?, `detail` |
 | 6 | `reasoning` | `testimony: true`, `content_hash` (digest), `source`?, `note` |
 
@@ -96,14 +96,20 @@ may be `null`; a denied payment has `null` at 3 and 4 because there was no
 enclave signature to record and nothing was submitted.
 
 `escalation` is `{challenge (digest), expires_at (instant), quorum (integer ≥ 1),
-approvals[]}`. `challenge` is `LEFT_pre` — LEFT computed before the decision leaf
-was final — which is what approvers sign. Each entry of `approvals` is a
-canonical JSON object; its shape (WebAuthn envelope or Ed25519 assertion) is
-pinned in a later phase, and until then it is committed verbatim and checked only
-for being canonical content.
+approvals[]}`. `challenge` is `LEFT_pre` (section 3.2), which is what approvers
+sign; each entry of `approvals` is an assertion in the shape of section 3.3.
 
 `balance_deltas` entries are `{account, currency, value}` where `value` is a
 *signed* decimal string and `currency` follows section 3.1.
+
+`policy_signature` is `{algorithm, public_key (token), signature (token), payload
+(token)}`. `payload` is the hex of the **exact bytes the policy key signed** — on
+XRPL, the multisigning pre-image of the submitted transaction — carried verbatim
+so the signature can be checked offline rather than taken on trust. LEFT must
+appear inside those bytes; the signer put it there (section 3.4). The signature
+lives in leaf 4 and not leaf 3 because it is a signature *over* LEFT, and LEFT
+covers leaves 0-3: a signature stored inside its own input could never be
+computed.
 
 Leaf 6 is **testimony**, and says so in its own content. The receipt proves what
 was asked, what the policy decided and what settled. It does not prove that the
@@ -130,6 +136,82 @@ before the outcome was known.
 asset code matching `[A-Z0-9]{1,20}` (`"XRP"`) or an object `{code, issuer}`.
 `reference` is optional and omitted when absent. Unknown members are rejected: a
 verifier must not accept an intent it does not fully understand.
+
+An asset's **key** — used to match policy rules and window state to an amount — is
+the native code itself, or `code.issuer` for an issued currency. A native code
+cannot contain `.`, so two assets never collide.
+
+### 3.2 `LEFT_pre`, the escalation challenge
+
+```
+LEFT_pre = LEFT over leaves 0-3, where leaf 2's content
+           omits `escalation` and has `outcome` = "escalate"
+```
+
+Approvers sign these 32 raw bytes. The challenge has to leave the escalation out
+because the approvals go *inside* it — a challenge that grew with each approval
+could not be signed by more than one person — and it fixes `outcome` at
+`escalate` because resolving an escalation is exactly what changes that member.
+
+Those two edits are the **only** difference the format allows between the
+decision as it escalated and the decision as it was recorded. The `rules` array
+in particular does not change: whether the quorum was reached is derived by
+counting valid approvals, never asserted as an extra rule. That is what lets a
+reader holding only the finished receipt recompute `LEFT_pre` and check that the
+approvers signed *this* payment.
+
+### 3.3 Approval assertions
+
+Each entry of `escalation.approvals[]`:
+
+```json
+{"approver_id": "alice@example.com",
+ "credential_type": "webauthn",
+ "signature": "<hex>",
+ "client_data_json": "<hex>",
+ "authenticator_data": "<hex>",
+ "signed_at": "2026-01-02T03:20:11Z"}
+```
+
+`credential_type` is `webauthn` or `ed25519`. Every binary member is lowercase
+hex of the exact bytes, `client_data_json` included: those bytes are what was
+signed, and re-serializing the JSON inside them is how an implementation breaks a
+valid assertion. The `challenge` member *inside* clientDataJSON stays base64url,
+because that is what WebAuthn puts there and the browser is not ours to change.
+
+| `credential_type` | public key | signature | message |
+|---|---|---|---|
+| `ed25519` | 32-byte raw key, hex | 64 bytes, hex | the 32 challenge bytes |
+| `webauthn` | uncompressed SEC1 P-256 point (`0x04 ‖ X ‖ Y`), hex | ECDSA DER, hex | `authenticator_data ‖ SHA-256(client_data_json)` |
+
+An Ed25519 assertion carries neither `client_data_json` nor
+`authenticator_data`; a WebAuthn assertion carries both. A WebAuthn assertion is
+accepted only when `type` is `webauthn.get`, the decoded challenge equals the
+challenge, the origin is one the approver's credential allows, the first 32 bytes
+of `authenticator_data` are `SHA-256(rp_id)`, the user-present flag is set, and
+the user-verified flag is set if the credential requires it.
+
+Quorum counts **distinct** `approver_id`s whose assertion verifies against the
+credential the policy holds for that id. Five assertions from one approver are
+one approval; a valid signature from someone the policy does not name is nothing.
+
+### 3.4 The anchor placeholder
+
+LEFT covers the policy decision, so it does not exist until the signer has
+decided — yet the transaction the signer signs has to carry LEFT in its anchor
+field. The resolution is a placeholder:
+
+1. the adapter prepares the transaction with **32 zero bytes** where the anchor
+   goes, and reports the byte offset of that field inside the signing payload;
+2. the signer checks those 32 bytes are still zero and that no other 32-zero run
+   exists in the payload, decides, writes LEFT over them itself, and signs;
+3. the adapter prepares the same transaction again with the real commitment and
+   requires the result to equal the bytes the signer signed, byte for byte.
+
+The signer therefore never has to parse a rail's binary format to know that the
+anchor it authorized is the anchor that will settle: it wrote the anchor. Step 3
+closes the loop from the other end, and the ledger closes it a third time, since
+`observed_anchor` is read back from the validated transaction.
 
 ## 4. Tree
 
@@ -228,12 +310,12 @@ verdict that hides which half was checked.
 | 4 | `leaf.<name>` (×7) — content rehashes to the committed leaf hash | implemented |
 | 5 | `leaves.padding` — `leaf_hashes[7] == leaf_hashes[6]` | implemented |
 | 6 | `commitment.left` — leaves 0-3 fold to the committed LEFT | implemented |
-| 7 | `policy.signature` — the policy key signed the tx blob (XRPL) or LEFT | phase 2 |
+| 7 | `policy.signature` — the policy key signed a payload carrying LEFT | implemented |
 | 8 | `signer.attestation` — the attestation document and its PCR allowlist | phase 3 |
-| 9 | `intent.matches_settled_fields` — destination, amount and currency agree | phase 2 |
-| 10 | `settlement.anchor_equals_left` — the rail memo equals LEFT | phase 2 |
-| 11 | `settlement.signed_blob` — the tx hash re-derives from the signed blob | phase 2 |
-| 12 | `settlement.ledger_inclusion` — inclusion proof against pinned validators | phase 2 |
+| 9 | `intent.matches_settled_fields` — destination, amount and currency agree | implemented |
+| 10 | `settlement.anchor_equals_left` — the rail memo equals LEFT | implemented |
+| 11 | `settlement.signed_blob` — the tx hash re-derives from the signed blob | implemented |
+| 12 | `settlement.ledger_inclusion` — inclusion proof against pinned validators | phase 4 |
 | 13 | `commitment.right` — leaves 4-6 (plus padding) fold to RIGHT | implemented |
 | 14 | `commitment.root` — `ROOT == H(LEFT \|\| RIGHT)` | implemented |
 | 15 | `envelope.rail` / `envelope.treasury` — match the intent leaf | implemented |
@@ -243,6 +325,28 @@ verdict that hides which half was checked.
 A deferred check is reported as `not_implemented`. That is not a pass. When a
 later phase implements one, the check keeps its name and the vectors move it from
 `not_implemented` to `pass`.
+
+`not_implemented` also covers a check whose *inputs are absent*: check 7 on a
+denied receipt has no signature to look at, because nothing settled. Those cases
+say so by name too. The absence of data is never reported as agreement.
+
+Checks 7, 9, 10 and 11 are the ones that make a receipt more than an internally
+consistent document. A forger who rebuilds the whole tree — envelope, halves,
+root, all of it — still cannot produce an Ed25519 signature by the policy key over
+a payload containing the LEFT they invented. The tamper vectors
+`rebuilt-without-a-policy-signature`,
+`rebuilt-with-a-signature-over-another-payload` and
+`rebuilt-with-an-anchor-that-is-not-left` are receipts where every structural
+check passes and the receipt still proves nothing.
+
+Two facts about check 11 worth stating, since they are per-rail:
+
+| Rail | Transaction id |
+|------|----------------|
+| `xrpl` | `SHA-512Half("TXN" ‖ signed_blob)`, i.e. `0x54584E00` prefixed, first 32 bytes of SHA-512, uppercase hex |
+| `fake` | `SHA-256("merkl-fake-tx-v1" ‖ NUL ‖ signed_blob)`, uppercase hex |
+
+A rail this verifier has no rule for reports `not_implemented`, not `pass`.
 
 A disclosure is verified with the same names plus `disclosure.root` (the
 disclosure's root equals the one the reader pinned) and `proof.<name>` (the
@@ -281,6 +385,7 @@ implementation.
 | `merkle.json` | trees of 1-16 leaves: levels, roots, every inclusion proof, every subtree proof |
 | `action_leaf.json` | `merkl-leaf-v1` leaves including unicode, empty fields, unsorted `depends_on`, exponent drift scores |
 | `receipt_leaf.json` | `merkl-receipt-leaf-v1` leaves including a null leaf per name, unicode, key-order pairs, scalars |
+| `approvals.json` | WebAuthn and Ed25519 assertions over a challenge, valid and invalid, plus quorum counting cases |
 | `receipts.json` | three complete receipts (allow, deny, escalated-then-approved) with leaf hashes, halves, root, envelope hash, proofs, disclosure and the full verification result |
 | `tampered.json` | receipts and disclosures that must fail, each with the exact set of check names a conforming verifier reports |
 | `manifest.json` | index, spec version, generator seed |
