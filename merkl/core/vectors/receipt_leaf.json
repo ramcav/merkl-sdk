@@ -1,0 +1,172 @@
+{
+  "cases": [
+    {
+      "content": null,
+      "leaf": "2a1900fbffe4eb4a375a1d9f393e82c330505d41555067789803729e8c515621",
+      "leaf_name": "instruction",
+      "name": "null-instruction"
+    },
+    {
+      "content": null,
+      "leaf": "3a156f594080e75c1341c046073e5d9630f345e29031decda26bb5e6f5f11e19",
+      "leaf_name": "intent",
+      "name": "null-intent"
+    },
+    {
+      "content": null,
+      "leaf": "37724417831348d7065cf80fec949b1a3cc1b26339012846100ea8a872c3bae7",
+      "leaf_name": "policy_decision",
+      "name": "null-policy_decision"
+    },
+    {
+      "content": null,
+      "leaf": "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+      "leaf_name": "signer_attestation",
+      "name": "null-signer_attestation"
+    },
+    {
+      "content": null,
+      "leaf": "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+      "leaf_name": "settlement",
+      "name": "null-settlement"
+    },
+    {
+      "content": null,
+      "leaf": "6279527e79c74e4cf5e4f8ee30d6c86bbeeb7a310fe1e894c1e57b7eca0ab508",
+      "leaf_name": "result",
+      "name": "null-result"
+    },
+    {
+      "content": null,
+      "leaf": "90a3c8e346c3776a9a45d7e1331700f8c308cfb26b0a07aa1e19aab2c7b86cec",
+      "leaf_name": "reasoning",
+      "name": "null-reasoning"
+    },
+    {
+      "content": {},
+      "leaf": "6842caf50692540b6bf771a9f5ac35abff841b816f579c22ec403461a4c2d55b",
+      "leaf_name": "result",
+      "name": "empty-object"
+    },
+    {
+      "content": {
+        "rules": []
+      },
+      "leaf": "b3a98e9029529055b2d9655411e9f4eae0d8a86a300eda847e38e6d923e6509c",
+      "leaf_name": "policy_decision",
+      "name": "empty-array-member"
+    },
+    {
+      "content": {
+        "a": "1",
+        "b": "2"
+      },
+      "leaf": "eaff15f65e6b1fe77606e42c9f560886492a01d3cfee343beaa9f097828bddb7",
+      "leaf_name": "result",
+      "name": "key-order-a"
+    },
+    {
+      "content": {
+        "a": "1",
+        "b": "2"
+      },
+      "leaf": "eaff15f65e6b1fe77606e42c9f560886492a01d3cfee343beaa9f097828bddb7",
+      "leaf_name": "result",
+      "name": "key-order-b"
+    },
+    {
+      "content": {
+        "note": "café ☕ — 日本語 — naïve",
+        "testimony": true
+      },
+      "leaf": "6fdc06b73f39619cd710de23c9f2520857a88f9604fa3c299263749b84e5cedd",
+      "leaf_name": "reasoning",
+      "name": "unicode"
+    },
+    {
+      "content": {
+        "a": [
+          1,
+          [
+            2,
+            [
+              3,
+              {
+                "b": null
+              }
+            ]
+          ]
+        ],
+        "c": {
+          "d": {
+            "e": "f"
+          }
+        }
+      },
+      "leaf": "6faa99bd4b255437627ae095861a97412c84449633586c35df12cef04cc72e10",
+      "leaf_name": "settlement",
+      "name": "nested"
+    },
+    {
+      "content": {
+        "f": false,
+        "n": null,
+        "t": true
+      },
+      "leaf": "1ae50699d81805c6bf36571d38465c4468dc3f8cbf8330b81a37c882d2fe40c2",
+      "leaf_name": "instruction",
+      "name": "booleans-and-null"
+    },
+    {
+      "content": {
+        "ledger_index": 9007199254740991
+      },
+      "leaf": "306c2367afe9658dd4c9d0ec5b3cf9bf5513208a16cb95110db615594b05df71",
+      "leaf_name": "settlement",
+      "name": "large-safe-integer"
+    },
+    {
+      "content": {
+        "delta": -42
+      },
+      "leaf": "fc36a425d482190c3ab0c3ab00f7c739a8319950d4a5858a4b13d86b03f6c03e",
+      "leaf_name": "result",
+      "name": "negative-integer"
+    },
+    {
+      "content": {
+        "value": "250.00"
+      },
+      "leaf": "01ba714eea5f97a92a68fcddc3c6be5e2548532371d46f7a10b9efcccea52116",
+      "leaf_name": "result",
+      "name": "string-that-looks-numeric"
+    },
+    {
+      "content": "plain string content",
+      "leaf": "92c743eefada566086fa267abd3b6a363239a7b00eb3862787275e269b6076a8",
+      "leaf_name": "reasoning",
+      "name": "scalar-string"
+    },
+    {
+      "content": 7,
+      "leaf": "d02834c62a70538759fd7df96dc1b3881abf61992218ed73086624025995bdb7",
+      "leaf_name": "reasoning",
+      "name": "scalar-integer"
+    },
+    {
+      "content": true,
+      "leaf": "41ee1f7dd5bf8e8517661a95bc3a1e9c44e2f3d9aad1598417c717522ac042cc",
+      "leaf_name": "reasoning",
+      "name": "scalar-true"
+    },
+    {
+      "content": "",
+      "leaf": "ca26905bbee4a3ab6a5f874dda1f20b7107ad87dbeb1d3cd287d6e1838bbcee9",
+      "leaf_name": "reasoning",
+      "name": "empty-string"
+    }
+  ],
+  "description": "merkl-receipt-leaf-v1 leaves. leaf = SHA-256('merkl-receipt-leaf-v1' || NUL || leaf_name || NUL || canonical_bytes(content)), where canonical_bytes is JSON with sorted keys, ',' and ':' separators and non-ASCII escaped as \\uXXXX. Absent content is the literal null. key-order-a and key-order-b must produce the same leaf.",
+  "spec": "docs/RECEIPT-SPEC.md",
+  "tag": "merkl-receipt-leaf-v1"
+}

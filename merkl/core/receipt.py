@@ -1258,13 +1258,20 @@ def verify_receipt_structure(
     )
 
     committed_left = build_left(envelope.leaf_hashes[LEFT_LEAVES])
-    left_ok = committed_left == envelope.left
-    if all(h is not None for h in computed[LEFT_LEAVES]):
-        recomputed_left = build_left([h for h in computed[LEFT_LEAVES] if h is not None])
-        left_ok = left_ok and recomputed_left == envelope.left
-    checks.append(
-        _check(CHECK_LEFT, left_ok, f"LEFT over leaves 0-3 is {committed_left.hex()}")
-    )
+    head = [h for h in computed[LEFT_LEAVES] if h is not None]
+    if len(head) < 4:
+        checks.append(
+            Check(
+                CHECK_LEFT,
+                CheckStatus.FAIL,
+                "LEFT cannot be recomputed: a leaf in 0-3 does not hash",
+            )
+        )
+    else:
+        left_ok = committed_left == envelope.left and build_left(head) == envelope.left
+        checks.append(
+            _check(CHECK_LEFT, left_ok, f"LEFT over leaves 0-3 is {committed_left.hex()}")
+        )
 
     checks.append(_deferred("policy.signature"))
     checks.append(_deferred("signer.attestation"))
@@ -1274,14 +1281,23 @@ def verify_receipt_structure(
     checks.append(_deferred("settlement.ledger_inclusion"))
 
     committed_right = build_right(envelope.leaf_hashes[RIGHT_LEAVES])
-    right_ok = True
-    tail = computed[4:LEAF_COUNT]
-    if len(tail) == LEAF_COUNT - 4 and all(h is not None for h in tail):
-        recomputed_tail = [h for h in tail if h is not None]
-        right_ok = build_right([*recomputed_tail, recomputed_tail[-1]]) == committed_right
-    checks.append(
-        _check(CHECK_RIGHT, right_ok, f"RIGHT over leaves 4-7 is {committed_right.hex()}")
-    )
+    tail = [h for h in computed[4:LEAF_COUNT] if h is not None]
+    if len(tail) < LEAF_COUNT - 4:
+        checks.append(
+            Check(
+                CHECK_RIGHT,
+                CheckStatus.FAIL,
+                "RIGHT cannot be recomputed: a leaf in 4-6 does not hash",
+            )
+        )
+    else:
+        checks.append(
+            _check(
+                CHECK_RIGHT,
+                build_right([*tail, tail[-1]]) == committed_right,
+                f"RIGHT over leaves 4-7 is {committed_right.hex()}",
+            )
+        )
 
     recomputed_root = SHA256Hash.from_bytes(committed_left.bytes + committed_right.bytes)
     checks.append(

@@ -1,0 +1,217 @@
+{
+  "cases": [
+    {
+      "fields": {
+        "action_id": "01936b2e-0000-7000-8000-000000000001",
+        "action_type": "transaction",
+        "category": "payments",
+        "depends_on": [
+          "01936b2e-0000-7000-8000-000000000000"
+        ],
+        "display_name": "Submit payment",
+        "drift_score": "0.25",
+        "guardrail_result": "passed",
+        "input_hash": "3c0d369d32c47b7edd30b40b4b031b6c9154dd05c862b1678c4ddbfdc2d624f9",
+        "output_hash": "42ee01ebb759e1796c923249736ad6f51bc7171650da7abb991f76da5fcf6764",
+        "session_id": "01936b2e-1111-7000-8000-000000000001",
+        "status": "success",
+        "timestamp": "2026-01-02T03:04:05+00:00",
+        "tool_name": "submit_payment"
+      },
+      "leaf": "1669584c03611303d559e7202991ae5a32de3cd9f293bb0fcd04bb7e3a31d7eb",
+      "name": "baseline"
+    },
+    {
+      "fields": {
+        "action_id": "01936b2e-0000-7000-8000-000000000001",
+        "action_type": "transaction",
+        "category": "",
+        "depends_on": [],
+        "display_name": "",
+        "drift_score": "0.25",
+        "guardrail_result": "passed",
+        "input_hash": "3c0d369d32c47b7edd30b40b4b031b6c9154dd05c862b1678c4ddbfdc2d624f9",
+        "output_hash": "42ee01ebb759e1796c923249736ad6f51bc7171650da7abb991f76da5fcf6764",
+        "session_id": "01936b2e-1111-7000-8000-000000000001",
+        "status": "success",
+        "timestamp": "2026-01-02T03:04:05+00:00",
+        "tool_name": "submit_payment"
+      },
+      "leaf": "589c75d240c8e944a434922d04904b7d603fa100fbf0001a805fefb133f64c75",
+      "name": "empty-optional-fields"
+    },
+    {
+      "fields": {
+        "action_id": "01936b2e-0000-7000-8000-000000000001",
+        "action_type": "transaction",
+        "category": "payments",
+        "depends_on": [
+          "zzz",
+          "aaa",
+          "mmm"
+        ],
+        "display_name": "Submit payment",
+        "drift_score": "0.25",
+        "guardrail_result": "passed",
+        "input_hash": "3c0d369d32c47b7edd30b40b4b031b6c9154dd05c862b1678c4ddbfdc2d624f9",
+        "output_hash": "42ee01ebb759e1796c923249736ad6f51bc7171650da7abb991f76da5fcf6764",
+        "session_id": "01936b2e-1111-7000-8000-000000000001",
+        "status": "success",
+        "timestamp": "2026-01-02T03:04:05+00:00",
+        "tool_name": "submit_payment"
+      },
+      "leaf": "61575f01863ce5bee464d863d589feaf209b859858cd91ce2c0546b140d2f90d",
+      "name": "depends-on-unsorted"
+    },
+    {
+      "fields": {
+        "action_id": "01936b2e-0000-7000-8000-000000000001",
+        "action_type": "transaction",
+        "category": "payments",
+        "depends_on": [
+          "01936b2e-0000-7000-8000-000000000000"
+        ],
+        "display_name": "Submit payment",
+        "drift_score": "0.0",
+        "guardrail_result": "passed",
+        "input_hash": "3c0d369d32c47b7edd30b40b4b031b6c9154dd05c862b1678c4ddbfdc2d624f9",
+        "output_hash": "42ee01ebb759e1796c923249736ad6f51bc7171650da7abb991f76da5fcf6764",
+        "session_id": "01936b2e-1111-7000-8000-000000000001",
+        "status": "success",
+        "timestamp": "2026-01-02T03:04:05+00:00",
+        "tool_name": "submit_payment"
+      },
+      "leaf": "f34a2959fb04d7a1ae4295659f304b8b57ce46675a09e651b957366ec3240fad",
+      "name": "drift-zero"
+    },
+    {
+      "fields": {
+        "action_id": "01936b2e-0000-7000-8000-000000000001",
+        "action_type": "transaction",
+        "category": "payments",
+        "depends_on": [
+          "01936b2e-0000-7000-8000-000000000000"
+        ],
+        "display_name": "Submit payment",
+        "drift_score": "1.0",
+        "guardrail_result": "passed",
+        "input_hash": "3c0d369d32c47b7edd30b40b4b031b6c9154dd05c862b1678c4ddbfdc2d624f9",
+        "output_hash": "42ee01ebb759e1796c923249736ad6f51bc7171650da7abb991f76da5fcf6764",
+        "session_id": "01936b2e-1111-7000-8000-000000000001",
+        "status": "success",
+        "timestamp": "2026-01-02T03:04:05+00:00",
+        "tool_name": "submit_payment"
+      },
+      "leaf": "b84911e06a5dd06ee28e844671cafade7dc656ecb2e3632840464649d6792872",
+      "name": "drift-one"
+    },
+    {
+      "fields": {
+        "action_id": "01936b2e-0000-7000-8000-000000000001",
+        "action_type": "transaction",
+        "category": "payments",
+        "depends_on": [
+          "01936b2e-0000-7000-8000-000000000000"
+        ],
+        "display_name": "Submit payment",
+        "drift_score": "1e-05",
+        "guardrail_result": "passed",
+        "input_hash": "3c0d369d32c47b7edd30b40b4b031b6c9154dd05c862b1678c4ddbfdc2d624f9",
+        "output_hash": "42ee01ebb759e1796c923249736ad6f51bc7171650da7abb991f76da5fcf6764",
+        "session_id": "01936b2e-1111-7000-8000-000000000001",
+        "status": "success",
+        "timestamp": "2026-01-02T03:04:05+00:00",
+        "tool_name": "submit_payment"
+      },
+      "leaf": "cc1eed1f70aad80374b5854e43de2cbd51f87d79516f50dcdbe4b25990e31761",
+      "name": "drift-exponent"
+    },
+    {
+      "fields": {
+        "action_id": "01936b2e-0000-7000-8000-000000000001",
+        "action_type": "transaction",
+        "category": "payments",
+        "depends_on": [
+          "01936b2e-0000-7000-8000-000000000000"
+        ],
+        "display_name": "Submit payment",
+        "drift_score": "0.25",
+        "guardrail_result": "passed",
+        "input_hash": "3c0d369d32c47b7edd30b40b4b031b6c9154dd05c862b1678c4ddbfdc2d624f9",
+        "output_hash": "42ee01ebb759e1796c923249736ad6f51bc7171650da7abb991f76da5fcf6764",
+        "session_id": "01936b2e-1111-7000-8000-000000000001",
+        "status": "success",
+        "timestamp": "2026-01-02T03:04:05.678901+00:00",
+        "tool_name": "submit_payment"
+      },
+      "leaf": "aa18f303a5436a40e23adfbd00d430f474a3a2f069c496cd1f0efb6ae0c13ab9",
+      "name": "timestamp-microseconds"
+    },
+    {
+      "fields": {
+        "action_id": "01936b2e-0000-7000-8000-000000000001",
+        "action_type": "transaction",
+        "category": "payments",
+        "depends_on": [
+          "01936b2e-0000-7000-8000-000000000000"
+        ],
+        "display_name": "支払い",
+        "drift_score": "0.25",
+        "guardrail_result": "passed",
+        "input_hash": "3c0d369d32c47b7edd30b40b4b031b6c9154dd05c862b1678c4ddbfdc2d624f9",
+        "output_hash": "42ee01ebb759e1796c923249736ad6f51bc7171650da7abb991f76da5fcf6764",
+        "session_id": "01936b2e-1111-7000-8000-000000000001",
+        "status": "success",
+        "timestamp": "2026-01-02T03:04:05+00:00",
+        "tool_name": "café ☕ — 日本語"
+      },
+      "leaf": "d3a788a7d48330738692ba8eb08826e7aae4d8bfc4bcfd1b038d1803345600df",
+      "name": "unicode-tool-name"
+    },
+    {
+      "fields": {
+        "action_id": "01936b2e-0000-7000-8000-000000000001",
+        "action_type": "transaction",
+        "category": "payments",
+        "depends_on": [
+          "01936b2e-0000-7000-8000-000000000000"
+        ],
+        "display_name": "Submit payment",
+        "drift_score": "0.25",
+        "guardrail_result": "blocked",
+        "input_hash": "3c0d369d32c47b7edd30b40b4b031b6c9154dd05c862b1678c4ddbfdc2d624f9",
+        "output_hash": "42ee01ebb759e1796c923249736ad6f51bc7171650da7abb991f76da5fcf6764",
+        "session_id": "01936b2e-1111-7000-8000-000000000001",
+        "status": "blocked",
+        "timestamp": "2026-01-02T03:04:05+00:00",
+        "tool_name": "submit_payment"
+      },
+      "leaf": "e77e54a53cfe15dc82602de3cca369071774ea0dde33d27b8eb581a3cd5d0ab3",
+      "name": "blocked-guardrail"
+    },
+    {
+      "fields": {
+        "action_id": "01936b2e-0000-7000-8000-000000000001",
+        "action_type": "human_input",
+        "category": "payments",
+        "depends_on": [
+          "01936b2e-0000-7000-8000-000000000000"
+        ],
+        "display_name": "Submit payment",
+        "drift_score": "0.25",
+        "guardrail_result": "passed",
+        "input_hash": "3c0d369d32c47b7edd30b40b4b031b6c9154dd05c862b1678c4ddbfdc2d624f9",
+        "output_hash": "42ee01ebb759e1796c923249736ad6f51bc7171650da7abb991f76da5fcf6764",
+        "session_id": "01936b2e-1111-7000-8000-000000000001",
+        "status": "success",
+        "timestamp": "2026-01-02T03:04:05+00:00",
+        "tool_name": ""
+      },
+      "leaf": "214fde8d0186e0d0ff8746e04400f9ef22158b2ffb1b17827651378b9fe2c16b",
+      "name": "human-input"
+    }
+  ],
+  "description": "merkl-leaf-v1 action leaves. leaf = SHA-256('merkl-leaf-v1' || NUL || action_id || NUL || session_id || NUL || action_type || NUL || tool_name || NUL || input_hash || NUL || output_hash || NUL || timestamp || NUL || drift_score || NUL || guardrail_result || NUL || display_name || NUL || depends_on (sorted, comma-joined) || NUL || status || NUL || category). drift_score is the exact string, never a re-rendered number.",
+  "spec": "merkl-api/docs/SPEC.md section 2",
+  "tag": "merkl-leaf-v1"
+}
