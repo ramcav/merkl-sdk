@@ -17,91 +17,34 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any, Final, TypeAlias
 
-from merkl.core.canonical import JSONObject, JSONValue, drop_none, ensure_canonical_content
-from merkl.shared.errors import ValidationError
+from merkl.core.canonical import (
+    ContentError,
+    JSONObject,
+    JSONValue,
+    decimal_string,
+    drop_none,
+    ensure_canonical_content,
+    format_decimal,
+    instant,
+    parse_decimal,
+    token,
+)
 
 INTENT_TYPE_PAYMENT: Final = "payment"
 INTENT_TYPES: Final = (INTENT_TYPE_PAYMENT,)
 
 NATIVE_XRP: Final = "XRP"
 
-_DECIMAL_RE = re.compile(r"^(0|[1-9][0-9]{0,30})(\.[0-9]{1,30})?$")
-_SIGNED_DECIMAL_RE = re.compile(r"^-?(0|[1-9][0-9]{0,30})(\.[0-9]{1,30})?$")
 _NATIVE_CURRENCY_RE = re.compile(r"^[A-Z0-9]{1,20}$")
-_INSTANT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$")
-_TOKEN_MAX = 512
 
 
-class IntentError(ValidationError):
+class IntentError(ContentError):
     """Raised when an intent, or part of one, is not well formed."""
 
     error_code = "intent_error"
-
-
-def token(value: Any, field: str, *, max_length: int = _TOKEN_MAX) -> str:
-    """Validate an identifier-ish string: non-empty, printable, no whitespace."""
-    if not isinstance(value, str):
-        raise IntentError(f"{field} must be a string, got {type(value).__name__}")
-    if not value:
-        raise IntentError(f"{field} cannot be empty")
-    if len(value) > max_length:
-        raise IntentError(f"{field} is longer than {max_length} characters")
-    for ch in value:
-        if ch <= " " or ch == "\x7f":
-            raise IntentError(f"{field} contains whitespace or a control character: {value!r}")
-    return value
-
-
-def instant(value: Any, field: str) -> str:
-    """Validate an RFC 3339 UTC instant such as ``2026-01-02T03:04:05Z``.
-
-    The ``Z`` form is required so a JavaScript verifier's ``toISOString()`` and a
-    Python verifier agree on the exact bytes. Core has no clock: whether an
-    instant has passed is the signer's business, not this module's.
-    """
-    if not isinstance(value, str) or not _INSTANT_RE.match(value):
-        raise IntentError(f"{field} must be an RFC 3339 UTC instant ending in Z, got {value!r}")
-    try:
-        datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise IntentError(f"{field} is not a valid instant: {value!r}") from exc
-    return value
-
-
-def decimal_string(value: Any, field: str, *, signed: bool = False, positive: bool = True) -> str:
-    """Validate a decimal amount string and return it unchanged.
-
-    Accepted: ``0``, ``12``, ``0.5``, ``1234.56789`` (and a leading ``-`` when
-    ``signed``). Rejected: floats, exponents, leading ``+``, leading zeros,
-    trailing dots, whitespace, and — when ``positive`` — anything not above zero.
-    """
-    if isinstance(value, bool) or not isinstance(value, str):
-        raise IntentError(f"{field} must be a decimal string, got {type(value).__name__}")
-    pattern = _SIGNED_DECIMAL_RE if signed else _DECIMAL_RE
-    if not pattern.match(value):
-        raise IntentError(f"{field} is not a canonical decimal string: {value!r}")
-    if positive and parse_decimal(value, field) <= 0:
-        raise IntentError(f"{field} must be greater than zero, got {value!r}")
-    return value
-
-
-def parse_decimal(value: str, field: str = "value") -> Decimal:
-    """Parse a validated decimal string into a :class:`~decimal.Decimal`."""
-    try:
-        return Decimal(value)
-    except InvalidOperation as exc:  # pragma: no cover - unreachable after the regex
-        raise IntentError(f"{field} is not a decimal: {value!r}") from exc
-
-
-def format_decimal(value: Decimal) -> str:
-    """Render a Decimal as a canonical decimal string (never scientific notation)."""
-    if value.is_nan() or value.is_infinite():
-        raise IntentError(f"amount must be finite, got {value}")
-    return format(value, "f")
 
 
 @dataclasses.dataclass(frozen=True)

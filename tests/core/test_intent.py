@@ -9,18 +9,15 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from merkl.core.canonical import ensure_canonical_content
-from merkl.core.intent import (
-    Amount,
-    Intent,
-    IntentError,
-    IssuedCurrency,
-    Reference,
+from merkl.core.canonical import (
+    ContentError,
     decimal_string,
+    ensure_canonical_content,
     format_decimal,
     instant,
     token,
 )
+from merkl.core.intent import Amount, Intent, IntentError, IssuedCurrency, Reference
 from merkl.core.leaf import receipt_leaf
 
 RLUSD = IssuedCurrency(code="RLUSD", issuer="rISSUER000000000000000000000000000")
@@ -41,6 +38,11 @@ def make_intent(**overrides: Any) -> Intent:
     return Intent(**fields)
 
 
+class TestErrorHierarchy:
+    def test_intent_errors_are_content_errors(self) -> None:
+        assert issubclass(IntentError, ContentError)
+
+
 class TestAmount:
     @pytest.mark.parametrize("value", ["1", "0.5", "100.50", "1234567.891011", "12"])
     def test_accepts_decimal_strings(self, value: str) -> None:
@@ -51,12 +53,12 @@ class TestAmount:
         ["0", "0.0", "0.000", "-1", "+1", "1e5", "1E5", ".5", "1.", "01", " 1", "1 ", "", "abc"],
     )
     def test_rejects_bad_or_non_positive_values(self, value: str) -> None:
-        with pytest.raises(IntentError):
+        with pytest.raises(ContentError):
             Amount(value=value, currency="XRP")
 
     @pytest.mark.parametrize("value", [10.5, 10, True, None, Decimal("10.5")])
     def test_rejects_non_strings(self, value: Any) -> None:
-        with pytest.raises(IntentError):
+        with pytest.raises(ContentError):
             Amount(value=value, currency="XRP")
 
     def test_decimal_is_exact(self) -> None:
@@ -94,7 +96,7 @@ class TestAmount:
 
     @pytest.mark.parametrize("code", ["xrp", "RL USD", "", "TOOLONGCURRENCYCODEXX"])
     def test_bad_native_currency_rejected(self, code: str) -> None:
-        with pytest.raises(IntentError):
+        with pytest.raises(ContentError):
             Amount("1", code).to_content()
 
     def test_round_trips(self) -> None:
@@ -109,11 +111,11 @@ class TestAmount:
 class TestValidators:
     @pytest.mark.parametrize("value", ["", " ", "a b", "a\tb", "a\nb", "a\x00b", "\x7f"])
     def test_token_rejects_blanks_and_controls(self, value: str) -> None:
-        with pytest.raises(IntentError):
+        with pytest.raises(ContentError):
             token(value, "field")
 
     def test_token_rejects_overlong(self) -> None:
-        with pytest.raises(IntentError, match="longer than"):
+        with pytest.raises(ContentError, match="longer than"):
             token("a" * 10, "field", max_length=9)
 
     @pytest.mark.parametrize(
@@ -135,16 +137,16 @@ class TestValidators:
         ],
     )
     def test_instant_rejects_other_forms(self, value: Any) -> None:
-        with pytest.raises(IntentError):
+        with pytest.raises(ContentError):
             instant(value, "expires_at")
 
     def test_signed_decimals_for_balance_deltas(self) -> None:
         assert decimal_string("-1.5", "delta", signed=True, positive=False) == "-1.5"
-        with pytest.raises(IntentError):
+        with pytest.raises(ContentError):
             decimal_string("-1.5", "delta")
 
     def test_format_decimal_rejects_nan(self) -> None:
-        with pytest.raises(IntentError):
+        with pytest.raises(ContentError):
             format_decimal(Decimal("NaN"))
 
 
@@ -197,7 +199,7 @@ class TestIntent:
         "field", ["rail", "treasury", "destination", "policy_version", "agent_public_key", "nonce"]
     )
     def test_empty_fields_rejected(self, field: str) -> None:
-        with pytest.raises(IntentError):
+        with pytest.raises(ContentError):
             make_intent(**{field: ""})
 
     def test_unknown_type_rejected(self) -> None:
@@ -223,7 +225,7 @@ class TestIntent:
     def test_float_amount_in_content_rejected(self) -> None:
         content = make_intent().to_content()
         content["amount"] = {"value": 100.5, "currency": "XRP"}
-        with pytest.raises(IntentError):
+        with pytest.raises(ContentError):
             Intent.from_content(content)
 
 

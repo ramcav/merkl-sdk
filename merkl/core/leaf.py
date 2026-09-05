@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
-from merkl.core.canonical import ensure_canonical_content
+from merkl.core.canonical import ensure_canonical_content, hex_digest
 from merkl.shared.errors import ValidationError
 from merkl.shared.hashing import SHA256Hash, canonical_bytes
 
@@ -36,15 +36,7 @@ def _hash_hex(value: SHA256Hash | str, *, field: str) -> str:
     """Normalize a hash argument to the lowercase hex the leaf encoding uses."""
     if isinstance(value, SHA256Hash):
         return value.hex()
-    if len(value) != 64:
-        raise ValidationError(f"{field} must be a 64-character hex digest, got {len(value)} chars")
-    try:
-        bytes.fromhex(value)
-    except ValueError as exc:  # pragma: no cover - message varies by input
-        raise ValidationError(f"{field} is not hex: {value!r}") from exc
-    if value != value.lower():
-        raise ValidationError(f"{field} must be lowercase hex")
-    return value
+    return hex_digest(value, field)
 
 
 def action_leaf(
