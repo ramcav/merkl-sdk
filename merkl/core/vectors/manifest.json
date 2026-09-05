@@ -14,11 +14,15 @@
       "file": "receipt_leaf.json"
     },
     {
+      "cases": 10,
+      "file": "approvals.json"
+    },
+    {
       "cases": 3,
       "file": "receipts.json"
     },
     {
-      "cases": 22,
+      "cases": 28,
       "file": "tampered.json"
     }
   ],

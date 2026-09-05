@@ -19,6 +19,7 @@ when run as a script; importing it does no I/O.
 from __future__ import annotations
 
 import copy
+import dataclasses
 import json
 import pathlib
 import random
@@ -30,6 +31,9 @@ from merkl.core.canonical import JSONObject, JSONValue
 from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference
 from merkl.core.leaf import action_leaf, receipt_leaf
 from merkl.core.merkle import MerkleProof, MerkleTree
+from merkl.core.policy.approvals import ApprovalAssertion, verify_assertion, verify_quorum
+from merkl.core.policy.document import ApproverCredential
+from merkl.core.rail import xrpl_tx_id
 from merkl.core.receipt import (
     HALF_LEVEL,
     LEAF_NAMES,
@@ -41,6 +45,7 @@ from merkl.core.receipt import (
     Instruction,
     PolicyDecision,
     PolicyRule,
+    PolicySignature,
     Reasoning,
     Receipt,
     ReceiptLeaves,
@@ -48,11 +53,12 @@ from merkl.core.receipt import (
     SessionLocator,
     Settlement,
     SignerAttestation,
-    build_left,
+    authorization_commitment,
+    escalation_challenge,
     verify_disclosure,
     verify_receipt_structure,
 )
-from merkl.core.vectors import VECTORS_DIR
+from merkl.core.vectors import VECTORS_DIR, fixtures
 from merkl.shared.hashing import SHA256Hash
 
 SEED = 20260905
@@ -63,8 +69,15 @@ DESTINATION = "rSUPPLIER0000000000000000000000000"
 ATTACKER = "rATTACKER0000000000000000000000000"
 ISSUER = "rISSUER000000000000000000000000000"
 RLUSD = IssuedCurrency(code="RLUSD", issuer=ISSUER)
-AGENT_KEY = "ed02" * 16
-SIGNER_KEY = "ed01" * 16
+
+AGENT_PRIVATE = fixtures.ed25519_key("agent-accounts-payable")
+SIGNER_PRIVATE = fixtures.ed25519_key("policy-signer")
+AGENT_KEY = fixtures.ed25519_public_hex(AGENT_PRIVATE)
+SIGNER_KEY = fixtures.ed25519_public_hex(SIGNER_PRIVATE)
+
+ALICE_PRIVATE = fixtures.ed25519_key("approver-alice")
+BOB_PRIVATE = fixtures.ed25519_key("approver-bob")
+CAROL_PRIVATE = fixtures.ed25519_key("approver-carol")
 
 
 def digest(label: str) -> str:
@@ -244,6 +257,265 @@ def receipt_leaf_vectors() -> JSONObject:
 
 
 # --------------------------------------------------------------------------- #
+# 4. Approval assertions
+# --------------------------------------------------------------------------- #
+
+
+def _assertion_case(
+    name: str,
+    description: str,
+    credential: ApproverCredential,
+    assertion: ApprovalAssertion,
+    challenge: bytes,
+    expected_valid: bool,
+) -> JSONObject:
+    check = verify_assertion(assertion, challenge, credential)
+    if check.valid is not expected_valid:
+        raise AssertionError(
+            f"{name}: expected valid={expected_valid}, verifier said "
+            f"{check.valid} ({check.detail})"
+        )
+    return {
+        "name": name,
+        "description": description,
+        "challenge": challenge.hex(),
+        "credential": credential.to_content(),
+        "assertion": assertion.to_content(),
+        "expected_valid": expected_valid,
+    }
+
+
+def approval_vectors() -> JSONObject:
+    """Approvals over an escalation challenge: WebAuthn and Ed25519, good and bad."""
+    fixtures.check_webauthn_fixture()
+    challenge = fixtures.WEBAUTHN_CHALLENGE
+    other = SHA256Hash.from_bytes(b"a challenge from another escalation").bytes
+    passkey = fixtures.webauthn_credential()
+    good = fixtures.webauthn_assertion()
+
+    cases: list[JSONValue] = [
+        _assertion_case(
+            "webauthn-valid",
+            "A passkey assertion over the challenge. The signature covers "
+            "authenticatorData || SHA-256(clientDataJSON); clientDataJSON is carried "
+            "as the exact bytes, hex-encoded, because re-serializing it would break "
+            "the signature.",
+            passkey,
+            good,
+            challenge,
+            True,
+        ),
+        _assertion_case(
+            "webauthn-wrong-challenge",
+            "The same assertion checked against a different escalation. An approval "
+            "harvested from one payment must not authorize another.",
+            passkey,
+            good,
+            other,
+            False,
+        ),
+        _assertion_case(
+            "webauthn-origin-not-allowed",
+            "The credential allows only https://app.merkl.ai; the assertion came "
+            "from a page pretending to be it.",
+            dataclasses.replace(passkey, origins=("https://console.example.com",)),
+            good,
+            challenge,
+            False,
+        ),
+        _assertion_case(
+            "webauthn-rp-id-mismatch",
+            "rpIdHash does not match the relying party in the policy.",
+            dataclasses.replace(passkey, rp_id="evil.example.com", origins=()),
+            good,
+            challenge,
+            False,
+        ),
+        _assertion_case(
+            "webauthn-user-present-flag-clear",
+            "Flags say nobody touched the authenticator. Rejected before the "
+            "signature is even considered.",
+            passkey,
+            dataclasses.replace(
+                good,
+                authenticator_data=fixtures.authenticator_data(
+                    fixtures.WEBAUTHN_RP_ID, flags=0x00
+                ).hex(),
+            ),
+            challenge,
+            False,
+        ),
+        _assertion_case(
+            "webauthn-user-verification-required-but-absent",
+            "The policy requires a verified user (PIN or biometric) and only "
+            "user-presence was asserted.",
+            passkey,
+            dataclasses.replace(
+                good,
+                authenticator_data=fixtures.authenticator_data(
+                    fixtures.WEBAUTHN_RP_ID, flags=0x01
+                ).hex(),
+            ),
+            challenge,
+            False,
+        ),
+    ]
+
+    ed_credential = ApproverCredential(
+        id="bob@example.com",
+        credential_type="ed25519",
+        public_key=fixtures.ed25519_public_hex(BOB_PRIVATE),
+    )
+    ed_assertion = fixtures.ed25519_assertion(
+        approver_id="bob@example.com",
+        key=BOB_PRIVATE,
+        challenge=challenge,
+        signed_at="2026-01-02T03:22:47Z",
+    )
+    cases.extend(
+        [
+            _assertion_case(
+                "ed25519-valid",
+                "An Ed25519 approval signs the raw 32-byte challenge, with no "
+                "envelope around it.",
+                ed_credential,
+                ed_assertion,
+                challenge,
+                True,
+            ),
+            _assertion_case(
+                "ed25519-wrong-challenge",
+                "The same signature against a different escalation.",
+                ed_credential,
+                ed_assertion,
+                other,
+                False,
+            ),
+            _assertion_case(
+                "ed25519-signed-by-someone-else",
+                "Carol signed, but the assertion claims Bob's credential.",
+                ed_credential,
+                fixtures.ed25519_assertion(
+                    approver_id="bob@example.com",
+                    key=CAROL_PRIVATE,
+                    challenge=challenge,
+                    signed_at="2026-01-02T03:22:47Z",
+                ),
+                challenge,
+                False,
+            ),
+            _assertion_case(
+                "credential-type-disagrees-with-the-policy",
+                "The policy registers this approver as a passkey; the assertion "
+                "arrives as a bare Ed25519 signature.",
+                passkey,
+                ed_assertion,
+                challenge,
+                False,
+            ),
+        ]
+    )
+
+    alice = ApproverCredential(
+        id="alice@example.com",
+        credential_type="ed25519",
+        public_key=fixtures.ed25519_public_hex(ALICE_PRIVATE),
+    )
+    carol = ApproverCredential(
+        id="carol@example.com",
+        credential_type="ed25519",
+        public_key=fixtures.ed25519_public_hex(CAROL_PRIVATE),
+    )
+    approvers = (alice, ed_credential, carol)
+
+    def signed(approver_id: str, key: Any, at: str) -> ApprovalAssertion:
+        return fixtures.ed25519_assertion(
+            approver_id=approver_id, key=key, challenge=challenge, signed_at=at
+        )
+
+    alice_ok = signed("alice@example.com", ALICE_PRIVATE, "2026-01-02T03:20:11Z")
+    bob_ok = signed("bob@example.com", BOB_PRIVATE, "2026-01-02T03:22:47Z")
+    carol_bad = signed("carol@example.com", ALICE_PRIVATE, "2026-01-02T03:23:02Z")
+    stranger = signed("mallory@example.com", CAROL_PRIVATE, "2026-01-02T03:23:40Z")
+
+    quorum_inputs: list[tuple[str, str, list[ApprovalAssertion], int, bool, list[str]]] = [
+        (
+            "two-of-three-reached",
+            "Two of the three named approvers signed. Quorum met.",
+            [alice_ok, bob_ok],
+            2,
+            True,
+            ["alice@example.com", "bob@example.com"],
+        ),
+        (
+            "same-approver-twice-is-one-approval",
+            "One person signing twice is one approval, not two. Distinct approver "
+            "ids are the whole point of a quorum.",
+            [alice_ok, alice_ok],
+            2,
+            False,
+            ["alice@example.com"],
+        ),
+        (
+            "invalid-signature-does-not-count",
+            "Carol's assertion was signed with Alice's key, so it counts for nobody.",
+            [alice_ok, carol_bad],
+            2,
+            False,
+            ["alice@example.com"],
+        ),
+        (
+            "unknown-approver-does-not-count",
+            "Someone the policy never named signed. A valid signature by a stranger "
+            "is still a stranger.",
+            [alice_ok, stranger],
+            2,
+            False,
+            ["alice@example.com"],
+        ),
+    ]
+
+    quorum_cases: list[JSONValue] = []
+    for name, description, assertions, quorum, reached, accepted in quorum_inputs:
+        result = verify_quorum(assertions, challenge, approvers, quorum)
+        if result.reached is not reached or list(result.accepted) != accepted:
+            raise AssertionError(
+                f"{name}: expected reached={reached} accepted={accepted}, got "
+                f"reached={result.reached} accepted={list(result.accepted)}"
+            )
+        quorum_cases.append(
+            {
+                "name": name,
+                "description": description,
+                "challenge": challenge.hex(),
+                "approvers": [a.to_content() for a in approvers],
+                "assertions": [a.to_content() for a in assertions],
+                "quorum": quorum,
+                "expected_reached": reached,
+                "expected_accepted": _strings(accepted),
+            }
+        )
+
+    return {
+        "description": (
+            "Approval assertions over an escalation challenge. The challenge is "
+            "LEFT_pre, 32 raw bytes. An ed25519 approval signs those bytes directly. "
+            "A webauthn approval signs authenticator_data || SHA-256(client_data_json), "
+            "where both are carried as hex of the exact bytes the browser produced; "
+            "the challenge inside clientDataJSON is base64url, as WebAuthn requires. "
+            "Quorum counts distinct approver ids."
+        ),
+        "spec": SPEC,
+        "webauthn_message": (
+            "authenticator_data || SHA-256(client_data_json), ECDSA P-256 with SHA-256, "
+            "DER signature, uncompressed SEC1 public key"
+        ),
+        "cases": cases,
+        "quorum_cases": quorum_cases,
+    }
+
+
+# --------------------------------------------------------------------------- #
 # 4. Full receipts
 # --------------------------------------------------------------------------- #
 
@@ -264,24 +536,53 @@ def _intent(**overrides: Any) -> Intent:
     return Intent(**fields)
 
 
-def _authorization_commitment(
+def _authorization(
     instruction: Instruction,
     intent: Intent,
     decision: PolicyDecision,
     attestation: SignerAttestation | None,
-) -> SHA256Hash:
-    """LEFT, computed from leaves 0-3 alone — before anything settles.
-
-    This is the value the policy key signs and the rail memo carries, so the
-    settlement leaf can record it as the anchor it observed.
-    """
-    partial = ReceiptLeaves(
+) -> ReceiptLeaves:
+    return ReceiptLeaves(
         instruction=instruction,
         intent=intent,
         policy_decision=decision,
         signer_attestation=attestation,
     )
-    return build_left(partial.hashes()[0:4])
+
+
+def _settlement(
+    rng: random.Random,
+    left: SHA256Hash,
+    *,
+    ledger_index: int,
+    close_time: str,
+    proof_ref: str,
+) -> Settlement:
+    """Leaf 4, bound to the LEFT that authorized it.
+
+    The blob carries LEFT because the real transaction does (the memo *is* LEFT),
+    the transaction hash is derived from the blob the way rippled derives it, and
+    the policy signature is a real Ed25519 signature over a payload containing
+    LEFT. Every one of those three is a check a verifier runs, so a plausible-
+    looking fixture would be a fixture that fails.
+    """
+    payload = bytes.fromhex(_blob(rng, 40)) + left.bytes + bytes.fromhex(_blob(rng, 20))
+    blob_bytes = bytes.fromhex("12000022") + left.bytes + bytes.fromhex(_blob(rng, 60))
+    return Settlement(
+        rail="xrpl",
+        tx_hash=xrpl_tx_id(blob_bytes),
+        ledger_index=ledger_index,
+        close_time=close_time,
+        signed_tx_blob=blob_bytes.hex(),
+        observed_anchor=left.hex(),
+        settlement_proof_ref=proof_ref,
+        policy_signature=PolicySignature(
+            algorithm="ed25519",
+            public_key=SIGNER_KEY,
+            signature=SIGNER_PRIVATE.sign(payload).hex(),
+            payload=payload.hex(),
+        ),
+    )
 
 
 def _allow_receipt(rng: random.Random) -> Receipt:
@@ -305,20 +606,18 @@ def _allow_receipt(rng: random.Random) -> Receipt:
     attestation = SignerAttestation(
         document=_blob(rng, 96), policy_public_key=SIGNER_KEY, format="aws-nitro"
     )
-    anchor = _authorization_commitment(instruction, intent, decision, attestation).hex()
+    left = authorization_commitment(_authorization(instruction, intent, decision, attestation))
     leaves = ReceiptLeaves(
         instruction=instruction,
         intent=intent,
         policy_decision=decision,
         signer_attestation=attestation,
-        settlement=Settlement(
-            rail="xrpl",
-            tx_hash=_blob(rng, 32).upper(),
+        settlement=_settlement(
+            rng,
+            left,
             ledger_index=94_211_337,
             close_time="2026-01-02T03:04:41Z",
-            signed_tx_blob=_blob(rng, 120),
-            observed_anchor=anchor,
-            settlement_proof_ref="settlement-proof-0001",
+            proof_ref="settlement-proof-0001",
         ),
         result=Result(
             outcome="settled",
@@ -390,7 +689,14 @@ def _deny_receipt(rng: random.Random) -> Receipt:
 
 
 def _escalated_receipt(rng: random.Random) -> Receipt:
-    challenge = digest("LEFT_pre for the escalated payment")
+    """A payment over the human threshold, approved by two people, then settled.
+
+    Built the way the signer builds it: the escalated decision first, then
+    ``LEFT_pre`` from those four leaves, then the approvals over that digest, then
+    the resolved decision. Resolving changes exactly two things — the outcome and
+    the escalation member — which is what lets a reader recompute the challenge
+    from the finished receipt and see that the approvers signed *this* payment.
+    """
     instruction = Instruction(
         source="human_input",
         content_hash=digest("pay the quarterly retainer"),
@@ -401,54 +707,64 @@ def _escalated_receipt(rng: random.Random) -> Receipt:
         nonce="99887766554433221100ffeeddccbbaa",
         reference=Reference(kind="contract", id="RET-2026-Q1", hash=digest("retainer pdf")),
     )
-    decision = PolicyDecision(
-        policy_hash=digest("policy document 2026.01.0"),
-        rules=(
-            PolicyRule("destination_allowlist", "pass", "known supplier"),
-            PolicyRule("per_tx_cap", "escalate", "4500.00 RLUSD is over the 1000 RLUSD cap"),
-            PolicyRule("approval_quorum", "pass", "2 of 2 approvals collected"),
-        ),
-        outcome="allow",
-        tier="human",
-        escalation=Escalation(
-            challenge=challenge,
-            expires_at="2026-01-02T04:04:05Z",
-            quorum=2,
-            approvals=(
-                {
-                    "approver_id": "alice@example.com",
-                    "method": "webauthn",
-                    "credential_id": digest("alice credential"),
-                    "signature": _blob(rng, 64),
-                    "signed_at": "2026-01-02T03:20:11Z",
-                },
-                {
-                    "approver_id": "bob@example.com",
-                    "method": "ed25519",
-                    "public_key": "ed03" * 16,
-                    "signature": _blob(rng, 64),
-                    "signed_at": "2026-01-02T03:22:47Z",
-                },
-            ),
-        ),
-    )
     attestation = SignerAttestation(
         document=_blob(rng, 96), policy_public_key=SIGNER_KEY, format="aws-nitro"
     )
-    anchor = _authorization_commitment(instruction, intent, decision, attestation).hex()
+    rules = (
+        PolicyRule("destination_allowlist", "pass", "known supplier"),
+        PolicyRule("per_tx_cap", "pass", "4500.00 RLUSD is within the 10000 RLUSD cap"),
+        PolicyRule(
+            "tier_threshold",
+            "escalate",
+            "4500.00 is at or above the human-approval threshold 1000.00 RLUSD.rISSUER"
+            "000000000000000000000000000",
+        ),
+    )
+    escalated = PolicyDecision(
+        policy_hash=digest("policy document 2026.01.0"),
+        rules=rules,
+        outcome="escalate",
+        tier="human",
+    )
+    challenge = escalation_challenge(
+        _authorization(instruction, intent, escalated, attestation)
+    )
+    approvals = (
+        fixtures.ed25519_assertion(
+            approver_id="alice@example.com",
+            key=ALICE_PRIVATE,
+            challenge=challenge.bytes,
+            signed_at="2026-01-02T03:20:11Z",
+        ),
+        fixtures.ed25519_assertion(
+            approver_id="bob@example.com",
+            key=BOB_PRIVATE,
+            challenge=challenge.bytes,
+            signed_at="2026-01-02T03:22:47Z",
+        ),
+    )
+    decision = dataclasses.replace(
+        escalated,
+        outcome="allow",
+        escalation=Escalation(
+            challenge=challenge.hex(),
+            expires_at="2026-01-02T04:04:05Z",
+            quorum=2,
+            approvals=tuple(a.to_content() for a in approvals),
+        ),
+    )
+    left = authorization_commitment(_authorization(instruction, intent, decision, attestation))
     leaves = ReceiptLeaves(
         instruction=instruction,
         intent=intent,
         policy_decision=decision,
         signer_attestation=attestation,
-        settlement=Settlement(
-            rail="xrpl",
-            tx_hash=_blob(rng, 32).upper(),
+        settlement=_settlement(
+            rng,
+            left,
             ledger_index=94_212_004,
             close_time="2026-01-02T03:25:02Z",
-            signed_tx_blob=_blob(rng, 120),
-            observed_anchor=anchor,
-            settlement_proof_ref="settlement-proof-0002",
+            proof_ref="settlement-proof-0002",
         ),
         result=Result(
             outcome="settled",
@@ -630,6 +946,11 @@ def _disclosure_tamper(
     }
 
 
+_ALSO_FAILS: dict[str, list[str]] = {
+    "policy_decision": ["envelope.policy_hash"],
+    "settlement": ["settlement.signed_blob"],
+}
+
 _TAMPER_FIELD: dict[str, str] = {
     "instruction": "content_hash",
     "intent": "nonce",
@@ -639,6 +960,112 @@ _TAMPER_FIELD: dict[str, str] = {
     "result": "outcome_hash",
     "reasoning": "content_hash",
 }
+
+
+_UNBACKED_CASES: list[tuple[str, str, dict[str, Any], dict[str, Any], list[str]]] = [
+    (
+        "rebuilt-without-a-policy-signature",
+        "A structurally perfect settled receipt that carries no policy signature. "
+        "Nothing contradicts itself; it simply never proves that the policy key "
+        "authorized the payment, and a settled receipt that cannot show that is a "
+        "failure, not a gap.",
+        {"policy_signature": None},
+        {},
+        ["policy.signature"],
+    ),
+    (
+        "rebuilt-with-a-forged-policy-signature",
+        "The signature bytes are altered. The payload still carries LEFT, so the "
+        "binding survives and only the signature check fails.",
+        {"forge_signature": True},
+        {},
+        ["policy.signature"],
+    ),
+    (
+        "rebuilt-with-a-signature-over-another-payload",
+        "A genuine signature by the policy key, over a payload that does not "
+        "contain this receipt's LEFT. Replaying a real signature onto a different "
+        "authorization is the attack this check exists for.",
+        {"foreign_payload": True},
+        {},
+        ["policy.signature"],
+    ),
+    (
+        "rebuilt-with-a-mismatched-signed-blob",
+        "The transaction hash does not derive from the blob beside it, so at most "
+        "one of the two describes what the ledger validated.",
+        {"corrupt_blob": True},
+        {},
+        ["settlement.signed_blob"],
+    ),
+    (
+        "rebuilt-with-an-anchor-that-is-not-left",
+        "The rail carried some other digest. The payment settled, but not this "
+        "authorization.",
+        {"observed_anchor": digest("an anchor from another receipt")},
+        {},
+        ["settlement.anchor_equals_left"],
+    ),
+    (
+        "rebuilt-with-an-amount-that-was-not-settled",
+        "The intent asks for 250.00 and the balance deltas record 25.00 moving. "
+        "Every hash agrees; the money does not.",
+        {},
+        {"scale": "25.00"},
+        ["intent.matches_settled_fields"],
+    ),
+]
+
+
+def _rebuild(
+    base: Receipt, settlement_changes: dict[str, Any], result_changes: dict[str, Any]
+) -> Receipt:
+    """A fresh receipt over altered settlement leaves, with its own valid envelope."""
+    settlement = base.leaves.settlement
+    result = base.leaves.result
+    assert settlement is not None and result is not None
+    signature = settlement.policy_signature
+    assert signature is not None
+
+    changes: dict[str, Any] = dict(settlement_changes)
+    if changes.pop("forge_signature", False):
+        changes["policy_signature"] = dataclasses.replace(
+            signature, signature=_flip_last_hex(signature.signature)
+        )
+    if changes.pop("foreign_payload", False):
+        payload = b"a payload about some other payment entirely"
+        changes["policy_signature"] = dataclasses.replace(
+            signature,
+            payload=payload.hex(),
+            signature=SIGNER_PRIVATE.sign(payload).hex(),
+        )
+    if changes.pop("corrupt_blob", False):
+        assert settlement.signed_tx_blob is not None
+        changes["signed_tx_blob"] = _flip_last_hex(settlement.signed_tx_blob)
+
+    scale = result_changes.pop("scale", None)
+    if scale is not None:
+        result = dataclasses.replace(
+            result,
+            balance_deltas=tuple(
+                dataclasses.replace(d, value=("-" + scale) if d.value.startswith("-") else scale)
+                for d in result.balance_deltas
+            ),
+        )
+    result = dataclasses.replace(result, **result_changes) if result_changes else result
+
+    leaves = dataclasses.replace(
+        base.leaves,
+        settlement=dataclasses.replace(settlement, **changes),
+        result=result,
+    )
+    return Receipt.build(
+        receipt_id=base.envelope.receipt_id,
+        leaves=leaves,
+        agent_id=base.envelope.agent_id,
+        signer_public_key=base.envelope.signer_public_key,
+        session_locator=base.envelope.session_locator,
+    )
 
 
 def tampered_vectors(built: dict[str, Receipt]) -> JSONObject:
@@ -656,8 +1083,10 @@ def tampered_vectors(built: dict[str, Receipt]) -> JSONObject:
         assert isinstance(value, str)
         contents[i] = _with(original, field, _flip_last_hex(value))
         half = "commitment.left" if i < 4 else "commitment.right"
-        # policy_hash is repeated in the envelope, so tampering with it fails twice.
-        also = ["envelope.policy_hash"] if leaf_name == "policy_decision" else []
+        # policy_hash is repeated in the envelope, so tampering with it fails twice;
+        # the transaction hash is derived from the blob, so tampering with it also
+        # breaks the derivation.
+        also = _ALSO_FAILS.get(leaf_name, [])
         cases.append(
             _receipt_tamper(
                 f"leaf-{i}-{leaf_name}-one-byte-changed",
@@ -684,6 +1113,7 @@ def tampered_vectors(built: dict[str, Receipt]) -> JSONObject:
                 "leaf.intent",
                 "leaf.policy_decision",
                 "commitment.left",
+                "intent.matches_settled_fields",
                 "envelope.rail",
                 "envelope.treasury",
                 "envelope.policy_hash",
@@ -728,7 +1158,11 @@ def tampered_vectors(built: dict[str, Receipt]) -> JSONObject:
             "allow-settled",
             allow,
             envelope=dict(_with(envelope, "left", digest("a left nobody computed"))),  # type: ignore[arg-type]
-            expect=["commitment.left"],
+            expect=[
+                "commitment.left",
+                "policy.signature",
+                "settlement.anchor_equals_left",
+            ],
         )
     )
 
@@ -812,7 +1246,12 @@ def tampered_vectors(built: dict[str, Receipt]) -> JSONObject:
             "deny-not-submitted",
             deny,
             leaves=grafted,
-            expect=["leaf.settlement", "commitment.right"],
+            expect=[
+                "leaf.settlement",
+                "commitment.right",
+                "policy.signature",
+                "settlement.anchor_equals_left",
+            ],
         )
     )
 
@@ -829,9 +1268,27 @@ def tampered_vectors(built: dict[str, Receipt]) -> JSONObject:
             "allow-settled",
             allow,
             leaves=float_amount,
-            expect=["leaf.intent", "commitment.left"],
+            expect=["leaf.intent", "commitment.left", "intent.matches_settled_fields"],
         )
     )
+
+    # A forger who rebuilds the whole tree consistently still cannot produce the
+    # signature, the anchor or the settled amounts. These four cases have a valid
+    # envelope over their own leaves: every structural check passes, and the
+    # receipt still proves nothing.
+    for name, description, settlement_changes, result_changes, expect in _UNBACKED_CASES:
+        rebuilt = _rebuild(allow, settlement_changes, result_changes)
+        cases.append(
+            _receipt_tamper(
+                name,
+                description,
+                "allow-settled",
+                rebuilt,
+                leaves=list(rebuilt.leaves.contents()),
+                envelope=rebuilt.envelope.to_content(),
+                expect=expect,
+            )
+        )
 
     # Disclosure tampering.
     disclosure = allow.disclose(["intent", "settlement"]).to_content()
@@ -919,6 +1376,7 @@ def build_all() -> dict[str, JSONObject]:
         "merkle.json": merkle_vectors(),
         "action_leaf.json": action_leaf_vectors(),
         "receipt_leaf.json": receipt_leaf_vectors(),
+        "approvals.json": approval_vectors(),
         "receipts.json": receipt_vectors(built),
         "tampered.json": tampered_vectors(built),
     }
