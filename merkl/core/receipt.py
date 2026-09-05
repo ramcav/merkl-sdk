@@ -11,9 +11,10 @@ splits the tree in half (plan D5):
   padding). Appended after settlement.
 * **ROOT** = ``SHA-256(LEFT || RIGHT)``.
 
-Nothing here reaches the network, a clock or a key. Signature, attestation and
-ledger checks belong to later phases and appear in the verification result as
-named, deferred checks rather than as silence — see :data:`DEFERRED_CHECKS`.
+Nothing here reaches the network or a clock, and no private key ever enters this
+module: the policy signature is *verified* here and made elsewhere. Checks no
+phase has implemented yet appear in the verification result as named, deferred
+entries rather than as silence — see :data:`DEFERRED_CHECKS`.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from __future__ import annotations
 import dataclasses
 import enum
 from collections.abc import Iterable, Mapping, Sequence
+from decimal import Decimal
 from typing import Any, Final
 
 from merkl.core.canonical import (
@@ -32,12 +34,21 @@ from merkl.core.canonical import (
     ensure_canonical_content,
     hex_digest,
     instant,
+    parse_decimal,
     text,
     token,
 )
-from merkl.core.intent import CurrencyRef, Intent, currency_content, currency_from_content
+from merkl.core.crypto import CryptoError, ed25519_verify
+from merkl.core.intent import (
+    CurrencyRef,
+    Intent,
+    currency_code,
+    currency_content,
+    currency_from_content,
+)
 from merkl.core.leaf import receipt_leaf
 from merkl.core.merkle import MerkleProof, MerkleTree
+from merkl.core.rail import tx_id_from_blob
 from merkl.shared.errors import ValidationError
 from merkl.shared.hashing import SHA256Hash, canonical_bytes
 
@@ -203,11 +214,11 @@ class PolicyRule:
 class Escalation:
     """An escalation and the approvals collected against it (plan D11).
 
-    ``challenge`` is the digest the approvers sign — ``LEFT_pre``, the LEFT half
-    computed before the decision leaf was final. Each entry of ``approvals`` is an
-    opaque canonical JSON object; phase 2 pins the assertion shape (WebAuthn
-    envelope or Ed25519 signature) and validates it. Until then core commits it
-    verbatim and checks only that it is canonical content.
+    ``challenge`` is the digest the approvers sign — ``LEFT_pre``, the decision as
+    it stood when it escalated (``escalation_challenge``, spec section 3.2). Each
+    entry of ``approvals`` is an :class:`~merkl.core.policy.approvals.ApprovalAssertion`
+    in canonical form; the leaf commits the object verbatim, and
+    ``verify_quorum`` is what decides whether enough of them count.
     """
 
     challenge: str
@@ -354,14 +365,62 @@ class SignerAttestation:
 
 
 @dataclasses.dataclass(frozen=True)
+class PolicySignature:
+    """The policy key's signature over the bytes the rail required (phase 2).
+
+    ``payload`` is the exact pre-image that was signed — for XRPL, the
+    multisigning payload of the submitted transaction — carried verbatim so a
+    verifier can check the signature offline instead of taking the signer's word
+    for it. LEFT must appear inside that payload: the signer wrote it there.
+
+    This lives in leaf 4 rather than leaf 3 for a reason. The signature is over
+    LEFT, and LEFT covers leaves 0-3; a signature stored inside its own input
+    could never be computed.
+    """
+
+    algorithm: str
+    public_key: str
+    signature: str
+    payload: str
+
+    def __post_init__(self) -> None:
+        token(self.algorithm, "policy_signature.algorithm", max_length=64)
+        token(self.public_key, "policy_signature.public_key", max_length=256)
+        token(self.signature, "policy_signature.signature", max_length=2048)
+        token(self.payload, "policy_signature.payload", max_length=131072)
+
+    def to_content(self) -> JSONObject:
+        return {
+            "algorithm": self.algorithm,
+            "public_key": self.public_key,
+            "signature": self.signature,
+            "payload": self.payload,
+        }
+
+    @classmethod
+    def from_content(cls, data: Any) -> PolicySignature:
+        obj = _object(data, "policy_signature")
+        _reject_unknown(
+            obj, {"algorithm", "public_key", "signature", "payload"}, "policy_signature"
+        )
+        return cls(
+            algorithm=_member(obj, "algorithm", "policy_signature"),
+            public_key=_member(obj, "public_key", "policy_signature"),
+            signature=_member(obj, "signature", "policy_signature"),
+            payload=_member(obj, "payload", "policy_signature"),
+        )
+
+
+@dataclasses.dataclass(frozen=True)
 class Settlement:
     """Leaf 4: what the rail did.
 
     ``observed_anchor`` is the value actually read back from the settled
     transaction's anchor field (the XRPL memo). Comparing it to LEFT is what binds
-    the authorization to the settlement; that comparison is a phase 2 check.
-    ``settlement_proof_ref`` points at the SHAMap path, ledger header and
-    validator quorum captured at submit time (plan D20).
+    the authorization to the settlement. ``policy_signature`` carries the
+    signature that made the settlement possible at all, with the bytes it covers.
+    ``settlement_proof_ref`` points at the ledger header, the validated
+    transaction and the validator quorum captured at submit time (plan D20).
     """
 
     rail: str
@@ -371,6 +430,7 @@ class Settlement:
     signed_tx_blob: str | None = None
     observed_anchor: str | None = None
     settlement_proof_ref: str | None = None
+    policy_signature: PolicySignature | None = None
 
     def __post_init__(self) -> None:
         token(self.rail, "settlement.rail", max_length=64)
@@ -381,7 +441,7 @@ class Settlement:
             raise ReceiptError("settlement.ledger_index must not be negative")
         instant(self.close_time, "settlement.close_time")
         if self.signed_tx_blob is not None:
-            token(self.signed_tx_blob, "settlement.signed_tx_blob", max_length=65536)
+            token(self.signed_tx_blob, "settlement.signed_tx_blob", max_length=131072)
         if self.observed_anchor is not None:
             token(self.observed_anchor, "settlement.observed_anchor", max_length=2048)
         if self.settlement_proof_ref is not None:
@@ -397,6 +457,9 @@ class Settlement:
                 "signed_tx_blob": self.signed_tx_blob,
                 "observed_anchor": self.observed_anchor,
                 "settlement_proof_ref": self.settlement_proof_ref,
+                "policy_signature": (
+                    self.policy_signature.to_content() if self.policy_signature else None
+                ),
             }
         )
 
@@ -413,9 +476,11 @@ class Settlement:
                 "signed_tx_blob",
                 "observed_anchor",
                 "settlement_proof_ref",
+                "policy_signature",
             },
             "settlement",
         )
+        signature = obj.get("policy_signature")
         return cls(
             rail=_member(obj, "rail", "settlement"),
             tx_hash=_member(obj, "tx_hash", "settlement"),
@@ -424,6 +489,9 @@ class Settlement:
             signed_tx_blob=obj.get("signed_tx_blob"),
             observed_anchor=obj.get("observed_anchor"),
             settlement_proof_ref=obj.get("settlement_proof_ref"),
+            policy_signature=(
+                None if signature is None else PolicySignature.from_content(signature)
+            ),
         )
 
 
@@ -678,6 +746,44 @@ def build_root(leaves: Sequence[SHA256Hash]) -> SHA256Hash:
     )
 
 
+def authorization_commitment(leaves: ReceiptLeaves) -> SHA256Hash:
+    """LEFT from leaves 0-3 alone, before anything has settled.
+
+    This is the value the policy key signs and the rail's anchor field carries.
+    It can be computed the moment the signer has decided, which is the whole point
+    of the split tree: the authorization commits itself before the outcome exists.
+    """
+    return build_left(leaves.hashes()[LEFT_LEAVES])
+
+
+def escalation_challenge(leaves: ReceiptLeaves) -> SHA256Hash:
+    """``LEFT_pre`` — the digest approvers sign (plan D11).
+
+    LEFT over leaves 0-3 where leaf 2 is the decision *as it stood when it
+    escalated*: the ``escalation`` member omitted and ``outcome`` set back to
+    ``escalate``. Those two edits are exactly what resolving an escalation
+    changes, and nothing else may change, so a reader holding only the finished
+    receipt can recompute the challenge and check for themselves that the
+    approvers signed this payment and not another one.
+
+    The escalation has to come out because the approvals go inside it: a
+    challenge that grew with each approval could not be signed by more than one
+    person.
+    """
+    decision = leaves.policy_decision
+    if decision is None:
+        raise ReceiptError("an escalation challenge needs a policy_decision leaf")
+    pre = ReceiptLeaves(
+        instruction=leaves.instruction,
+        intent=leaves.intent,
+        policy_decision=dataclasses.replace(
+            decision, escalation=None, outcome=PolicyOutcome.ESCALATE.value
+        ),
+        signer_attestation=leaves.signer_attestation,
+    )
+    return authorization_commitment(pre)
+
+
 def build_tree(leaves: Sequence[SHA256Hash]) -> MerkleTree:
     """The eight-leaf tree over seven leaf hashes, padded the usual way."""
     if len(leaves) not in (LEAF_COUNT, PADDED_LEAF_COUNT):
@@ -929,20 +1035,31 @@ def proof_check(name: str) -> str:
     return f"proof.{name}"
 
 
+CHECK_POLICY_SIGNATURE: Final = "policy.signature"
+CHECK_INTENT_MATCHES_SETTLED: Final = "intent.matches_settled_fields"
+CHECK_ANCHOR_EQUALS_LEFT: Final = "settlement.anchor_equals_left"
+CHECK_SIGNED_BLOB: Final = "settlement.signed_blob"
+CHECK_LEDGER_INCLUSION: Final = "settlement.ledger_inclusion"
+CHECK_ATTESTATION: Final = "signer.attestation"
+CHECK_LOG_JOIN: Final = "session.log_join"
+
 DEFERRED_CHECKS: Final[tuple[tuple[str, str], ...]] = (
-    ("policy.signature", "phase 2: verify the policy key's signature over the tx blob / LEFT"),
-    ("signer.attestation", "phase 3: verify the Nitro attestation document and PCR allowlist"),
-    ("intent.matches_settled_fields", "phase 2: compare intent to the settled transaction"),
-    ("settlement.anchor_equals_left", "phase 2: the rail memo must equal LEFT"),
-    ("settlement.signed_blob", "phase 2: re-derive the tx hash from the signed blob"),
-    ("settlement.ledger_inclusion", "phase 2: inclusion proof against pinned validators"),
-    ("session.log_join", "phase 4: envelope hash committed in the session log (level 2)"),
+    (CHECK_ATTESTATION, "phase 3: verify the Nitro attestation document and PCR allowlist"),
+    (
+        CHECK_LEDGER_INCLUSION,
+        "phase 4: fold the captured settlement proof against a pinned validator set",
+    ),
+    (CHECK_LOG_JOIN, "phase 4: envelope hash committed in the session log (level 2)"),
 )
-"""Checks the spec defines but this phase does not run, with the phase that will.
+"""Checks the spec defines but no phase has implemented yet, with the phase that will.
 
 These are the extension points. A later phase replaces the deferred entry with a
 real check of the same name; the vectors then move that name from
-``not_implemented`` to ``pass``.
+``not_implemented`` to ``pass``. Phase 2 emptied four of the original seven:
+``policy.signature``, ``intent.matches_settled_fields``,
+``settlement.anchor_equals_left`` and ``settlement.signed_blob`` now run whenever
+the receipt carries the data they need, and report ``not_implemented`` by name
+when it does not.
 """
 
 _DEFERRED_DETAIL: Final = dict(DEFERRED_CHECKS)
@@ -950,6 +1067,14 @@ _DEFERRED_DETAIL: Final = dict(DEFERRED_CHECKS)
 
 def _deferred(name: str) -> Check:
     return Check(name=name, status=CheckStatus.NOT_IMPLEMENTED, detail=_DEFERRED_DETAIL[name])
+
+
+def _no_data(name: str, detail: str) -> Check:
+    """A check that could not run because the receipt does not carry its inputs.
+
+    Not a pass. The spec's rule holds: a verifier says what it did not check.
+    """
+    return Check(name=name, status=CheckStatus.NOT_IMPLEMENTED, detail=detail)
 
 
 def _check(name: str, passed: bool, detail: str = "") -> Check:
@@ -1195,6 +1320,168 @@ def _content_member(content: JSONValue, key: str) -> Any:
     return None
 
 
+def _policy_signature_check(settlement: Settlement | None, envelope: Envelope) -> Check:
+    """Check 7: did the policy key actually authorize this?
+
+    The strongest thing a receipt says. Everything else can be internally
+    consistent and still prove nothing: a receipt whose LEFT was never signed is a
+    well-formed record of a transaction nobody approved.
+    """
+    if settlement is None:
+        return _no_data(
+            CHECK_POLICY_SIGNATURE, "nothing settled, so there is no policy signature to check"
+        )
+    signature = settlement.policy_signature
+    if signature is None:
+        return Check(
+            CHECK_POLICY_SIGNATURE,
+            CheckStatus.FAIL,
+            "a settled receipt must carry the policy signature that authorized it",
+        )
+    if signature.public_key != envelope.signer_public_key:
+        return Check(
+            CHECK_POLICY_SIGNATURE,
+            CheckStatus.FAIL,
+            f"signed by {signature.public_key[:16]}…, envelope names "
+            f"{envelope.signer_public_key[:16]}…",
+        )
+    if signature.algorithm != "ed25519":
+        return _no_data(
+            CHECK_POLICY_SIGNATURE,
+            f"this verifier only knows ed25519, the receipt says {signature.algorithm!r}",
+        )
+    try:
+        payload = bytes.fromhex(signature.payload)
+    except ValueError:
+        return Check(CHECK_POLICY_SIGNATURE, CheckStatus.FAIL, "the signed payload is not hex")
+    if envelope.left.bytes not in payload:
+        return Check(
+            CHECK_POLICY_SIGNATURE,
+            CheckStatus.FAIL,
+            "the signed payload does not contain LEFT, so the signature authorizes "
+            "something other than this receipt",
+        )
+    try:
+        ok = ed25519_verify(signature.public_key, signature.signature, payload)
+    except CryptoError as exc:
+        return Check(CHECK_POLICY_SIGNATURE, CheckStatus.FAIL, str(exc))
+    return _check(
+        CHECK_POLICY_SIGNATURE,
+        ok,
+        (
+            "the policy key signed a payload carrying LEFT"
+            if ok
+            else "the policy signature does not verify"
+        ),
+    )
+
+
+def _intent_matches_settled_check(
+    intent: Intent | None, settlement: Settlement | None, result: Result | None
+) -> Check:
+    """Check 9: the money that moved is the money that was asked for.
+
+    Compared against the balance deltas the rail reported, which is the part of
+    the settlement a receipt carries in its own leaves. A transaction that
+    authorizes one payment and settles another fails here.
+    """
+    name = CHECK_INTENT_MATCHES_SETTLED
+    if settlement is None:
+        return _no_data(name, "nothing settled, so there are no settled fields to compare")
+    if intent is None:
+        return Check(name, CheckStatus.FAIL, "the intent leaf does not parse")
+    if result is None or not result.balance_deltas:
+        return _no_data(name, "the receipt records no balance deltas to compare the intent to")
+    wanted = currency_content(intent.amount.currency)
+    amount = parse_decimal(intent.amount.value, "intent.amount.value")
+    credited = [
+        d
+        for d in result.balance_deltas
+        if d.account == intent.destination and currency_content(d.currency) == wanted
+    ]
+    if not credited:
+        return Check(
+            name,
+            CheckStatus.FAIL,
+            f"no balance delta credits {intent.destination} in the intent's currency",
+        )
+    total = sum(
+        (parse_decimal(d.value, "balance_delta.value") for d in credited), start=Decimal(0)
+    )
+    if total != amount:
+        return Check(
+            name,
+            CheckStatus.FAIL,
+            f"{intent.destination} received {total}, the intent asked for {amount}",
+        )
+    debited = [
+        d
+        for d in result.balance_deltas
+        if d.account == intent.treasury and currency_content(d.currency) == wanted
+    ]
+    if debited:
+        paid = sum(
+            (parse_decimal(d.value, "balance_delta.value") for d in debited), start=Decimal(0)
+        )
+        if paid != -amount:
+            return Check(
+                name,
+                CheckStatus.FAIL,
+                f"{intent.treasury} paid {paid}, the intent asked for {-amount}",
+            )
+    code = wanted if isinstance(wanted, str) else currency_code(intent.amount.currency)
+    return _check(name, True, f"{intent.destination} received {amount} {code}")
+
+
+def _anchor_check(settlement: Settlement | None, envelope: Envelope) -> Check:
+    """Check 10: the value on the ledger is this receipt's authorization commitment."""
+    name = CHECK_ANCHOR_EQUALS_LEFT
+    if settlement is None:
+        return _no_data(name, "nothing settled, so there is no anchor to compare")
+    if settlement.observed_anchor is None:
+        return _no_data(name, "the settlement leaf records no anchor read back from the rail")
+    observed = settlement.observed_anchor.lower()
+    return _check(
+        name,
+        observed == envelope.left.hex(),
+        f"the rail carried {observed}, LEFT is {envelope.left.hex()}",
+    )
+
+
+def _signed_blob_check(settlement: Settlement | None) -> Check:
+    """Check 11: the transaction id re-derives from the blob that was submitted."""
+    name = CHECK_SIGNED_BLOB
+    if settlement is None:
+        return _no_data(name, "nothing settled, so there is no signed blob")
+    if settlement.signed_tx_blob is None:
+        return _no_data(name, "the settlement leaf carries no signed transaction blob")
+    derived = tx_id_from_blob(settlement.rail, settlement.signed_tx_blob)
+    if derived is None:
+        return _no_data(
+            name, f"this verifier has no transaction-id rule for rail {settlement.rail!r}"
+        )
+    return _check(
+        name,
+        derived.lower() == settlement.tx_hash.lower(),
+        f"the blob hashes to {derived}, the receipt names {settlement.tx_hash}",
+    )
+
+
+def _parsed(model: Any, content: JSONValue) -> Any:
+    """Parse a leaf content into its model, or None when it does not parse.
+
+    A tampered receipt must *fail a check*, never raise, so every phase-2 check
+    treats unparseable content as missing data and lets ``leaf.<name>`` report the
+    damage.
+    """
+    if content is None:
+        return None
+    try:
+        return model.from_content(content)
+    except ValidationError:
+        return None
+
+
 def verify_receipt_structure(
     envelope: Envelope,
     leaves: ReceiptLeaves | Sequence[JSONValue],
@@ -1271,12 +1558,16 @@ def verify_receipt_structure(
             _check(CHECK_LEFT, left_ok, f"LEFT over leaves 0-3 is {committed_left.hex()}")
         )
 
-    checks.append(_deferred("policy.signature"))
-    checks.append(_deferred("signer.attestation"))
-    checks.append(_deferred("intent.matches_settled_fields"))
-    checks.append(_deferred("settlement.anchor_equals_left"))
-    checks.append(_deferred("settlement.signed_blob"))
-    checks.append(_deferred("settlement.ledger_inclusion"))
+    settlement = _parsed(Settlement, contents[4] if len(contents) > 4 else None)
+    settled_result = _parsed(Result, contents[5] if len(contents) > 5 else None)
+    parsed_intent = _parsed(Intent, contents[1] if len(contents) > 1 else None)
+
+    checks.append(_policy_signature_check(settlement, envelope))
+    checks.append(_deferred(CHECK_ATTESTATION))
+    checks.append(_intent_matches_settled_check(parsed_intent, settlement, settled_result))
+    checks.append(_anchor_check(settlement, envelope))
+    checks.append(_signed_blob_check(settlement))
+    checks.append(_deferred(CHECK_LEDGER_INCLUSION))
 
     committed_right = build_right(envelope.leaf_hashes[RIGHT_LEAVES])
     tail = [h for h in computed[4:LEAF_COUNT] if h is not None]
@@ -1329,7 +1620,7 @@ def verify_receipt_structure(
             f"envelope policy_hash {envelope.policy_hash}",
         )
     )
-    checks.append(_deferred("session.log_join"))
+    checks.append(_deferred(CHECK_LOG_JOIN))
     return VerificationResult(checks=tuple(checks))
 
 

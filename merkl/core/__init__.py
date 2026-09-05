@@ -14,6 +14,12 @@ What lives here:
 * :mod:`merkl.core.receipt` — the seven-leaf receipt, its envelope, selective
   disclosure and structural verification.
 * :mod:`merkl.core.canonical` — the JSON subset receipt content may use.
+* :mod:`merkl.core.policy` — the signed policy document, the deterministic engine
+  and the rule state the signer keeps.
+* :mod:`merkl.core.ports` — the Protocols adapters implement.
+* :mod:`merkl.core.rail` — rail-facing value objects and the anchor placeholder.
+* :mod:`merkl.core.crypto` — signature verification, the one place ``cryptography``
+  is used inside core.
 
 ``docs/RECEIPT-SPEC.md`` is the normative description of every byte.
 """
@@ -43,12 +49,16 @@ from merkl.core.leaf import (
 )
 from merkl.core.merkle import Direction, MerkleProof, MerkleTree
 from merkl.core.receipt import (
+    CHECK_ANCHOR_EQUALS_LEFT,
+    CHECK_INTENT_MATCHES_SETTLED,
     CHECK_LEAF_COUNT,
     CHECK_LEFT,
     CHECK_PADDING,
+    CHECK_POLICY_SIGNATURE,
     CHECK_REQUIRED_LEAVES,
     CHECK_RIGHT,
     CHECK_ROOT,
+    CHECK_SIGNED_BLOB,
     CHECK_VERSION,
     DEFERRED_CHECKS,
     LEAF_NAMES,
@@ -65,6 +75,7 @@ from merkl.core.receipt import (
     PolicyDecision,
     PolicyOutcome,
     PolicyRule,
+    PolicySignature,
     Reasoning,
     Receipt,
     ReceiptError,
@@ -75,11 +86,13 @@ from merkl.core.receipt import (
     Settlement,
     SignerAttestation,
     VerificationResult,
+    authorization_commitment,
     build_left,
     build_right,
     build_root,
     build_tree,
     disclose,
+    escalation_challenge,
     leaf_check,
     pad_leaf_hashes,
     proof_check,
@@ -91,12 +104,16 @@ __all__ = [
     "ACTION_LEAF_TAG",
     "Amount",
     "BalanceDelta",
+    "CHECK_ANCHOR_EQUALS_LEFT",
+    "CHECK_INTENT_MATCHES_SETTLED",
     "CHECK_LEAF_COUNT",
     "CHECK_LEFT",
     "CHECK_PADDING",
+    "CHECK_POLICY_SIGNATURE",
     "CHECK_REQUIRED_LEAVES",
     "CHECK_RIGHT",
     "CHECK_ROOT",
+    "CHECK_SIGNED_BLOB",
     "CHECK_VERSION",
     "Check",
     "CheckStatus",
@@ -122,6 +139,7 @@ __all__ = [
     "PolicyDecision",
     "PolicyOutcome",
     "PolicyRule",
+    "PolicySignature",
     "RECEIPT_LEAF_TAG",
     "RECEIPT_VERSION",
     "Reasoning",
@@ -136,12 +154,14 @@ __all__ = [
     "SignerAttestation",
     "VerificationResult",
     "action_leaf",
+    "authorization_commitment",
     "build_left",
     "build_right",
     "build_root",
     "build_tree",
     "disclose",
     "ensure_canonical_content",
+    "escalation_challenge",
     "format_decimal",
     "leaf_check",
     "pad_leaf_hashes",

@@ -353,10 +353,19 @@ class TestStructuralVerification:
         assert {c.name for c in result.failures} == {CHECK_ROOT}
 
     def test_wrong_left_fails(self) -> None:
+        """A forged LEFT breaks the commitment *and* everything hung off it.
+
+        LEFT is what the policy key signed and what the rail carried, so a
+        receipt that claims a different one contradicts itself three times over.
+        """
         receipt = make_receipt()
         envelope = dataclass_replace(receipt.envelope, left=SHA256Hash.from_bytes(b"forged"))
         result = verify_receipt_structure(envelope, receipt.leaves)
-        assert {c.name for c in result.failures} == {CHECK_LEFT}
+        assert {c.name for c in result.failures} == {
+            CHECK_LEFT,
+            "policy.signature",
+            "settlement.anchor_equals_left",
+        }
 
     def test_envelope_fields_must_match_the_leaves(self) -> None:
         receipt = make_receipt()
