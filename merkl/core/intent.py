@@ -290,3 +290,8 @@ def _reject_unknown(data: dict[str, Any], allowed: set[str], owner: str) -> None
     unknown = sorted(set(data) - allowed)
     if unknown:
         raise IntentError(f"{owner} has unknown members: {unknown}")
+
+
+def currency_code(currency: CurrencyRef) -> str:
+    """The bare asset code, whether the currency is native or issued."""
+    return currency.code if isinstance(currency, IssuedCurrency) else currency

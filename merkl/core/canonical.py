@@ -20,7 +20,7 @@ This module is pure: no I/O, no clock, no dependencies beyond ``merkl.shared``.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any, TypeAlias
 
@@ -160,6 +160,30 @@ def instant(value: Any, field: str) -> str:
     except ValueError as exc:
         raise ContentError(f"{field} is not a valid instant: {value!r}") from exc
     return value
+
+
+def parse_instant(value: Any, field: str) -> datetime:
+    """Parse a validated instant into an aware :class:`~datetime.datetime` (UTC).
+
+    Core never *reads* a clock; it does arithmetic on instants the caller supplies,
+    which is what a sliding window and an expiry need.
+    """
+    return datetime.fromisoformat(instant(value, field).replace("Z", "+00:00"))
+
+
+def format_instant(value: datetime) -> str:
+    """Render a datetime as the canonical ``...Z`` instant, seconds precision.
+
+    Sub-second precision is dropped on purpose: a receipt's instants are compared
+    across implementations, and microseconds are the field where two runtimes
+    disagree first.
+    """
+    return value.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def shift_instant(value: str, seconds: int, field: str = "instant") -> str:
+    """The canonical instant ``seconds`` after ``value`` (negative shifts backwards)."""
+    return format_instant(parse_instant(value, field) + timedelta(seconds=seconds))
 
 
 def decimal_string(value: Any, field: str, *, signed: bool = False, positive: bool = True) -> str:
