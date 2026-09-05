@@ -2,7 +2,7 @@
 
 Thin Python HTTP client for Merkl. This is what agent developers `pip install` to instrument their agents.
 
-Developed in the merkl monorepo (`packages/merkl-sdk`); the standalone `merkl-sdk` repo is a read-only export — change things there via the monorepo, then re-run the subtree split.
+Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramcav/merkl` monorepo on 2026-09-05). The notary (`ramcav/merkl-api`, private) and the dashboard (`ramcav/merkl-dashboard`, private) live in their own repos. merkl-api depends on the *released* `merkl-sdk`, so a change to `merkl/shared/` reaches the server only through a version bump and release.
 
 ## What This Package Does
 
@@ -46,13 +46,22 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 pip install -e ".[dev]"
-pytest  # 137 tests
+pytest  # 145 tests
 ```
+
+## Releasing
+
+```bash
+# bump version in pyproject.toml, add a CHANGELOG.md section, commit, then:
+git tag v0.1.2 && git push origin v0.1.2
+```
+
+The tag is the release decision: `.github/workflows/release.yml` refuses a tag that disagrees with `pyproject.toml`, runs the suite, builds, publishes to PyPI via Trusted Publishing (OIDC, gated by the `pypi` environment), and creates a GitHub Release from the matching CHANGELOG section. `examples/` holds runnable demo agents against a local notary; `docs/adr/` records the shared-kernel design decisions.
 
 ## Guidelines
 
 - Keep it thin. Server logic belongs in the merkl-api package.
-- `merkl/shared/` is imported by both the SDK and the merkl-api server (in the monorepo) — changes affect both, and `canonical_hash` / leaf encodings are proof-format-critical.
+- `merkl/shared/` is imported by both the SDK and the merkl-api server (via the PyPI release) — changes affect both, and `canonical_hash` / leaf encodings are proof-format-critical. Bump the version and release before merkl-api can pick a change up.
 - Framework integrations should end at `record_tool_call()` in `_common.py`, not call `session.record_action()` directly. New action fields flow through one site.
 - Input/output hashing must go through `canonical_hash()`. Raw `str()` is non-deterministic for dicts; the SDK and the Claude Code hook must produce identical leaf hashes for the same logical payload.
 - The SDK must never import from `merkl_api.*`.

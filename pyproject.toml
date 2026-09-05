@@ -40,6 +40,7 @@ merkl = "merkl.cli.main:main"
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "hypothesis>=6.0",
     "mypy>=1.8",
     "ruff>=0.3",
 ]

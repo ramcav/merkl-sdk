@@ -1,0 +1,119 @@
+# Cut a merkl-sdk release.
+#
+#   git tag v0.1.2 && git push origin v0.1.2
+#
+# Deliberately NOT triggered by pushes to a branch: a PyPI version is permanent,
+# and a second push without a version bump would fail on a duplicate upload.
+# Pushing the tag is the release decision.
+#
+# Publishing uses PyPI Trusted Publishing (OIDC) — there is no token stored in
+# this repo. PyPI must list this repo (ramcav/merkl-sdk), this workflow file
+# (release.yml) and the `pypi` environment as a trusted publisher. The `pypi`
+# environment gates the upload behind a manual approval.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # A tag that disagrees with pyproject.toml would publish a version nobody
+      # can trace back to a commit. Fail before anything is built.
+      - name: Tag must match pyproject.toml
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} declares ${tag}, pyproject.toml declares ${pkg}"
+            exit 1
+          fi
+          echo "version=${pkg}" >> "$GITHUB_OUTPUT"
+
+      - name: Install and test
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          python -m pytest -q
+
+      - name: Build
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
+
+      - name: Extract release notes
+        run: |
+          awk -v v="${{ steps.version.outputs.version }}" '
+            $0 ~ "^## \\[" v "\\]" { inside = 1; next }
+            inside && /^## \[/       { exit }
+            inside                   { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::error::no CHANGELOG.md section for ${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+          cat release-notes.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: |
+            dist/
+            release-notes.md
+
+  publish-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    # Configure this environment with required reviewers so the upload needs a
+    # human click even once the tag is pushed.
+    environment:
+      name: pypi
+      url: https://pypi.org/project/merkl-sdk/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write # OIDC identity for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          # Lets a re-run of a partially failed release succeed instead of
+          # dying on an already-uploaded file.
+          skip-existing: true
+
+  github-release:
+    needs: [build, publish-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "merkl-sdk ${{ needs.build.outputs.version }}" \
+            --notes-file release-notes.md

@@ -4,8 +4,8 @@ All notable changes to `merkl-sdk`. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Releases are cut by pushing a `merkl-sdk-v<version>` tag; see
-`.github/workflows/release-sdk.yml`.
+Releases are cut by pushing a `v<version>` tag; see
+`.github/workflows/release.yml`.
 
 ## [Unreleased]
 
