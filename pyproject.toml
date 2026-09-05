@@ -44,6 +44,13 @@ dev = [
     "mypy>=1.8",
     "ruff>=0.3",
 ]
+# The XRPL settlement adapter. Only merkl.adapters.xrpl imports xrpl-py.
+xrpl = [
+    "xrpl-py>=4.0",
+]
+# The dev signer process. Deliberately stdlib-only: merkl.signer.server is a
+# ThreadingHTTPServer, so running a signer pulls in no web framework.
+signer = []
 
 [tool.hatch.build.targets.sdist]
 exclude = [

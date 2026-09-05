@@ -19,3 +19,12 @@ build/
 .DS_Store
 .idea/
 .vscode/
+
+# Keys, seeds and signer state — never committed (charter: gitignore before generating)
+.merkl/
+*.wallets.json
+*.seed
+*.seeds.json
+signer-keystore/
+signer-state/
+*.keystore.json
