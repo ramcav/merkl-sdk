@@ -49,6 +49,19 @@ Releases are cut by pushing a `v<version>` tag; see
   them itself and signs the result, and the adapter reproduces the same bytes
   independently. The signer never parses a rail's binary format to know that the
   memo it authorized is the memo that settles.
+- **The signer reads the bytes before signing them.** `merkl.signer.rails`
+  decodes the exact payload — after the anchor write — and holds it against the
+  intent: transaction type, account, destination, amount (drops for XRP, numeric
+  for issued currencies, since XRPL normalises the mantissa), exactly one memo
+  whose data is LEFT, and an **allowlist** of fields so `SendMax`, `DeliverMin`,
+  `Paths`, `DestinationTag`, `tfPartialPayment` and anything unforeseen are
+  findings by construction. The settlement adapter runs in the agent's process,
+  so its account of what its bytes encode was the one thing still taken on trust.
+  A mismatch is a DENY decision with a `rail.payload_encodes_intent` rule and a
+  receipt, and the reservation is released. The codec is resolved at boot from
+  the policy's `rail` and the signer refuses to start without one; it loads
+  lazily behind the `signer-xrpl` extra so the signer's base stays on
+  `merkl.core` and `merkl.shared` alone.
 - **`merkl.adapters`** — `fake` (a deterministic in-memory rail that enforces
   2-of-2 quorum and refuses a lone signature with `BAD_QUORUM`), `xrpl`
   (multisigned Payments anchored by memo, treasury bootstrap that installs the
@@ -77,6 +90,8 @@ Releases are cut by pushing a `v<version>` tag; see
   four checks this phase implemented and keeps `signer.attestation` (phase 3),
   `settlement.ledger_inclusion` (phase 4) and `session.log_join` (phase 4).
   Committed vectors were regenerated for both reasons.
+- `PolicyDocument` gains a required `rail` member: a policy that does not say
+  which ledger it governs cannot tell the signer which codec to load.
 - `merkl.core` now imports `cryptography` — a declared runtime dependency
   already — to *verify* signatures. It still makes none: no private key enters
   the pure core.

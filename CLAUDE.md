@@ -63,9 +63,12 @@ merkl/core/
 
 `merkl/signer/` depends on `merkl.core` and `merkl.shared` alone — no rail
 client, no HTTP client, no framework — which is what makes it small enough to
-audit and small enough to put inside an enclave in phase 3.
-`docs/SIGNER-RPC.md` is its contract, and section 4 states what it cannot yet
-verify.
+audit and small enough to put inside an enclave in phase 3. The one exception is
+`merkl/signer/rails/<rail>.py`, a **verify-only** codec that decodes the payload
+the signer is about to sign and holds it against the intent; it loads lazily
+behind its own extra (`signer-xrpl`), and nothing else imports it at module
+level. The settlement adapter runs in the agent's process, so its account of what
+its bytes encode is never taken on trust — see `docs/SIGNER-RPC.md` section 4.
 
 `docs/RECEIPT-SPEC.md` is normative for all of it. Rules:
 
@@ -84,6 +87,10 @@ verify.
   of data is never reported as agreement.
 - **The signer never accepts a decision from the caller** (plan D1). If you find
   yourself adding a parameter through which one could be suggested, stop.
+- **The signer never signs bytes it has not decoded.** A rail codec is an
+  allowlist of fields, not a blocklist of dangerous ones; a mismatch is a DENY
+  decision with a `rail.payload_encodes_intent` rule and a receipt, never an
+  exception. Adding a rail means adding its codec, or the signer refuses to boot.
 - **Vectors are the contract with the JS verifier.** Plain JSON, lowercase hex,
   no floats, no Python-specific types. After touching any encoding, run
   `python -m merkl.core.vectors.generate` and commit the diff; the suite fails if
@@ -120,8 +127,8 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 ## Testing
 
 ```bash
-uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer]"
-pytest                                          # 771 tests, 7 skipped
+uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
+pytest                                          # 815 tests, 7 skipped
 mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py
 ruff check merkl/core merkl/signer merkl/adapters tests/core tests/signer
 python -m merkl.core.vectors.generate --check   # fixtures are current

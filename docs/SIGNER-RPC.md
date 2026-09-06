@@ -185,33 +185,70 @@ change entry (plan D16) for the SDK to post to the notary:
  "policy_hash": "<hex>", "policy_version": "2026.02.0"}
 ```
 
-## 4. What the signer cannot check yet
+## 4. Reading the bytes before signing them
 
-The signer verifies the prepared transaction's **fields** against the intent and
-writes the commitment into the payload itself, so the anchor binding is exact.
-What it does not do is confirm that the payload *encodes* those fields: it has no
-rail serializer, by design — `merkl.signer` depends on `merkl.core` and
-`merkl.shared` alone, and adding a rail codec to the enclave image is a decision
-for phase 3, not a detail.
+The settlement adapter runs in the **agent's** process. That is the party this
+whole design assumes may be compromised, so its account of what a payload encodes
+is exactly the thing that cannot be taken on trust. A signer that compared the
+adapter's reported `fields` to the intent and then signed the adapter's bytes
+would bless a payment to anywhere, as long as the adapter described it honestly.
 
-The gap is therefore: **a malicious settlement adapter in the agent's process
-could present honest `fields` alongside a payload that pays someone else.**
+So the signer decodes the payload itself. After it writes LEFT into the anchor,
+and immediately before the key moves, `merkl.signer.rails.<rail>` decodes the
+exact bytes and holds them against the intent:
 
-Three things narrow it today:
+| Checked | Against |
+|---|---|
+| `TransactionType` | must be `Payment` |
+| `Account` | `intent.treasury` |
+| `Destination` | `intent.destination` |
+| `Amount` | drops for XRP; currency, issuer and a **numeric** value comparison for issued currencies, because XRPL normalises an issued mantissa (`250.00` decodes as `250`) |
+| `Memos` | exactly one, `MemoType` = `merkl/receipt-v1`, `MemoData` = LEFT |
+| `Flags` | absent, `0`, or only `tfFullyCanonicalSig`. `tfPartialPayment`, `tfLimitQuality` and `tfNoRippleDirect` are refused |
+| every other field | an **allowlist**: `TransactionType, Account, Destination, Amount, Fee, Sequence, LastLedgerSequence, SigningPubKey, Memos, Flags, NetworkID`. Anything else is a finding |
 
-1. `merkl.signer.binding` decodes the treasury and destination addresses itself
-   and requires their raw account ids to appear in the payload. A payload that
-   does not even mention the destination is refused;
-2. the signer requires exactly one placeholder-shaped run in the payload, so it
-   knows where its commitment is going;
-3. the caller re-prepares the transaction independently and compares byte for
-   byte, and the ledger republishes the memo, which the receipt records as
-   `observed_anchor` — so a substituted transaction is *detectable after the
-   fact* from the receipt alone, even if it settled.
+The allowlist is the load-bearing part. XRPL has several ways to make a Payment
+deliver something other than `Amount` to `Destination` — `SendMax`, `DeliverMin`,
+`Paths` and a partial-payment flag between them — and `DestinationTag` is read by
+an exchange as part of the address. Intent v1 expresses none of them, so their
+*presence* is the finding, and a field nobody has thought of yet is caught by
+construction rather than by the next person to read the XRPL spec.
 
-Closing it properly means a pure serializer for the rail's signing pre-image in
-`merkl.core.rails`, letting the signer re-derive the payload from the fields and
-require equality. That is the right shape and it is not built.
+**A mismatch is a decision, not an error.** It returns `200` with
+`outcome: "deny"`, and the decision carries a rule named
+`rail.payload_encodes_intent` whose detail names every disagreement. The agent
+asked for one payment and its adapter produced the bytes for another; that is
+worth being able to prove afterwards, so it gets a receipt. The reservation is
+released, so a hostile adapter cannot burn the agent's spending window either.
+
+Codecs are **verify-only**: they decode, they never build a transaction and never
+reach a network, so a codec is a pure function of bytes and can be reasoned about
+— and audited — on its own.
+
+### Where the codec comes from
+
+The policy document names the treasury's `rail`. The signer resolves the codec at
+boot and **refuses to start** if there is none: a signer that cannot read its
+rail's bytes must fail at startup rather than discover it mid-payment.
+
+Codecs load lazily, behind their own extra:
+
+```
+pip install 'merkl-sdk[signer,signer-xrpl]'
+```
+
+A separate extra from `[signer]` rather than folded into it, because a signer
+serves one treasury on one rail (plan D18) — so it should carry that rail's
+library and no other, and a Solana signer should not ship xrpl-py. That keeps
+`merkl.signer`'s base dependent on `merkl.core` and `merkl.shared` alone, which
+is what `tests/signer/test_signer_purity.py` enforces.
+
+### What is still outside the signer
+
+The signer now verifies that the bytes encode the intent. It does not verify that
+the *rail* will accept them — a malformed fee or a stale `LastLedgerSequence`
+makes the transaction fail, not misdeliver. That is a liveness problem, and it
+shows up as a `FAILED` receipt rather than a wrong payment.
 
 ## 5. Phase 3 notes
 
@@ -223,6 +260,10 @@ The Nitro parent proxy implements this contract over vsock, with:
   (`merkl.signer.keystore.KeystorePort` is already the whole surface);
 - state snapshots sealed with a KMS-derived key and handed to the parent for
   storage, keeping the monotonic sequence semantics of
-  `merkl.signer.state.SealedStateStore`.
+  `merkl.signer.state.SealedStateStore`;
+- **the enclave image installs the rail codec extra** (`signer-xrpl` for an XRPL
+  treasury). The codec is inside the enclave, not in the parent proxy: it is the
+  check that makes the policy signature mean something, so it has to be measured
+  by the same attestation as the key it protects.
 
 No method signature changes.
