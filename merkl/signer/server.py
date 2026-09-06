@@ -96,6 +96,34 @@ def _array(params: JSONObject, key: str) -> list[Any]:
     return value
 
 
+def handle_request(
+    router: RpcRouter, method: str, params: JSONObject, request_id: Any = None
+) -> tuple[int, JSONObject]:
+    """Dispatch one call and shape the answer, transport-independent.
+
+    The HTTP handler and the vsock server both go through here, so the two
+    transports cannot drift into reporting the same failure differently — which
+    matters because ``docs/SIGNER-RPC.md`` promises one contract, and a caller
+    that has to know whether it is talking to a dev signer or an enclave has
+    already lost the property phase 3 exists to add.
+
+    **An error is never a decision.** A refused payment comes back ``200`` with a
+    full ``deny`` decision; the errors mapped here mean no decision was reached
+    and no receipt exists.
+    """
+    try:
+        result = router.dispatch(method, params)
+    except (AuthError, SignerError, ContentError, MerklError) as exc:
+        return ERROR_CODES.get(getattr(exc, "error_code", ""), 400), {
+            "error": {
+                "code": getattr(exc, "error_code", "signer_error"),
+                "message": str(exc),
+            },
+            "id": request_id,
+        }
+    return int(HTTPStatus.OK), {"result": result, "id": request_id}
+
+
 class _Handler(BaseHTTPRequestHandler):
     """POST anything, get JSON back. Errors are JSON too, never an HTML page."""
 
@@ -130,22 +158,8 @@ class _Handler(BaseHTTPRequestHandler):
                 {"error": {"message": "request needs a string method and an object params"}},
             )
             return
-        try:
-            result = self.router.dispatch(method, params)
-        except (AuthError, SignerError, ContentError, MerklError) as exc:
-            code = ERROR_CODES.get(getattr(exc, "error_code", ""), 400)
-            self._send(
-                code,
-                {
-                    "error": {
-                        "code": getattr(exc, "error_code", "signer_error"),
-                        "message": str(exc),
-                    },
-                    "id": body.get("id"),
-                },
-            )
-            return
-        self._send(HTTPStatus.OK, {"result": result, "id": body.get("id")})
+        status, payload = handle_request(self.router, method, params, body.get("id"))
+        self._send(status, payload)
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler's naming
         """``GET /health`` so a supervisor can check liveness without a body."""
