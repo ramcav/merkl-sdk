@@ -155,6 +155,42 @@ def test_a_bad_request_gets_an_error_and_keeps_the_connection(
     assert call(client, "health")["result"]["status"] == "ok"
 
 
+def test_relay_auth_is_enforced_over_vsock(tmp_path: Path) -> None:
+    """The vsock frame's ``auth.bearer`` member carries the relay credential.
+
+    Vsock has no headers, so this is what the Nitro parent proxy forwards the
+    HTTP ``Authorization`` header into (``nitro/parent/proxy.py``).
+    """
+    from merkl.signer.relay_auth import RelayToken, generate_token, hash_token
+
+    engine, _, _ = make_engine(tmp_path)
+    bearer = generate_token("ci")
+    tokens = (RelayToken(id="ci", token_sha256=hash_token(bearer)),)
+    client, server = pair()
+    serve_in_background(RpcRouter(engine, tokens), server)
+
+    body = call(client, "health")
+    assert body["error"]["code"] == "signer_auth_error"
+
+    send_frame(
+        client, json.dumps({"method": "health", "params": {}, "auth": {"bearer": bearer}}).encode()
+    )
+    frame = recv_frame(client)
+    assert frame is not None
+    assert json.loads(frame)["result"]["status"] == "ok"
+
+
+def test_propose_needs_no_bearer_over_vsock(tmp_path: Path) -> None:
+    from merkl.signer.relay_auth import RelayToken, generate_token, hash_token
+
+    engine, _, _ = make_engine(tmp_path)
+    tokens = (RelayToken(id="ci", token_sha256=hash_token(generate_token("ci"))),)
+    client, server = pair()
+    serve_in_background(RpcRouter(engine, tokens), server)
+    body = call(client, "propose", {"request": {}})
+    assert "requires Authorization" not in body["error"]["message"]
+
+
 def test_the_server_stops_when_the_peer_goes_away(tmp_path: Path) -> None:
     engine, _, _ = make_engine(tmp_path)
     client, server = pair()

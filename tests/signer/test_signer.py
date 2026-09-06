@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import threading
 from pathlib import Path
@@ -11,15 +12,25 @@ import pytest
 
 from merkl.adapters.fake import FakeLedger, FakeSettlementAdapter
 from merkl.core.canonical import shift_instant
+from merkl.core.policy.document import CREDENTIAL_WEBAUTHN, AdminCredential, SignedPolicy
 from merkl.core.rail import ANCHOR_PLACEHOLDER_HEX
 from merkl.core.receipt import PolicyOutcome
 from merkl.signer.auth import AuthError, SignedRequest, sign_request, verify_request
 from merkl.signer.binding import BindingError, decode_classic_address, missing_bindings
 from merkl.signer.engine import SignerEngine, SignerError
 from merkl.signer.keystore import DevKeystore, KeystoreError
+from merkl.signer.relay_auth import RelayToken, generate_token, hash_token
 from merkl.signer.server import build_server
 from merkl.signer.state import SealedStateError, SealedStateStore
-from tests.scenarios.harness import AGENT, AGENT_ID, FrozenClock, build_policy, sign_policy
+from tests.scenarios.harness import (
+    ADMIN,
+    AGENT,
+    AGENT_ID,
+    BOB,
+    FrozenClock,
+    build_policy,
+    sign_policy,
+)
 
 
 def make_engine(tmp_path: Path, **overrides) -> tuple[SignerEngine, FrozenClock, DevKeystore]:
@@ -336,6 +347,61 @@ class TestPolicyUpdate:
         with pytest.raises(SignerError, match="which treasury"):
             engine.policy_update(elsewhere.to_content())
 
+    def _webauthn_admin(self) -> AdminCredential:
+        return AdminCredential(
+            credential_type=CREDENTIAL_WEBAUTHN,
+            public_key=BOB.public_key,
+            origins=("https://app.merkl.ai",),
+            rp_id="app.merkl.ai",
+            user_verification=True,
+        )
+
+    def test_an_admin_can_rotate_to_a_webauthn_credential(self, tmp_path: Path) -> None:
+        """The old (legacy Ed25519) admin signs a document naming a new admin (D16)."""
+        engine, _, _ = make_engine(tmp_path)
+        assert engine.admin.credential_type == "ed25519"
+        new_document = dataclasses.replace(
+            engine.document,
+            admin_public_key=None,
+            admin=self._webauthn_admin(),
+            version="2026.02.0",
+        )
+        updated = SignedPolicy(
+            document=new_document,
+            signature=ADMIN.sign(new_document.pre_image()),
+            signer_public_key=ADMIN.public_key,
+        )
+        result = engine.policy_update(updated.to_content())
+        assert result["policy_hash"] == new_document.policy_hash()
+        assert engine.admin.credential_type == "webauthn"
+        assert engine.admin.public_key == BOB.public_key
+
+    def test_after_rotation_the_old_admin_key_no_longer_authorizes_anything(
+        self, tmp_path: Path
+    ) -> None:
+        engine, _, _ = make_engine(tmp_path)
+        rotated = dataclasses.replace(
+            engine.document,
+            admin_public_key=None,
+            admin=self._webauthn_admin(),
+            version="2026.02.0",
+        )
+        engine.policy_update(
+            SignedPolicy(
+                document=rotated,
+                signature=ADMIN.sign(rotated.pre_image()),
+                signer_public_key=ADMIN.public_key,
+            ).to_content()
+        )
+        another = dataclasses.replace(rotated, version="2026.02.1")
+        forged = SignedPolicy(
+            document=another,
+            signature=ADMIN.sign(another.pre_image()),
+            signer_public_key=ADMIN.public_key,
+        )
+        with pytest.raises(SignerError, match="admin credential this signer has pinned"):
+            engine.policy_update(forged.to_content())
+
 
 class TestRpcServer:
     def _serve(self, tmp_path: Path):
@@ -383,6 +449,88 @@ class TestRpcServer:
         engine, _, _ = make_engine(tmp_path)
         with pytest.raises(SignerError, match="refusing to bind"):
             build_server(engine, host="0.0.0.0", port=0)
+
+
+class TestRelayAuthOverHttp:
+    """docs/SIGNER-RPC.md, "Who may call what" — enforced at the server, both transports."""
+
+    def _serve_with_token(self, tmp_path: Path):
+        engine, clock, _ = make_engine(tmp_path)
+        bearer = generate_token("ci")
+        tokens = (RelayToken(id="ci", token_sha256=hash_token(bearer)),)
+        server = build_server(engine, host="127.0.0.1", port=0, relay_tokens=tokens)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address[:2]
+        return server, f"http://{host}:{port}", clock, bearer
+
+    def test_with_no_relay_tokens_configured_health_needs_nothing(self, tmp_path: Path) -> None:
+        engine, _, _ = make_engine(tmp_path)
+        server = build_server(engine, host="127.0.0.1", port=0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        host, port = server.server_address[:2]
+        try:
+            response = httpx.post(f"http://{host}:{port}", json={"method": "health"})
+            assert response.status_code == 200
+        finally:
+            server.shutdown()
+
+    def test_a_bearer_is_required_once_a_token_is_configured(self, tmp_path: Path) -> None:
+        server, base, _, _ = self._serve_with_token(tmp_path)
+        try:
+            response = httpx.post(base, json={"method": "health"})
+            assert response.status_code == 401
+            assert response.json()["error"]["code"] == "signer_auth_error"
+        finally:
+            server.shutdown()
+
+    def test_the_bare_get_health_endpoint_also_requires_it(self, tmp_path: Path) -> None:
+        server, base, _, _ = self._serve_with_token(tmp_path)
+        try:
+            assert httpx.get(f"{base}/health").status_code == 401
+        finally:
+            server.shutdown()
+
+    def test_a_wrong_bearer_is_refused(self, tmp_path: Path) -> None:
+        server, base, _, _ = self._serve_with_token(tmp_path)
+        try:
+            response = httpx.post(
+                base,
+                json={"method": "health"},
+                headers={"Authorization": "Bearer ci:wrong-secret"},
+            )
+            assert response.status_code == 401
+        finally:
+            server.shutdown()
+
+    def test_the_right_bearer_is_accepted(self, tmp_path: Path) -> None:
+        server, base, _, bearer = self._serve_with_token(tmp_path)
+        try:
+            response = httpx.post(
+                base, json={"method": "health"}, headers={"Authorization": f"Bearer {bearer}"}
+            )
+            assert response.status_code == 200
+            assert httpx.get(
+                f"{base}/health", headers={"Authorization": f"Bearer {bearer}"}
+            ).json()["result"]["status"] == "ok"
+        finally:
+            server.shutdown()
+
+    def test_propose_needs_no_bearer_even_when_tokens_are_configured(
+        self, tmp_path: Path
+    ) -> None:
+        server, base, clock, _ = self._serve_with_token(tmp_path)
+        try:
+            request = request_for(clock, {"instruction": {}, "intent": {}}).to_content()
+            request["signature"] = "ab" * 64
+            response = httpx.post(base, json={"method": "propose", "params": {"request": request}})
+            # 401 because the *agent* signature does not verify, not because a
+            # relay bearer was required — propose never needs one.
+            assert response.status_code == 401
+            assert response.json()["error"]["code"] == "signer_auth_error"
+        finally:
+            server.shutdown()
 
 
 class TestUnixSocket:

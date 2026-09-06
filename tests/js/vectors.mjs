@@ -26,6 +26,7 @@ export const merkleVectors = () => load('merkle.json');
 export const actionLeafVectors = () => load('action_leaf.json');
 export const receiptLeafVectors = () => load('receipt_leaf.json');
 export const approvalVectors = () => load('approvals.json');
+export const policyVectors = () => load('policies.json');
 export const receiptVectors = () => load('receipts.json');
 export const verdictVectors = () => load('verdicts.json');
 export const tamperedVectors = () => load('tampered.json');
