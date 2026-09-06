@@ -41,13 +41,14 @@ from merkl.core.policy.document import (
     asset_key,
     verify_policy_signature,
 )
-from merkl.core.policy.engine import Decision, RiskScore, evaluate
+from merkl.core.policy.engine import Decision, RiskScore, RuleOutcome, evaluate
 from merkl.core.policy.state import NonceEntry, Outflow, Reconciliation, SpendEntry
 from merkl.core.rail import ANCHOR_BYTES, ANCHOR_PLACEHOLDER, MEMO_TYPE, UnsignedTx
 from merkl.core.receipt import (
     Escalation,
     Instruction,
     PolicyOutcome,
+    PolicyRule,
     ReceiptLeaves,
     authorization_commitment,
     escalation_challenge,
@@ -56,6 +57,7 @@ from merkl.shared.errors import MerklError
 from merkl.signer.auth import AuthError, SignedRequest, verify_request
 from merkl.signer.binding import missing_bindings
 from merkl.signer.keystore import KeystorePort
+from merkl.signer.rails import RULE_PAYLOAD_ENCODES_INTENT, RailCodec, codec_for
 from merkl.signer.state import SealedStateStore
 
 NONCE_TTL_SECONDS: Final = 3600
@@ -115,10 +117,14 @@ class SignerEngine:
         clock: Clock | None = None,
         risk: Callable[[str], RiskScore] | None = None,
         admin_public_key: str | None = None,
+        codec: RailCodec | None = None,
     ) -> None:
         pinned = admin_public_key or policy.document.admin_public_key
         if not verify_policy_signature(policy, admin_public_key=pinned):
             raise SignerError("the policy document's admin signature does not verify")
+        # Resolved at boot, not per request: a signer that cannot read its rail's
+        # bytes must refuse to start rather than discover it mid-payment.
+        self._codec = codec or codec_for(policy.document.rail)
         self._policy = policy
         self._admin_public_key = pinned
         self._keystore = keystore
@@ -348,6 +354,11 @@ class SignerEngine:
         problems: list[str] = []
         if unsigned.rail != intent.rail:
             problems.append(f"rail {unsigned.rail!r} is not the intent's {intent.rail!r}")
+        if unsigned.rail != self.document.rail:
+            problems.append(
+                f"rail {unsigned.rail!r} is not the one this policy governs "
+                f"({self.document.rail!r})"
+            )
         if fields.get("account") != intent.treasury:
             problems.append(f"account {fields.get('account')!r} is not the intent's treasury")
         if fields.get("destination") != intent.destination:
@@ -489,6 +500,14 @@ class SignerEngine:
         payload = anchored.payload_bytes
         if payload[anchored.anchor_offset : anchored.anchor_offset + ANCHOR_BYTES] != left.bytes:
             raise SignerError("the anchor splice did not land where the adapter said it would")
+
+        # The last thing before the key moves: read the bytes. The adapter that
+        # produced them runs in the agent's process, so its account of what they
+        # encode is exactly the thing that cannot be taken on trust.
+        problems = self._codec.problems(payload, intent, left.hex())
+        if problems:
+            return self._refuse_payload(decision, reservation_id, problems)
+
         signature = self._keystore.sign(payload)
         return self._envelope(
             decision,
@@ -500,6 +519,31 @@ class SignerEngine:
             anchored_tx=anchored.to_content(),
             reservation_id=reservation_id,
         )
+
+    def _refuse_payload(
+        self, decision: Decision, reservation_id: str, problems: list[str]
+    ) -> JSONObject:
+        """The payload does not encode the intent. Deny it, and say exactly why.
+
+        A denial rather than an error, because this is a policy outcome with a
+        receipt: the agent asked for one payment and its adapter produced the
+        bytes for another, and that is worth being able to prove afterwards.
+        """
+        detail = "; ".join(problems)
+        refused = dataclasses.replace(
+            decision,
+            outcome=PolicyOutcome.DENY.value,
+            rules=(
+                *decision.rules,
+                PolicyRule(
+                    name=RULE_PAYLOAD_ENCODES_INTENT,
+                    outcome=RuleOutcome.FAIL.value,
+                    detail=detail[:1024],
+                ),
+            ),
+        )
+        self._state.release(reservation_id)
+        return self._envelope(refused, outcome=PolicyOutcome.DENY.value)
 
     def _envelope(
         self,

@@ -63,6 +63,7 @@ def policy(**overrides) -> PolicyDocument:
     fields = {
         "version": "2026.01.0",
         "treasury": TREASURY,
+        "rail": "xrpl",
         "agents": (overrides.pop("section", section),),
         "admin_public_key": "ab" * 32,
         "tiers": Tiers(

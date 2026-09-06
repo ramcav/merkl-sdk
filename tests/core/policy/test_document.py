@@ -34,6 +34,7 @@ def make_document(**overrides) -> PolicyDocument:
     fields = {
         "version": "2026.01.0",
         "treasury": "rTREASURY0000000000000000000000000",
+        "rail": "xrpl",
         "agents": (
             AgentSection(
                 agent_id="agent-ap",

@@ -151,6 +151,7 @@ def build_policy(
     reference_hashes: tuple[str, ...] = (INVOICE_HASH,),
     risk_threshold: str = "0.75",
     asset: Any = RLUSD,
+    rail: str = "fake",
 ) -> PolicyDocument:
     """The scenario policy. Every knob a scenario needs to turn is a parameter."""
     windows = (
@@ -159,6 +160,7 @@ def build_policy(
     return PolicyDocument(
         version=POLICY_VERSION,
         treasury=treasury,
+        rail=rail,
         agents=(
             AgentSection(
                 agent_id=AGENT_ID,
@@ -256,7 +258,7 @@ class Rig:
 
     @property
     def rail_name(self) -> str:
-        return "fake" if self.ledger is not None else "xrpl"
+        return self.policy.rail
 
     def instruction(self, text: str = "pay invoice INV-2026-0042") -> Instruction:
         return Instruction(source="human_input", content_hash=digest(text), ref="action-0001")

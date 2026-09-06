@@ -513,10 +513,16 @@ class PolicyDocument:
     What it must never contain is state — spend history and reservations live in
     the signer (plan D2), because a document that carried its own counters could
     be replayed to reset them.
+
+    ``rail`` names the settlement family this treasury lives on. The signer
+    resolves its payload codec from it at boot and refuses to start without one,
+    so a policy cannot put a signer in the position of signing bytes it cannot
+    read. A policy update may not change it (that would be a different treasury).
     """
 
     version: str
     treasury: str
+    rail: str
     agents: tuple[AgentSection, ...]
     admin_public_key: str
     tiers: Tiers = dataclasses.field(default_factory=Tiers)
@@ -527,6 +533,7 @@ class PolicyDocument:
     def __post_init__(self) -> None:
         token(self.version, "policy.version", max_length=64)
         token(self.treasury, "policy.treasury", max_length=128)
+        token(self.rail, "policy.rail", max_length=64)
         token(self.admin_public_key, "policy.admin_public_key", max_length=256)
         if self.format != POLICY_VERSION_TAG:
             raise PolicyError(
@@ -564,6 +571,7 @@ class PolicyDocument:
             "format": self.format,
             "version": self.version,
             "treasury": self.treasury,
+            "rail": self.rail,
             "agents": [agent.to_content() for agent in self.agents],
             "tiers": self.tiers.to_content(),
             "approvers": [approver.to_content() for approver in self.approvers],
@@ -581,6 +589,7 @@ class PolicyDocument:
                 "format",
                 "version",
                 "treasury",
+                "rail",
                 "agents",
                 "tiers",
                 "approvers",
@@ -597,6 +606,7 @@ class PolicyDocument:
             format=obj.get("format", POLICY_VERSION_TAG),
             version=_required(obj, "version", "policy"),
             treasury=_required(obj, "treasury", "policy"),
+            rail=_required(obj, "rail", "policy"),
             agents=tuple(AgentSection.from_content(a) for a in agents),
             tiers=Tiers.from_content(obj.get("tiers", {})),
             approvers=tuple(ApproverCredential.from_content(a) for a in approvers),

@@ -128,6 +128,7 @@ def _policy(network: dict[str, Any], **overrides: Any) -> Any:
         treasury=network["treasury"],
         destinations=(network["destination"],),
         asset="XRP",
+        rail="xrpl",
         per_tx_cap=overrides.pop("per_tx_cap", "5"),
         window=overrides.pop("window", ("20", 3600)),
         human_threshold=overrides.pop("human_threshold", "3"),

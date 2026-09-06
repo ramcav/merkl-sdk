@@ -51,6 +51,12 @@ xrpl = [
 # The dev signer process. Deliberately stdlib-only: merkl.signer.server is a
 # ThreadingHTTPServer, so running a signer pulls in no web framework.
 signer = []
+# The XRPL payload codec the signer uses to read the bytes it is about to sign.
+# A separate extra from [signer] because a signer serves one treasury on one rail
+# (plan D18), so it should carry that rail's library and no other.
+signer-xrpl = [
+    "xrpl-py>=4.0",
+]
 
 [tool.hatch.build.targets.sdist]
 exclude = [
