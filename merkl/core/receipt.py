@@ -19,7 +19,9 @@ entries rather than as silence — see :data:`DEFERRED_CHECKS`.
 
 from __future__ import annotations
 
+import base64
 import dataclasses
+import datetime
 import enum
 from collections.abc import Iterable, Mapping, Sequence
 from decimal import Decimal
@@ -50,6 +52,12 @@ from merkl.core.intent import (
 from merkl.core.leaf import receipt_leaf
 from merkl.core.merkle import MerkleProof, MerkleTree
 from merkl.core.rail import tx_id_from_blob
+from merkl.core.verify.attestation import (
+    ATTESTATION_FORMATS,
+    AttestationError,
+    AttestationTrust,
+    verify_attestation,
+)
 from merkl.shared.errors import ValidationError
 from merkl.shared.hashing import SHA256Hash, canonical_bytes
 
@@ -976,7 +984,6 @@ CHECK_ATTESTATION: Final = "signer.attestation"
 CHECK_LOG_JOIN: Final = "session.log_join"
 
 DEFERRED_CHECKS: Final[tuple[tuple[str, str], ...]] = (
-    (CHECK_ATTESTATION, "phase 3: verify the Nitro attestation document and PCR allowlist"),
     (
         CHECK_LEDGER_INCLUSION,
         "phase 4: fold the captured settlement proof against a pinned validator set",
@@ -991,7 +998,8 @@ real check of the same name; the vectors then move that name from
 ``policy.signature``, ``intent.matches_settled_fields``,
 ``settlement.anchor_equals_left`` and ``settlement.signed_blob`` now run whenever
 the receipt carries the data they need, and report ``not_implemented`` by name
-when it does not.
+when it does not. Phase 3 emptied a fifth, ``signer.attestation``, which runs
+whenever the caller pins a PCR allowlist and a moment to judge the document at.
 """
 
 _DEFERRED_DETAIL: Final = dict(DEFERRED_CHECKS)
@@ -1300,6 +1308,95 @@ def _policy_signature_check(settlement: Settlement | None, envelope: Envelope) -
     )
 
 
+def _attestation_check(
+    content: JSONValue,
+    envelope: Envelope,
+    trust: AttestationTrust | None,
+    now: datetime.datetime | None,
+) -> Check:
+    """Check 8: did an enclave anybody trusts hold the key that signed this?
+
+    Three things have to be true together, and the third is the one people
+    forget. The document must be genuine (AWS signed it); the enclave must be one
+    the *verifier* approved (its PCRs match a pinned allowlist); and the document
+    must be about *this* receipt — the key it vouches for is the key in the
+    envelope, and the policy it names is the policy in the envelope. Without the
+    third, a genuine attestation from any enclave anywhere could be stapled to
+    any receipt.
+
+    ``null`` here is not a gap. Leaf 3 commits to the literal ``null`` when a dev
+    signer produced the receipt, so the receipt *proves* it was unattested (plan
+    D3) — and that is reported as a check that could not run, by name, rather
+    than as agreement.
+    """
+    if content is None:
+        return _no_data(
+            CHECK_ATTESTATION,
+            "leaf 3 is null: this receipt proves it was produced by an unattested signer",
+        )
+    try:
+        attestation = SignerAttestation.from_content(content)
+    except ValidationError as exc:
+        return Check(CHECK_ATTESTATION, CheckStatus.FAIL, str(exc))
+    if attestation.format not in ATTESTATION_FORMATS:
+        return _no_data(
+            CHECK_ATTESTATION,
+            f"this verifier knows {sorted(ATTESTATION_FORMATS)}, the receipt says "
+            f"{attestation.format!r}",
+        )
+    if attestation.policy_public_key != envelope.signer_public_key:
+        return Check(
+            CHECK_ATTESTATION,
+            CheckStatus.FAIL,
+            f"leaf 3 vouches for {attestation.policy_public_key[:16]}…, the envelope names "
+            f"{envelope.signer_public_key[:16]}…",
+        )
+    if trust is None or now is None:
+        return _no_data(
+            CHECK_ATTESTATION,
+            "no PCR allowlist and moment were pinned, so nothing says which enclave this is",
+        )
+    try:
+        document = base64.b64decode(attestation.document, validate=True)
+    except (ValueError, TypeError):
+        return Check(CHECK_ATTESTATION, CheckStatus.FAIL, "leaf 3's document is not base64")
+    try:
+        signer_key = bytes.fromhex(envelope.signer_public_key)
+        policy_hash = bytes.fromhex(envelope.policy_hash)
+    except ValueError:
+        return Check(
+            CHECK_ATTESTATION,
+            CheckStatus.FAIL,
+            "the envelope's signer_public_key or policy_hash is not hex",
+        )
+    try:
+        result = verify_attestation(
+            document,
+            trust=trust,
+            now=now,
+            expected_public_key=signer_key,
+            expected_user_data=policy_hash,
+        )
+    except AttestationError as exc:
+        return Check(CHECK_ATTESTATION, CheckStatus.FAIL, str(exc))
+    if result.failures:
+        return Check(
+            CHECK_ATTESTATION,
+            CheckStatus.FAIL,
+            "; ".join(f"{c.name}: {c.detail}" for c in result.failures),
+        )
+    if result.deferred:
+        return _no_data(
+            CHECK_ATTESTATION,
+            "; ".join(f"{c.name}: {c.detail}" for c in result.deferred),
+        )
+    return _check(
+        CHECK_ATTESTATION,
+        True,
+        "an attested enclave matching the pinned measurements held this policy key",
+    )
+
+
 def _intent_matches_settled_check(
     intent: Intent | None, settlement: Settlement | None, result: Result | None
 ) -> Check:
@@ -1409,14 +1506,23 @@ def _parsed(model: Any, content: JSONValue) -> Any:
 def verify_receipt_structure(
     envelope: Envelope,
     leaves: ReceiptLeaves | Sequence[JSONValue],
+    *,
+    attestation_trust: AttestationTrust | None = None,
+    now: datetime.datetime | None = None,
 ) -> VerificationResult:
     """Recompute leaves, LEFT, RIGHT and ROOT, and report every check.
 
     This is the structural half of verification — everything that needs nothing
-    but the receipt itself. The cryptographic and settlement halves (policy
-    signature, attestation, memo binding, ledger inclusion, session join) appear
-    as :data:`DEFERRED_CHECKS` in the position the spec gives them, so a reader
-    always sees what was not checked.
+    but the receipt itself — plus the two checks whose inputs the receipt does
+    carry: the policy signature, and, when the caller supplies a trust anchor,
+    the signer's attestation.
+
+    ``attestation_trust`` and ``now`` are what the *verifier* pinned: the PCR
+    allowlist, the root, the moment. They are arguments and not defaults because
+    no receipt gets to nominate the measurements it should be judged against.
+    Omit them and check 8 reports ``not_implemented`` by name — never a pass.
+    Whatever a phase has not implemented appears as :data:`DEFERRED_CHECKS` in
+    the position the spec gives it, so a reader always sees what was not checked.
     """
     contents = _contents_of(leaves)
     checks: list[Check] = [
@@ -1487,7 +1593,11 @@ def verify_receipt_structure(
     parsed_intent = _parsed(Intent, contents[1] if len(contents) > 1 else None)
 
     checks.append(_policy_signature_check(settlement, envelope))
-    checks.append(_deferred(CHECK_ATTESTATION))
+    checks.append(
+        _attestation_check(
+            contents[3] if len(contents) > 3 else None, envelope, attestation_trust, now
+        )
+    )
     checks.append(_intent_matches_settled_check(parsed_intent, settlement, settled_result))
     checks.append(_anchor_check(settlement, envelope))
     checks.append(_signed_blob_check(settlement))
@@ -1638,9 +1748,20 @@ class Receipt:
         """Reveal only ``names``; every other leaf stays behind its hash."""
         return disclose(self.envelope, self.leaves, names)
 
-    def verify_structure(self) -> VerificationResult:
-        """Recompute everything the receipt commits to on its own."""
-        return verify_receipt_structure(self.envelope, self.leaves)
+    def verify_structure(
+        self,
+        *,
+        attestation_trust: AttestationTrust | None = None,
+        now: datetime.datetime | None = None,
+    ) -> VerificationResult:
+        """Recompute everything the receipt commits to on its own.
+
+        Pass ``attestation_trust`` and ``now`` to have leaf 3 checked as well;
+        without them the attestation check reports ``not_implemented`` by name.
+        """
+        return verify_receipt_structure(
+            self.envelope, self.leaves, attestation_trust=attestation_trust, now=now
+        )
 
 
 def _agree(given: str | None, derived: str, field: str) -> str:

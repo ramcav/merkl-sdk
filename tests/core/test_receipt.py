@@ -265,10 +265,20 @@ class TestStructuralVerification:
     def test_deferred_checks_are_named_not_silent(self) -> None:
         result = make_receipt().verify_structure()
         deferred = {c.name for c in result.deferred}
-        assert deferred == {name for name, _ in DEFERRED_CHECKS}
+        phase_deferred = {name for name, _ in DEFERRED_CHECKS}
+        assert phase_deferred <= deferred
         for check in result.deferred:
             assert check.status is CheckStatus.NOT_IMPLEMENTED
-            assert "phase" in check.detail
+            assert check.detail
+        for check in (result.get(name) for name in phase_deferred):
+            assert check is not None and "phase" in check.detail
+
+    def test_an_unattested_receipt_says_so_rather_than_passing(self) -> None:
+        """Leaf 3 is null, and the receipt commits to that. It is not a gap."""
+        check = make_receipt().verify_structure().get("signer.attestation")
+        assert check is not None
+        assert check.status is CheckStatus.NOT_IMPLEMENTED
+        assert "unattested signer" in check.detail
 
     def test_a_denied_receipt_verifies(self) -> None:
         leaves = make_leaves(

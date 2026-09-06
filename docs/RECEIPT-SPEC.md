@@ -311,7 +311,7 @@ verdict that hides which half was checked.
 | 5 | `leaves.padding` — `leaf_hashes[7] == leaf_hashes[6]` | implemented |
 | 6 | `commitment.left` — leaves 0-3 fold to the committed LEFT | implemented |
 | 7 | `policy.signature` — the policy key signed a payload carrying LEFT | implemented |
-| 8 | `signer.attestation` — the attestation document and its PCR allowlist | phase 3 |
+| 8 | `signer.attestation` — the attestation document and its PCR allowlist | implemented |
 | 9 | `intent.matches_settled_fields` — destination, amount and currency agree | implemented |
 | 10 | `settlement.anchor_equals_left` — the rail memo equals LEFT | implemented |
 | 11 | `settlement.signed_blob` — the tx hash re-derives from the signed blob | implemented |
@@ -325,6 +325,15 @@ verdict that hides which half was checked.
 A deferred check is reported as `not_implemented`. That is not a pass. When a
 later phase implements one, the check keeps its name and the vectors move it from
 `not_implemented` to `pass`.
+
+Check 8 needs two things the receipt does not contain and must not: the PCR
+allowlist and the trust anchor the *verifier* pinned, and the moment to judge the
+document at. They are arguments to `verify_receipt_structure`
+(`attestation_trust`, `now`). Without them the check reports `not_implemented`
+naming what was missing, because no receipt gets to nominate the measurements it
+should be judged against. `docs/ATTESTATION-VERIFY.md` specifies the nine
+sub-checks it runs, and `merkl/core/vectors/attestation/` holds real
+AWS-signed documents both implementations must agree on.
 
 `not_implemented` also covers a check whose *inputs are absent*: check 7 on a
 denied receipt has no signature to look at, because nothing settled. Those cases
