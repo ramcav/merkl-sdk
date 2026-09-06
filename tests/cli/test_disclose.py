@@ -41,19 +41,114 @@ def test_find_evidence_entry_missing(tmp_path: Path) -> None:
     assert find_evidence_entry(d, "nope") is None
 
 
-def test_disclose_writes_package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _receipt_store(tmp_path: Path) -> Path:
+    """A local receipt store holding the receipt for action aaa-1."""
+    import json as _json
+
+    from merkl.core.vectors import VECTORS_DIR
+
+    case = _json.loads((VECTORS_DIR / "receipts.json").read_text())["cases"][0]
+    store = tmp_path / "receipts"
+    store.mkdir()
+    receipt = {
+        "envelope": case["envelope"],
+        "leaves": case["leaves"],
+        "action_id": "aaa-1",
+    }
+    (store / "r1.json").write_text(_json.dumps(receipt))
+    return store
+
+
+def test_disclose_renders_the_page_locally(tmp_path: Path) -> None:
+    """No notary, no network: the page is rendered here (plan D7)."""
+    d = _write_evidence(tmp_path)
+    out = disclose("aaa-1", evidence_dir=d, endpoint=None, out_dir=tmp_path / "pkg")
+    page = (out / "verify.html").read_text()
+    assert page.startswith("<!DOCTYPE html>")
+    assert "merkl-receipt-leaf-v1" in page, "the verifier is inlined, not fetched"
+    lines = (out / "evidence.jsonl").read_text().strip().splitlines()
+    assert len(lines) == 1  # ONLY the disclosed action
+    assert json.loads(lines[0])["action_id"] == "aaa-1"
+    assert (out / "bundle.json").is_file()
+    assert "works offline" in (out / "README.txt").read_text()
+
+
+def test_disclose_includes_the_local_receipt(tmp_path: Path) -> None:
+    d = _write_evidence(tmp_path)
+    store = _receipt_store(tmp_path)
+    out = disclose(
+        "aaa-1", evidence_dir=d, receipt_dir=store, endpoint=None, out_dir=tmp_path / "pkg"
+    )
+    bundle = json.loads((out / "bundle.json").read_text())
+    assert len(bundle["receipts"]) == 1
+    assert "disclosure" not in bundle
+
+
+def test_disclose_leaves_reveals_only_what_was_asked_for(tmp_path: Path) -> None:
+    d = _write_evidence(tmp_path)
+    store = _receipt_store(tmp_path)
+    out = disclose(
+        "aaa-1",
+        evidence_dir=d,
+        receipt_dir=store,
+        endpoint=None,
+        out_dir=tmp_path / "pkg",
+        leaves=["instruction", "policy_decision"],
+    )
+    bundle = json.loads((out / "bundle.json").read_text())
+    disclosed = bundle["disclosure"]
+    assert [leaf["name"] for leaf in disclosed["leaves"]] == ["instruction", "policy_decision"]
+    assert len(disclosed["leaf_hashes"]) == 8, "every leaf is still committed, as a hash"
+    assert not bundle.get("receipts"), "the whole receipt is not shipped alongside it"
+
+
+def test_disclose_leaves_without_a_receipt_says_why(tmp_path: Path) -> None:
+    d = _write_evidence(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        disclose("aaa-1", evidence_dir=d, receipt_dir=tmp_path / "none", leaves=["intent"])
+    assert "needs a receipt" in str(e.value)
+
+
+def test_disclose_degrades_to_level_1_when_the_notary_is_unreachable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A disclosure that needed the notary to be up would not be much of a disclosure."""
     import httpx
 
     d = _write_evidence(tmp_path)
 
     class _Resp:
+        status_code = 422
+        is_success = False
+        text = "not sealed"
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _Resp())
+    out = disclose(
+        "aaa-1", evidence_dir=d, endpoint="http://merkl.test", api_key="k", out_dir=tmp_path / "p"
+    )
+    assert "level 1 only" in (out / "README.txt").read_text()
+    assert (out / "verify.html").is_file()
+
+
+def test_disclose_uses_the_notary_bundle_when_it_has_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import httpx
+
+    from merkl.core.vectors.bundles import BUNDLES_DIR
+
+    d = _write_evidence(tmp_path)
+    session = json.loads((BUNDLES_DIR / "session-v1.1.json").read_text())
+    captured: dict[str, object] = {}
+
+    class _Resp:
         status_code = 200
         is_success = True
-        text = "<html>verifier</html>"
 
-    captured = {}
+        def json(self) -> dict[str, object]:
+            return session
 
-    def fake_get(url, **kw):
+    def fake_get(url: str, **kw: object) -> _Resp:
         captured["url"] = url
         captured["headers"] = kw.get("headers")
         return _Resp()
@@ -66,30 +161,11 @@ def test_disclose_writes_package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         api_key="mk_x",
         out_dir=tmp_path / "pkg",
     )
-    assert captured["url"] == "http://merkl.test/v1/sessions/sess-1/verify.html"
+    assert captured["url"] == "http://merkl.test/v1/sessions/sess-1/export"
     assert captured["headers"]["Authorization"] == "Bearer mk_x"
-    assert (out / "verify.html").read_text() == "<html>verifier</html>"
-    lines = (out / "evidence.jsonl").read_text().strip().splitlines()
-    assert len(lines) == 1  # ONLY the disclosed action
-    assert json.loads(lines[0])["action_id"] == "aaa-1"
-
-
-def test_disclose_unsealed_session_explains(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import httpx
-
-    d = _write_evidence(tmp_path)
-
-    class _Resp:
-        status_code = 422
-        is_success = False
-        text = "not sealed"
-
-    monkeypatch.setattr(httpx, "get", lambda *a, **k: _Resp())
-    with pytest.raises(SystemExit) as e:
-        disclose("aaa-1", evidence_dir=d, endpoint="http://merkl.test", api_key="k")
-    assert "seal" in str(e.value)
+    bundle = json.loads((out / "bundle.json").read_text())
+    assert bundle["session"]["session_id"] == session["session"]["session_id"]
+    assert "level 2" in (out / "README.txt").read_text()
 
 
 def test_disclose_missing_action_exits(tmp_path: Path) -> None:

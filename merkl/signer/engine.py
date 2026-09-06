@@ -283,6 +283,51 @@ class SignerEngine:
             escalation=self._escalation_leaf(pending, parsed),
         )
 
+    def reject(
+        self,
+        challenge: str,
+        assertions: Sequence[Any],
+    ) -> JSONObject:
+        """Refuse an escalation, with the refusal signed (plan D11).
+
+        A rejection is evidence. Somebody with standing to approve chose not to,
+        and that fact belongs in the record the same way an approval does — so
+        the same assertions are verified against the same challenge, and the
+        resulting DENY decision carries them in leaf 2. An escalation that simply
+        stops being mentioned proves nothing about whether anyone looked at it.
+
+        The reservation is released here rather than left to expire, because the
+        money is not going to move and a window that stays full is a denial of
+        service the approver did not intend.
+        """
+        pending = self._pending.get(challenge)
+        if pending is None:
+            raise SignerError(f"no escalation is pending for challenge {challenge[:16]}…")
+        parsed = tuple(ApprovalAssertion.from_content(a) for a in assertions)
+        if not parsed:
+            raise SignerError("a rejection is signed: send at least one assertion")
+
+        quorum = verify_quorum(
+            parsed,
+            bytes.fromhex(challenge),
+            self.document.approvers,
+            pending.quorum,
+        )
+        signers = [c.approver_id for c in quorum.checks if c.valid]
+        if not signers:
+            return self._reject_escalation(
+                pending,
+                parsed,
+                quorum,
+                f"rejected, but no assertion verifies: {quorum.detail()}",
+            )
+        return self._reject_escalation(
+            pending,
+            parsed,
+            quorum,
+            f"rejected by {', '.join(sorted(set(signers)))}",
+        )
+
     # -- settlement bookkeeping -------------------------------------------- #
 
     def settle(self, reservation_id: str, settlement_ref: str) -> JSONObject:

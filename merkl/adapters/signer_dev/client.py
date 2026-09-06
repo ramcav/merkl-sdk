@@ -69,6 +69,13 @@ class LocalSignerClient:
             challenge, [a.to_content() for a in assertions], prepared_tx
         )
 
+    async def reject(
+        self,
+        challenge: str,
+        assertions: Sequence[ApprovalAssertion],
+    ) -> JSONObject:
+        return self._engine.reject(challenge, [a.to_content() for a in assertions])
+
     async def settle(self, reservation_id: str, settlement_ref: str) -> JSONObject:
         return self._engine.settle(reservation_id, settlement_ref)
 
@@ -159,6 +166,17 @@ class DevSignerClient:
         if prepared_tx is not None:
             params["prepared_tx"] = prepared_tx
         return await self._call("approve", params)
+
+    async def reject(
+        self,
+        challenge: str,
+        assertions: Sequence[ApprovalAssertion],
+    ) -> JSONObject:
+        """Refuse an escalation with signed rejections (plan D11)."""
+        return await self._call(
+            "reject",
+            {"challenge": challenge, "assertions": [a.to_content() for a in assertions]},
+        )
 
     async def settle(self, reservation_id: str, settlement_ref: str) -> JSONObject:
         return await self._call(

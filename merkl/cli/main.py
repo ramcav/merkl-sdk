@@ -1,12 +1,21 @@
-"""Merkl CLI — install integrations, run the signer, prepare disclosures.
+"""Merkl CLI — verify, disclose, approve, reconcile, and run the signer.
 
 Usage:
+    merkl verify <file>                    # check a receipt, bundle or verify.html offline
+    merkl receipt show <id|file>           # read one receipt in plain language
+    merkl disclose <action_id> [--leaves]  # package evidence and a verifier for an auditor
+    merkl approve <challenge>              # sign an escalation with a local Ed25519 key
+    merkl reject <challenge>               # refuse one, signed, because refusals are evidence
+    merkl reconcile --treasury <id>        # outflows against receipts, both directions
     merkl install --claude-code            # install hook in .claude/settings.json
-    merkl install --claude-code --global   # install in ~/.claude/settings.json
-    merkl disclose <action_id>             # package one action's evidence for an auditor
     merkl signer serve --policy p.json     # run the dev co-signer
     merkl treasury init --xrpl-testnet     # fund and lock down a testnet treasury
     merkl treasury verify <address>        # check the signer list and master key
+
+Every verification command is offline. Trust anchors — the PCR allowlist, the
+validator key set, the policy document, the admin key — are flags, never values
+read out of the material being checked, and a flag nobody passed produces a named
+unchecked line rather than a pass.
 """
 
 from __future__ import annotations
@@ -16,11 +25,14 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 
-def _ensure_hook(hooks: dict, event: str, command: str, matcher_entry: dict) -> None:
+def _ensure_hook(
+    hooks: dict[str, Any], event: str, command: str, matcher_entry: dict[str, Any]
+) -> None:
     """Append a hook matcher for `event` if one with the same command isn't already registered."""
-    bucket: list[dict] = hooks.setdefault(event, [])
+    bucket: list[dict[str, Any]] = hooks.setdefault(event, [])
     for matcher in bucket:
         for h in matcher.get("hooks", []):
             if h.get("command") == command:
@@ -61,7 +73,7 @@ def _install_claude_code(
 
     settings_path.parent.mkdir(parents=True, exist_ok=True)
 
-    existing: dict = {}
+    existing: dict[str, Any] = {}
     if settings_path.exists():
         try:
             existing = json.loads(settings_path.read_text())
@@ -119,7 +131,7 @@ def _uninstall_claude_code(global_: bool = False) -> None:
         print(f"No settings file found at {settings_path}")
         return
 
-    existing: dict = json.loads(settings_path.read_text())
+    existing: dict[str, Any] = json.loads(settings_path.read_text())
     hooks = existing.get("hooks", {})
 
     removed_any = False
@@ -151,9 +163,83 @@ def _uninstall_claude_code(global_: bool = False) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="merkl",
-        description="Merkl SDK — install and manage integrations",
+        description="Merkl — record what an agent did, and let anyone check it",
     )
     sub = parser.add_subparsers(dest="command", metavar="<command>")
+
+    # verify
+    verify_p = sub.add_parser(
+        "verify", help="Check a receipt, a proof bundle or a verify.html, offline"
+    )
+    verify_p.add_argument("file", type=Path, help="receipt.json, bundle.json or verify.html")
+    verify_p.add_argument("--json", dest="as_json", action="store_true", help="Structured output")
+    verify_p.add_argument("--all", action="store_true", help="List the checks that passed too")
+    verify_p.add_argument(
+        "--require-complete",
+        action="store_true",
+        help="Exit non-zero when a check could not run, not only when one failed",
+    )
+    verify_p.add_argument("--policy", type=Path, help="The signed policy document, by hash")
+    verify_p.add_argument("--admin-key", help="Hex Ed25519 key the policy must be signed by")
+    verify_p.add_argument("--proof", type=Path, help="A settlement proof captured at settlement")
+    verify_p.add_argument("--evidence", type=Path, help="Disclosed evidence records (.jsonl)")
+    verify_p.add_argument(
+        "--pcr",
+        action="append",
+        metavar="N=HEX",
+        help="Pin a PCR the enclave must report. Repeatable. Without one, the "
+        "attestation check reports unchecked rather than passing.",
+    )
+    verify_p.add_argument(
+        "--validator",
+        action="append",
+        metavar="NAME=HEX",
+        help="Pin a validator key. Repeatable. Use NAME= with no key for a validator "
+        "whose signatures this capture cannot carry.",
+    )
+    verify_p.add_argument("--quorum", type=int, default=0, help="Validators that must agree")
+    verify_p.add_argument("--now", help="The moment to judge the attestation at (ISO 8601)")
+    verify_p.add_argument("--max-age", type=int, help="Freshness bound for the attestation")
+
+    # receipt
+    receipt_p = sub.add_parser("receipt", help="Read receipts")
+    receipt_sub = receipt_p.add_subparsers(dest="receipt_command", metavar="<subcommand>")
+    show_p = receipt_sub.add_parser("show", help="Print one receipt in plain language")
+    show_p.add_argument("ref", help="Receipt id or path to a receipt JSON file")
+    show_p.add_argument("--store", type=Path, help="Local receipt directory")
+    show_p.add_argument("--endpoint", help="Notary base URL (default: $MERKL_ENDPOINT)")
+    show_p.add_argument("--api-key", help="API key (default: $MERKL_API_KEY)")
+    show_p.add_argument("--leaves", action="store_true", help="Print each leaf's content")
+    show_p.add_argument("--json", dest="as_json", action="store_true", help="Structured output")
+
+    # approve / reject
+    for name, blurb in (
+        ("approve", "Sign an escalation challenge with a local Ed25519 key"),
+        ("reject", "Refuse an escalation, signed — rejections are evidence too"),
+    ):
+        p = sub.add_parser(name, help=blurb)
+        p.add_argument("challenge", help="The 32-byte challenge, hex (LEFT_pre)")
+        p.add_argument("--approver", help="Your id in the policy (default: $MERKL_APPROVER_ID)")
+        p.add_argument("--key", dest="key_path", type=Path, help="Ed25519 seed file, hex, 0600")
+        p.add_argument("--socket", dest="socket_path", type=Path, help="Signer Unix socket")
+        p.add_argument("--host", help="Signer host, instead of a socket")
+        p.add_argument("--port", type=int, default=8787, help="Signer port for --host")
+        p.add_argument("--json", dest="as_json", action="store_true", help="Structured output")
+
+    # reconcile
+    reconcile_p = sub.add_parser(
+        "reconcile", help="Match treasury outflows to receipts, in both directions"
+    )
+    reconcile_p.add_argument("--treasury", required=True, help="Treasury account")
+    reconcile_p.add_argument(
+        "--history", type=Path, help="JSON array of validated outflows from the rail"
+    )
+    reconcile_p.add_argument("--store", type=Path, help="Local receipt directory")
+    reconcile_p.add_argument("--endpoint", help="Notary base URL (default: $MERKL_ENDPOINT)")
+    reconcile_p.add_argument("--api-key", help="API key (default: $MERKL_API_KEY)")
+    reconcile_p.add_argument(
+        "--json", dest="as_json", action="store_true", help="Structured output"
+    )
 
     # install
     install_p = sub.add_parser("install", help="Install an integration")
@@ -209,6 +295,16 @@ def main() -> None:
     disclose_p.add_argument(
         "--out", type=Path, default=None, help="Output folder (default: ./disclosure-<id>)"
     )
+    disclose_p.add_argument(
+        "--leaves",
+        default=None,
+        help="Comma-separated receipt leaves to reveal (instruction, intent, "
+        "policy_decision, signer_attestation, settlement, result, reasoning). "
+        "Every other leaf ships as a hash only.",
+    )
+    disclose_p.add_argument(
+        "--receipt-dir", type=Path, default=None, help="Local receipt directory"
+    )
 
     # signer
     signer_p = sub.add_parser("signer", help="Run the Merkl co-signer")
@@ -246,7 +342,71 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.command == "signer":
+    if args.command == "verify":
+        from merkl.cli.verify import verify_command as verify_file
+
+        raise SystemExit(
+            verify_file(
+                args.file,
+                as_json=args.as_json,
+                show_all=args.all,
+                require_complete=args.require_complete,
+                policy=args.policy,
+                admin_key=args.admin_key,
+                proof=args.proof,
+                evidence=args.evidence,
+                pcr=args.pcr,
+                validator=args.validator,
+                quorum=args.quorum,
+                now=args.now,
+                max_age=args.max_age,
+            )
+        )
+    elif args.command == "receipt":
+        from merkl.cli.receipt import receipt_show_command
+
+        if args.receipt_command != "show":
+            receipt_p.print_help()
+            return
+        raise SystemExit(
+            receipt_show_command(
+                args.ref,
+                store=args.store,
+                endpoint=args.endpoint,
+                api_key=args.api_key,
+                show_leaves=args.leaves,
+                as_json=args.as_json,
+            )
+        )
+    elif args.command in ("approve", "reject"):
+        from merkl.cli.approve import approve_command
+
+        raise SystemExit(
+            approve_command(
+                args.challenge,
+                action=args.command,
+                approver=args.approver,
+                key_path=args.key_path,
+                socket_path=args.socket_path,
+                host=args.host,
+                port=args.port,
+                as_json=args.as_json,
+            )
+        )
+    elif args.command == "reconcile":
+        from merkl.cli.reconcile import reconcile_command
+
+        raise SystemExit(
+            reconcile_command(
+                args.treasury,
+                history=args.history,
+                store=args.store,
+                endpoint=args.endpoint,
+                api_key=args.api_key,
+                as_json=args.as_json,
+            )
+        )
+    elif args.command == "signer":
         from merkl.cli.signer import serve_command
 
         if args.signer_command != "serve":
@@ -281,9 +441,13 @@ def main() -> None:
         disclose(
             args.action_id,
             evidence_dir=args.evidence_dir,
+            receipt_dir=args.receipt_dir,
             endpoint=args.endpoint,
             api_key=args.api_key,
             out_dir=args.out,
+            leaves=[n.strip() for n in args.leaves.split(",") if n.strip()]
+            if args.leaves
+            else None,
         )
     elif args.command == "install":
         if args.claude_code:

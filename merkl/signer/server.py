@@ -71,6 +71,11 @@ class RpcRouter:
                     _array(params, "assertions"),
                     params.get("prepared_tx"),
                 )
+            if method == "reject":
+                return engine.reject(
+                    _string(params, "challenge"),
+                    _array(params, "assertions"),
+                )
             if method == "settle":
                 return engine.settle(
                     _string(params, "reservation_id"), _string(params, "settlement_ref")
