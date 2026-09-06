@@ -84,9 +84,9 @@ def test_library_modules_do_no_io_and_read_no_clock(path: pathlib.Path) -> None:
 
 
 def test_only_the_generators_write() -> None:
-    """Three of them: the receipt vectors, the attestation ones, and the bundles.
+    """Four of them: the receipt vectors, the attestation ones, the bundles, and xrpl.
 
-    Both are scripts rather than library code — they are excluded from
+    All are scripts rather than library code — they are excluded from
     ``LIBRARY_MODULES`` above and run by hand or by CI, never on an import path.
     Anything else in ``merkl.core`` that touched a file would be a verifier that
     needs a filesystem to answer a question about bytes it was handed.
@@ -101,4 +101,5 @@ def test_only_the_generators_write() -> None:
         "vectors/generate.py",
         "vectors/attestation/generate.py",
         "vectors/bundles/generate.py",
+        "vectors/xrpl/generate.py",
     }

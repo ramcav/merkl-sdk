@@ -26,7 +26,7 @@ from typing import Final
 
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec, ed25519
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, utils
 
 from merkl.core.canonical import ContentError
 from merkl.shared.hashing import SHA256Hash
@@ -36,6 +36,8 @@ NUL: Final = b"\x00"
 ED25519_PUBLIC_KEY_BYTES: Final = 32
 ED25519_SIGNATURE_BYTES: Final = 64
 P256_UNCOMPRESSED_POINT_BYTES: Final = 65
+SECP256K1_COMPRESSED_POINT_BYTES: Final = 33
+DIGEST_BYTES: Final = 32
 
 
 class CryptoError(ContentError):
@@ -140,4 +142,36 @@ def p256_verify(public_key: str, signature: str, message: bytes) -> bool:
         key.verify(sig, message, ec.ECDSA(hashes.SHA256()))
     except InvalidSignature:
         return False
+    return True
+
+
+def secp256k1_verify_digest(public_key: str, signature: str, digest: bytes) -> bool:
+    """True when ``signature`` is this secp256k1 key's ECDSA signature over ``digest``.
+
+    ``public_key`` is the hex of the SEC1 *compressed* point (33 bytes, ``0x02``
+    or ``0x03`` then X) — the form XRPL's node public keys use. ``signature`` is
+    hex DER, and ``digest`` is a 32-byte hash the *caller* already computed:
+    XRPL hashes with SHA-512Half rather than SHA-256, so this function never
+    hashes anything itself, it only checks a digest of the right length against
+    a curve SHA-256-shaped ``Prehashed`` accepts by size alone.
+    """
+    point = hex_bytes(public_key, "secp256k1 public key")
+    if len(point) != SECP256K1_COMPRESSED_POINT_BYTES or point[0] not in (0x02, 0x03):
+        raise CryptoError(
+            "secp256k1 public key must be the compressed SEC1 point "
+            f"(33 bytes starting 0x02 or 0x03), got {len(point)} bytes"
+        )
+    if len(digest) != DIGEST_BYTES:
+        raise CryptoError(f"secp256k1 digest must be {DIGEST_BYTES} bytes, got {len(digest)}")
+    sig = hex_bytes(signature, "secp256k1 signature")
+    try:
+        key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256K1(), point)
+    except (ValueError, UnsupportedAlgorithm) as exc:
+        raise CryptoError(f"secp256k1 public key is not on the curve: {exc}") from exc
+    try:
+        key.verify(sig, digest, ec.ECDSA(utils.Prehashed(hashes.SHA256())))
+    except InvalidSignature:
+        return False
+    except ValueError as exc:
+        raise CryptoError(f"secp256k1 signature is not well-formed DER: {exc}") from exc
     return True
