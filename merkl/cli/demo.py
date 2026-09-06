@@ -40,13 +40,47 @@ def _run_fake(out: Path, *, node: bool) -> list[PageReport]:
         return write_pages(results, out / "fake", rail="fake", node=node)
 
 
+def _pin_testnet_unl() -> tuple[dict[str, str], int]:
+    """The real testnet UNL, audited once, the way a reader would in advance.
+
+    Falls back to an empty pin (``settlement.validator_quorum`` reports
+    ``not_implemented`` rather than a wrong pass) if the network or the list
+    itself is unavailable — a demo should show what a real capture proves,
+    never fabricate a pin it could not actually audit.
+    """
+    import httpx
+
+    from merkl.adapters.xrpl import TESTNET_UNL_URL
+    from merkl.core.verify.xrpl import CryptoError, pin_validator_list
+
+    try:
+        response = httpx.get(TESTNET_UNL_URL, timeout=15.0)
+        response.raise_for_status()
+        reading = pin_validator_list(response.json())
+    except (httpx.HTTPError, ValueError, CryptoError) as exc:
+        print(
+            f"warning: could not pin the testnet UNL ({exc}); quorum will be unchecked",
+            file=sys.stderr,
+        )
+        return {}, 0
+    return {m: m for m in reading.masters}, reading.quorum()
+
+
 def _run_xrpl(out: Path, *, node: bool) -> tuple[list[PageReport], tuple[str, ...]]:
     from merkl.demo.xrpl_env import build_xrpl_environment
 
+    validators, quorum = _pin_testnet_unl()
     with tempfile.TemporaryDirectory(prefix="merkl-demo-xrpl-") as tmp:
         env = asyncio.run(build_xrpl_environment(Path(tmp)))
         results = asyncio.run(run_all(env))
-        reports = write_pages(results, out / "xrpl-testnet", rail="xrpl", node=node)
+        reports = write_pages(
+            results,
+            out / "xrpl-testnet",
+            rail="xrpl",
+            node=node,
+            quorum=quorum,
+            validator_trust=validators or None,
+        )
     return reports, env.bootstrap_txs
 
 

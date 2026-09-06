@@ -66,6 +66,9 @@ from merkl.core.verify.xrpl import build_tx_path
 
 TESTNET_JSON_RPC: Final = "https://s.altnet.rippletest.net:51234"
 TESTNET_WEBSOCKET: Final = "wss://s.altnet.rippletest.net:51233"
+TESTNET_UNL_URL: Final = "https://vl.altnet.rippletest.net"
+"""The testnet's own published validator list — audit with ``merkl xrpl pin-unl``."""
+
 MAINNET_JSON_RPC: Final = "https://xrplcluster.com"
 MAINNET_WEBSOCKET: Final = "wss://xrplcluster.com"
 

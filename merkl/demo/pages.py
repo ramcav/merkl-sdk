@@ -229,8 +229,16 @@ def write_pages(
     rail: str,
     quorum: int = 2,
     node: bool = True,
+    validator_trust: dict[str, str] | None = None,
 ) -> list[PageReport]:
-    """Render every scenario, then check each page with both verifiers."""
+    """Render every scenario, then check each page with both verifiers.
+
+    ``validator_trust``, when given, is used for every page instead of
+    :func:`validator_pins` — the one set the *reader* pinned in advance for
+    this whole run, the same way an XRPL UNL is audited once rather than
+    per-transaction. Leave it ``None`` for the fake rail, whose validator
+    keys exist only in this process and are read off each result instead.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "bundles").mkdir(exist_ok=True)
     reports: list[PageReport] = []
@@ -243,7 +251,7 @@ def write_pages(
         bundle_path.write_text(
             json.dumps(bundle, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
-        pins = validator_pins(result)
+        pins = validator_trust if validator_trust is not None else validator_pins(result)
         readings = [verify_with_python(page_path, validators=pins, quorum=quorum)]
         if node:
             readings.append(verify_with_node(page_path, validators=pins, quorum=quorum))
