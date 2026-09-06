@@ -46,8 +46,10 @@ Say a customer claims your agent refunded the wrong amount. You look up the acti
 ```bash
 merkl disclose <action_id>
 # → disclosure-<id>/
-#     verify.html      the verification page, with the session's proofs baked in
+#     verify.html      the verification page, with the proofs baked in
+#     bundle.json      the same data, for `merkl verify` or your own tooling
 #     evidence.jsonl   the raw record of that one action, nothing else
+#     README.txt       what this is and how to check it
 ```
 
 Send them the folder. They open `verify.html` in any browser. It works offline, needs no account and installs nothing. They drop the evidence file on the page, and it recomputes the hashes and compares them against what was recorded when the action ran. If the record was edited afterwards, even by one character, the numbers won't match and the page says so.
@@ -55,6 +57,47 @@ Send them the folder. They open `verify.html` in any browser. It works offline, 
 <img alt="Verification flow: the operator runs merkl disclose and emails verify.html plus one evidence record; the auditor opens it offline with no account, drops the evidence file, and the record is re-hashed and compared to the committed Merkle leaf. A match verifies via Merkle proof, log inclusion and signature; a mismatch means the payload was altered." src="docs/verification.png">
 
 The fingerprint was recorded when the action ran, and the dispute comes later. You cannot go back and doctor a record to fit your story. Neither can we. You disclose only what you choose; the other actions in the session stay as hashes.
+
+## Verify
+
+Anyone can check a Merkl record without asking us, without an account and without
+a network. There are three ways in, and they are the same checks:
+
+```bash
+merkl verify disclosure-abc123/verify.html    # the page an auditor was emailed
+merkl verify bundle.json --all                # every check, and what it compared
+merkl receipt show <id> --leaves              # one receipt, read out loud
+```
+
+```js
+import { verifyReceipt } from '@merkl/verify';   // no dependencies, Web Crypto only
+```
+
+Two implementations, one spec, one set of published test vectors: `merkl.core.verify`
+in Python and `@merkl/verify` in JavaScript both run against
+`merkl/core/vectors/`, so if they ever disagreed one of them would be wrong — and
+you can check that too. `docs/RECEIPT-SPEC.md` specifies every byte.
+
+**A verdict is never one boolean.** Two lines are reported, and both matter:
+`ok` means nothing was contradicted; `complete` means every check actually ran. A
+check the verifier had no material for — no policy document, no settlement proof,
+no PCR allowlist — is reported by name as *not checked*, never as a pass. For a
+co-signed payment the settlement result is two more lines, because collapsing
+them would hide which half was established:
+
+| Line | Question |
+|---|---|
+| Transaction authorization | did the policy key sign the bytes that settled |
+| Ledger inclusion | is that transaction in a ledger anyone can check, and how strongly |
+
+And an unattested signer — a receipt whose leaf 3 is `null`, meaning nothing
+proves which machine held the policy key — is shown loudly rather than left out.
+
+**Nothing verified here trusts us.** Trust anchors are arguments: the PCR
+allowlist, the validator key set, the policy document, the admin key. No receipt
+gets to nominate what it should be judged against, the AWS Nitro root is embedded
+rather than fetched, and `now` is passed in rather than read, so a verification
+is reproducible years later.
 
 ## Python SDK
 

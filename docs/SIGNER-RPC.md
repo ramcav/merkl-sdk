@@ -169,6 +169,44 @@ Result is an `allow` result, or a `deny` one when the quorum was not reached, th
 challenge expired, or re-evaluation refused. A rejected escalation releases its
 reservation.
 
+### `reject`
+
+```json
+{"challenge": "<hex>", "assertions": [ … ]}
+```
+
+The other half of `approve`, and it is signed for the same reason. Somebody with
+standing to approve chose not to, and that fact belongs in the record: an
+escalation that simply stops being mentioned proves nothing about whether anyone
+looked at it (plan D11 — *rejections are signed too*).
+
+The signer verifies the assertions exactly as `approve` does, against the same
+challenge and the same approver credentials. It then records a **`deny`**
+decision whose leaf 2 carries the escalation with those assertions inside it, and
+releases the reservation — a window that stays full is a denial of service the
+approver did not intend.
+
+Two cases worth stating:
+
+* **No assertions at all** is an error, not a rejection. A refusal nobody signed
+  is indistinguishable from a message anyone could have sent.
+* **Assertions that do not verify** still produce a `deny`, with `detail` saying
+  *no assertion verifies* rather than naming a rejector. The escalation is
+  resolved either way — nothing is going to be signed for it — but the record
+  does not claim a person refused when it cannot show one did.
+
+Result is the same envelope shape as `approve`'s deny: `outcome`, `decision`
+(with the `escalation` member carrying the assertions), `detail`, and
+`approvals_accepted` listing the ids whose signatures verified.
+
+**Relay contract for merkl-api.** `POST /v1/escalations/{id}/reject` currently
+files the rejection in the notary's own tables. That is a record of what a
+reviewer clicked, not a decision — the signer is the only policy authority
+(plan D1) and the notary only relays (D11). To close the loop, the route must
+forward `{challenge, assertions}` to this method and store the returned decision
+beside the receipt; until it does, a rejection filed through the API leaves the
+escalation pending in the signer and the reservation held until it expires.
+
 ### `settle` / `release`
 
 ```json

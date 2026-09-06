@@ -11,6 +11,104 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ### Added
 
+- **Verification is now two implementations of one spec (plan D7).**
+  `merkl.core.verify.receipt.verify_receipt` and `@merkl/verify`'s
+  `verifyReceipt` compute the same bytes, report the same check names with the
+  same statuses, and reach the same verdict from the same material — down to the
+  plain-language summary a reader sees. `merkl/core/vectors/verdicts.json`
+  records each verdict beside the exact settlement proof, validator set, policy
+  document and session bundle it was reached from, and both suites assert
+  against it. A divergence is a bug in one of them, never a difference.
+- **One verdict, never one boolean.** The settlement result is two lines (plan
+  D10): *transaction authorization* (`verified` / `absent` / `contradicted`) and
+  *ledger inclusion* (`proven-offline` / `verified-live` / `supplied-unverified`
+  / `unchecked`). Above them sits the level (plan D9): level 1 is the receipt
+  against the signer key and the rail; level 2 additionally joins the session
+  log. And above that, five sentences — what the agent was told, which rule
+  allowed it, who approved, what settled, when — because a receipt whose meaning
+  only survives as hex has not been verified by anybody who matters.
+- **Three checks the format defined and nothing ran.**
+  `policy.escalation_challenge` recomputes `LEFT_pre` from the finished receipt,
+  so a reader can see the approvers signed *this* payment.
+  `policy.approval_quorum` counts distinct approvers the policy names.
+  `policy.document` looks the policy up **by hash** — a policy replaced since
+  cannot be shown in place of the one that decided — and verifies its admin
+  signature when the caller pins the key.
+- **`merkl.core.verify.settlement` — what a settlement capture actually proves.**
+  Three separate checks, because collapsing them is how a verifier claims more
+  than it holds: is the proof about this transaction, does the header hash to the
+  ledger hash it claims (XRPL's `LWR\0` preimage, recomputed), and did a quorum
+  of validators the *verifier* pinned sign that hash. `settlement.ledger_inclusion`
+  needs one more link — a path folding the transaction into the header's
+  transaction root — which XRPL captures still lack and name in their own
+  `missing` list.
+- **`merkl.core.verify.log` — sessions, the transparency log and evidence, in
+  Python.** Action leaves, session inclusion, the `merkl-entry-v1` chain, RFC 6962
+  log inclusion, the checkpoint body and its Ed25519 signature, the continuation
+  binding, and disclosed evidence records. These existed only in JavaScript,
+  inside a page merkl-api rendered — one implementation of a normative format,
+  living in the wrong repository.
+- **`verify.html` and the JavaScript verifier move into the SDK**, rendered by
+  `merkl.core.verify.render.render_verify_html(bundle)` — the function merkl-api
+  calls, taking a session bundle, a receipt-only bundle or a disclosure. The page
+  leads with sentences and keeps every hash behind an expander, shows an
+  unattested signer loudly rather than as a missing field, labels reasoning as
+  testimony, names every check it could not run, and keeps the evidence
+  drop-zone. It is one self-contained file that opens from a USB stick with no
+  network.
+- **`@merkl/verify`** — the same algorithms in JavaScript, no dependencies, Web
+  Crypto only: canonicalization ported escape for escape, the frozen leaf
+  encodings, the receipt tree, WebAuthn and Ed25519 approvals, a CBOR reader
+  restricted to the attestation profile, an X.509 reader for the four fields a
+  chain check needs, AWS Nitro attestation, settlement proofs and the session
+  log. 172 tests under `node --test`, no bundler, published from the same tag as
+  the PyPI distribution (plan D19).
+- **CLI.** `merkl verify <receipt|bundle|verify.html>` — the rendered page an
+  auditor was emailed is itself a valid input, so disagreeing with it is
+  something you can check. `merkl receipt show` reads the seven leaves out loud.
+  `merkl disclose --leaves` ships a selective disclosure whose withheld leaves
+  are hashes proving only that they exist unedited, and renders the page locally
+  so a disclosure survives the notary being down. `merkl approve` / `merkl
+  reject` sign an escalation with a local Ed25519 key. `merkl reconcile` matches
+  outflows to receipts in both directions — the direction that matters finds
+  money leaving with no co-signed authorization behind it.
+- **Signer RPC `reject(challenge, assertions)`** (plan D11). Verified like
+  `approve`, records a DENY whose leaf 2 carries the signed refusals, releases
+  the reservation. An escalation that simply stops being mentioned proves nothing
+  about whether anybody looked at it.
+- **`docs/INTERFACES-P4.md`** — the contract merkl-api and merkl-dashboard build
+  against: the renderer's name and signature, the bundle v1.2 members the
+  verifier reads, the `@merkl/verify` API, the fixtures, and which files in
+  merkl-api become deletable.
+- **New fixtures.** `verdicts.json` (4), `bundles/` (three real merkl-api exports
+  plus 9 mutations), and a fourth receipt settled on the fake rail so
+  `proven-offline` is a state both implementations reach rather than a branch
+  nobody runs. `py.typed`, so merkl-api's mypy stops seeing this package as
+  untyped.
+
+### Fixed
+
+- **The rendered session verifier had been throwing since summaries were
+  removed.** merkl-api's template referenced `#actions-tbody`, `#root-hash`,
+  `#total-count` and `#verified-count` from its JavaScript but stopped declaring
+  any of them in its HTML, so every session page failed at `tbody.appendChild`
+  and showed "Error" in the badge. The SDK template declares the table.
+
+### Changed
+
+- `DEFERRED_CHECKS` is empty of phase markers: `settlement.ledger_inclusion` and
+  `session.log_join` are implemented, and `verify_receipt_structure` now reports
+  them as needing material a receipt cannot carry, naming the function that takes
+  it. Its own behaviour is unchanged.
+- The fake rail captures a transaction-set root, a path to it and signed
+  validations, so its settlement proofs have an empty `missing` list. XRPL still
+  names `shamap_path`. `SettlementProof` gains `tx_path`.
+- The receipt vectors' `policy_hash` is now a real `PolicyDocument`'s hash rather
+  than a digest of a sentence, so `policy.document` and `policy.approval_quorum`
+  can be exercised at all. Committed fixtures were regenerated.
+
+### Added — phases 1-3 of this cycle
+
 - **`merkl.core.verify.attestation` — AWS Nitro attestation documents, verified
   offline.** Parses the NSM's COSE_Sign1, walks the certificate chain to the AWS
   Nitro Attestation PKI root embedded in the package (SHA-256
@@ -154,7 +252,7 @@ Releases are cut by pushing a `v<version>` tag; see
   Ed25519 policy signatures, anchors equal to their own LEFT and transaction
   hashes that derive from their blobs.
 
-### Changed
+### Changed — phases 1-3 of this cycle
 
 - `Check`, `CheckStatus` and `VerificationResult` moved to `merkl.core.checks`,
   shared by both verifiers. `merkl.core.receipt` re-exports them unchanged.

@@ -67,8 +67,20 @@ merkl/core/
                    and deterministic writer, stdlib only
     attestation.py AWS Nitro attestation documents: COSE_Sign1, the chain to the
                    embedded AWS root, ES384, PCR allowlist, receipt bindings
+    settlement.py  what a settlement capture proves: the proof is about this tx,
+                   the header hashes to its ledger hash, a pinned validator
+                   quorum signed it, and only then offline inclusion
+    log.py         sessions, action leaves, the merkl-entry-v1 chain, RFC 6962
+                   log inclusion, checkpoints, continuations, evidence records
+    receipt.py     the whole verdict: every check, the two settlement lines of
+                   D10, the level of D9, and the plain-language summary
+    render.py      render_verify_html(bundle) -> str, the page merkl-api calls
+    verify.html    the standalone page: sentences first, hashes behind expanders
+    js/            merkl-verify.js — the same algorithms in JavaScript, published
+                   as @merkl/verify. No dependencies, Web Crypto only
   vectors/       generate.py, fixtures.py + committed JSON fixtures
     attestation/   three documents AWS actually signed, and 17 cases over them
+    bundles/       real merkl-api exports, and mutations of them that must fail
 ```
 
 `merkl/signer/` depends on `merkl.core` and `merkl.shared` alone — no rail
@@ -90,7 +102,9 @@ root holds the enclave image, the parent proxy and the Terraform; it is not part
 of the wheel.
 
 `docs/RECEIPT-SPEC.md` is normative for all of it, with
-`docs/ATTESTATION-VERIFY.md` normative for check 8 in particular. Rules:
+`docs/ATTESTATION-VERIFY.md` normative for check 8 in particular and
+`docs/INTERFACES-P4.md` recording what merkl-api and merkl-dashboard build
+against. Rules:
 
 - **Never change `merkl.shared.hashing`.** One canonicalization, reused.
 - **`merkl.core` imports nothing from `merkl.sdk`** (or from `merkl_api`, ever).
@@ -114,9 +128,27 @@ of the wheel.
 - **Vectors are the contract with the JS verifier.** Plain JSON, lowercase hex,
   no floats, no Python-specific types. After touching any encoding, run
   `python -m merkl.core.vectors.generate` and commit the diff; the suite fails if
-  the committed files are stale. The attestation vectors have their own
-  generator, `python -m merkl.core.vectors.attestation.generate`, because they
-  are derived from real documents on disk rather than from Merkl's own encodings.
+  the committed files are stale. Two vector sets have their own generators
+  because their inputs are files on disk rather than Merkl's own encodings:
+  `python -m merkl.core.vectors.attestation.generate` (documents AWS signed) and
+  `python -m merkl.core.vectors.bundles.generate` (exports merkl-api produced).
+- **Two implementations, one spec, one vector set.** `merkl.core.verify` and
+  `merkl/core/verify/js/merkl-verify.js` must report the same check names with
+  the same statuses and reach the same verdict from the same material.
+  `verdicts.json` records each verdict beside the arguments it was reached from,
+  and both suites assert against it. A disagreement is a bug in one of them,
+  never "a difference between the Python and the JavaScript". Check names and
+  statuses are the contract; prose detail strings are not.
+- **A verdict is never one boolean.** `ok` (nothing contradicted) and `complete`
+  (every check ran) are separate lines, and for a settled receipt so are
+  transaction authorization and ledger inclusion (plan D10). Above them, the
+  level of plan D9. Above that, five plain sentences — a receipt whose meaning
+  only survives as hex has not been verified by anybody who matters.
+- **The page must open from a USB stick.** `verify.html` is one self-contained
+  file with no external reference, and the verifier is inlined as a *classic*
+  script because Chrome refuses module scripts on `file://`. The module on disk
+  stays a real ES module for npm and for the Node suite; `render.py` strips the
+  `export` keywords when inlining.
 - **An attestation is checked against what the *verifier* pinned.** The PCR
   allowlist, the trust anchor and `now` are arguments, never values read out of
   the receipt. No receipt gets to nominate the measurements it should be judged
@@ -138,7 +170,11 @@ of the wheel.
 - `merkl/integrations/_common.py` — `record_tool_call()` shared by every framework adapter
 - `merkl/integrations/` — langchain.py, openai.py, google_adk.py, crewai.py
 - `merkl/hooks/claude_code.py` — Claude Code PostToolUse + SessionEnd hook; `HookState` class owns all per-session scratch state
-- `merkl/cli/main.py` — `merkl install --claude-code` CLI
+- `merkl/cli/main.py` — the CLI: `verify`, `receipt show`, `disclose`, `approve`,
+  `reject`, `reconcile`, `install`, `signer serve`, `treasury`
+- `merkl/cli/verify.py` — `merkl verify` over a receipt, a bundle or a rendered
+  verify.html; exit 0 nothing contradicted, 1 contradicted, 2 unreadable
+- `merkl/cli/receipt.py`, `merkl/cli/approve.py`, `merkl/cli/reconcile.py`
 - `merkl/shared/hashing.py` — `SHA256Hash`, `canonical_hash()`, `canonical_bytes()` (deterministic JSON-sorted-keys hashing shared by SDK, hook, and server-side leaf verification)
 - `merkl/core/verify/attestation.py` — the attestation verifier and the embedded AWS Nitro root
 - `merkl/signer/vsock.py` — the length-prefixed JSON framing the enclave speaks
@@ -160,11 +196,13 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # 1074 tests, 7 skipped
+pytest                                          # 1232 tests, 7 skipped
+npm test                                        # 172 JS tests, node --test, no bundler
 mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py nitro
 ruff check merkl/core merkl/signer merkl/adapters nitro tests/core tests/signer
 python -m merkl.core.vectors.generate --check              # fixtures are current
 python -m merkl.core.vectors.attestation.generate --check  # and the attestation ones
+python -m merkl.core.vectors.bundles.generate --check      # and the bundle ones
 
 # XRPL testnet: opt-in, funds from the faucet, submits real transactions
 MERKL_XRPL_TESTNET=1 pytest tests/scenarios/test_xrpl_testnet.py -v -s
@@ -173,11 +211,12 @@ MERKL_XRPL_TESTNET=1 pytest tests/scenarios/test_xrpl_testnet.py -v -s
 ## Releasing
 
 ```bash
-# bump version in pyproject.toml, add a CHANGELOG.md section, commit, then:
+# bump the version in BOTH pyproject.toml and merkl/core/verify/js/package.json,
+# add a CHANGELOG.md section, commit, then:
 git tag v0.1.2 && git push origin v0.1.2
 ```
 
-The tag is the release decision: `.github/workflows/release.yml` refuses a tag that disagrees with `pyproject.toml`, runs the suite, builds, publishes to PyPI via Trusted Publishing (OIDC, gated by the `pypi` environment), and creates a GitHub Release from the matching CHANGELOG section. `examples/` holds runnable demo agents against a local notary; `docs/adr/` records the shared-kernel design decisions.
+The tag is the release decision: `.github/workflows/release.yml` refuses a tag that disagrees with `pyproject.toml` **or** with `@merkl/verify`'s `package.json`, runs both suites and all three vector checks, builds, publishes to PyPI via Trusted Publishing (OIDC, gated by the `pypi` environment) and `@merkl/verify` to npm with provenance (gated by the `npm` environment), and creates a GitHub Release from the matching CHANGELOG section. The two packages are versioned in lockstep because they are two implementations of one spec (plan D19): a reader holding one has to be able to assume the other agrees with it. `examples/` holds runnable demo agents against a local notary; `docs/adr/` records the shared-kernel design decisions.
 
 ## Guidelines
 
