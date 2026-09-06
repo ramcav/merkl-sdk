@@ -604,6 +604,10 @@ async function run() {
     $('gaps').innerHTML =
       '<p style="margin-bottom:8px">A check whose inputs are not in this file is reported here by ' +
       'name. None of these is a failure, and none of them is a pass.</p>' +
+      '<p style="margin-bottom:8px">Most of them are waiting on something you pin rather than ' +
+      'something the discloser sends — deliberately, because material that nominated its own ' +
+      'trust anchors would be checking itself. <code>merkl verify --pcr 0=… --validator ' +
+      'name=key --policy policy.json --admin-key …</code> runs the same checks with yours.</p>' +
       deferred
         .map(([n, d]) => `<div class="audit-row"><span class="audit-label" style="min-width:230px">${esc(n)}</span><span class="audit-val">${esc(d)}</span></div>`)
         .join('');

@@ -210,18 +210,6 @@ export function result(checks) {
   };
 }
 
-function replaceCheck(checks, name, replacement) {
-  const i = checks.findIndex((c) => c.name === name);
-  if (i === -1) checks.push(replacement);
-  else checks[i] = replacement;
-}
-
-function insertBefore(checks, name, extra) {
-  const i = checks.findIndex((c) => c.name === name);
-  if (i === -1) checks.push(...extra);
-  else checks.splice(i, 0, ...extra);
-}
-
 // ─── 4. Merkle folds ────────────────────────────────────────────────────────
 
 /** `SHA-256(left || right)` over raw 32-byte digests. The only interior rule. */
