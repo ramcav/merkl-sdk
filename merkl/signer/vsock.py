@@ -159,6 +159,11 @@ class VsockRpcServer:
         self._socket = _stream_socket()
         self._stopped = threading.Event()
 
+    @property
+    def port(self) -> int:
+        """The vsock port this server listens on."""
+        return self._port
+
     def bind(self) -> None:
         self._socket.bind((socket.VMADDR_CID_ANY, self._port))  # type: ignore[attr-defined]
         self._socket.listen(self._backlog)
