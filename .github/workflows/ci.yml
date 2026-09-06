@@ -46,16 +46,15 @@ jobs:
       - run: python -m merkl.core.vectors.generate --check
       - run: python -m merkl.core.vectors.attestation.generate --check
       - run: python -m merkl.core.vectors.bundles.generate --check
+      - run: python -m merkl.core.vectors.xrpl.generate --check
 
   lint:
-    # Advisory until the ruff backlog is cleared; then drop continue-on-error.
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: ruff check merkl/
-      - run: ruff format --check merkl/
+      - run: ruff check merkl/ tests/
+      - run: ruff format --check merkl/ tests/
