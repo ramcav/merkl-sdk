@@ -268,8 +268,8 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # see current count in CI; growing
-npm test                                        # see current count in CI; growing, node --test, no bundler
+pytest                                          # 1362 tests, 10 skipped
+npm test                                        # 213 JS tests, node --test, no bundler
 mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py nitro merkl/demo merkl/cli
 ruff check merkl/ tests/
 ruff format --check merkl/ tests/
