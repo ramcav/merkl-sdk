@@ -6,10 +6,15 @@
   "main": "./merkl-verify.js",
   "module": "./merkl-verify.js",
   "exports": {
-    ".": "./merkl-verify.js"
+    ".": "./merkl-verify.js",
+    "./cli": "./cli.mjs"
+  },
+  "bin": {
+    "merkl-verify": "./cli.mjs"
   },
   "files": [
     "merkl-verify.js",
+    "cli.mjs",
     "README.md",
     "LICENSE"
   ],
