@@ -7,7 +7,14 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
 ## What This Package Does
 
 - `merkl.core` — the pure proof core: Merkle trees and proofs, leaf encodings,
-  Intent v1, the co-signer receipt (see below). No I/O, no clock, no new deps
+  Intent v1, the co-signer receipt, the signed policy document and the
+  deterministic policy engine (see below). No I/O, no clock, no new deps
+- `merkl.signer` — the co-signer process: keystore, agent-request auth, sealed
+  rule state, the authoritative decision flow, JSON-RPC over a Unix socket
+- `merkl.adapters` — the edge: `fake` (in-memory rail), `xrpl` (multisigned
+  Payments + treasury bootstrap), `signer_dev` (SignerPort clients)
+- `ReceiptBuilder` (`merkl/sdk/receipts.py`) — propose → route → co-sign →
+  settle → attest, joining the enclosing session as one `transaction` action
 - `MerklClient` — main entry point (endpoint URL, agent_id, API key)
 - `SessionContext` — async context manager for session lifecycle
 - `@trace` and `@guardrail` decorators for auto-recording actions (concurrency-safe via `contextvars`)
@@ -24,22 +31,41 @@ checkpoints, anchoring) stay in merkl-api.
 
 ## merkl/core — the proof core
 
-Pure by construction: no HTTP, no DB, no filesystem, no clock, no rail client,
-and nothing imported beyond the standard library and `merkl.shared`. Everything
-is a value object or a function over value objects, so a verifier, a signer and
-the server all reach the same conclusion from the same bytes.
+Pure by construction: no HTTP, no DB, no filesystem, no clock, no rail client.
+Everything is a value object or a function over value objects, so a verifier, a
+signer and the server all reach the same conclusion from the same bytes. The one
+non-stdlib import is `cryptography`, used to *verify* signatures and never to
+make them — no private key enters `merkl.core`.
 
 ```
 merkl/core/
   canonical.py   the JSON subset receipts may contain + field formats
-                 (token, text, hex_digest, instant, decimal_string)
+                 (token, text, hex_digest, instant, decimal_string) and
+                 instant arithmetic (parse/format/shift, no clock read)
+  crypto.py      ed25519 / ECDSA P-256 verification, hex + base64url,
+                 the tagged pre-image shape
   merkle.py      MerkleTree, MerkleProof, subtree_root / subtree_proof
   leaf.py        action_leaf() (merkl-leaf-v1, frozen), receipt_leaf()
   intent.py      Intent v1 (payment), Amount, IssuedCurrency, Reference
+  rail.py        UnsignedTx / SignedTx / SettlementRef / SettlementProof,
+                 the 32-byte anchor placeholder, per-rail tx-id rules
+  ports.py       SettlementPort, SignerPort, ReceiptStorePort, ApprovalPort,
+                 RiskPort, ClockPort (Protocols only)
+  policy/
+    document.py  PolicyDocument v1, SignedPolicy (merkl-policy-v1), approvers
+    engine.py    evaluate(intent, policy, state, risk, now) -> Decision
+    state.py     LedgerState, StateView, StateStore, reconcile()
+    approvals.py ApprovalAssertion (WebAuthn + Ed25519), verify_quorum()
   receipt.py     the seven leaves, LEFT/RIGHT/ROOT, Envelope, Receipt,
                  selective disclosure, verify_receipt_structure
-  vectors/       generate.py + committed JSON fixtures
+  vectors/       generate.py, fixtures.py + committed JSON fixtures
 ```
+
+`merkl/signer/` depends on `merkl.core` and `merkl.shared` alone — no rail
+client, no HTTP client, no framework — which is what makes it small enough to
+audit and small enough to put inside an enclave in phase 3.
+`docs/SIGNER-RPC.md` is its contract, and section 4 states what it cannot yet
+verify.
 
 `docs/RECEIPT-SPEC.md` is normative for all of it. Rules:
 
@@ -53,7 +79,11 @@ merkl/core/
   are frozen: a change of fields or encoding means a new tag.
 - **Verification never hides what it did not check.** Checks a phase has not
   implemented are reported by name as `not_implemented`, never as a pass, and
-  live in `DEFERRED_CHECKS` with the phase that will implement them.
+  live in `DEFERRED_CHECKS` with the phase that will implement them. A check
+  whose *inputs* are absent also reports `not_implemented` by name — the absence
+  of data is never reported as agreement.
+- **The signer never accepts a decision from the caller** (plan D1). If you find
+  yourself adding a parameter through which one could be suggested, stop.
 - **Vectors are the contract with the JS verifier.** Plain JSON, lowercase hex,
   no floats, no Python-specific types. After touching any encoding, run
   `python -m merkl.core.vectors.generate` and commit the diff; the suite fails if
@@ -90,11 +120,14 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 ## Testing
 
 ```bash
-pip install -e ".[dev]"
-pytest                                          # 549 tests
-mypy --strict merkl/core                        # clean, required
-ruff check merkl/core tests/core                # clean, required
+uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer]"
+pytest                                          # 771 tests, 7 skipped
+mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py
+ruff check merkl/core merkl/signer merkl/adapters tests/core tests/signer
 python -m merkl.core.vectors.generate --check   # fixtures are current
+
+# XRPL testnet: opt-in, funds from the faucet, submits real transactions
+MERKL_XRPL_TESTNET=1 pytest tests/scenarios/test_xrpl_testnet.py -v -s
 ```
 
 ## Releasing
@@ -115,7 +148,11 @@ The tag is the release decision: `.github/workflows/release.yml` refuses a tag t
 - Input/output hashing must go through `canonical_hash()`. Raw `str()` is non-deterministic for dicts; the SDK and the Claude Code hook must produce identical leaf hashes for the same logical payload.
 - The SDK must never import from `merkl_api.*`.
 - Dependencies must stay minimal (uuid6, httpx, cryptography). This ships to
-  customers, and `merkl.core` adds none of them — stdlib plus `merkl.shared`.
+  customers. `merkl.core` uses only the standard library, `merkl.shared` and
+  `cryptography` (verification only); `xrpl-py` lives behind the `[xrpl]` extra
+  and is imported by `merkl.adapters.xrpl` and nothing else.
+- **Never print or log a seed, a passphrase or a private key**, and add the
+  gitignore entry before writing any file that could hold one.
 
 ## Known Issues
 

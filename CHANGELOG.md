@@ -11,6 +11,76 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ### Added
 
+- **`merkl.core.policy` — the signed policy and the deterministic engine.**
+  `PolicyDocument` v1 is hashed and signed over one pre-image under
+  `merkl-policy-v1`, so a signature can never be valid for a document with a
+  different hash, and a policy update is checked against the admin key the signer
+  has *pinned* rather than the key the incoming document nominates.
+  `evaluate(intent, policy, state, risk, now)` is a pure function whose output
+  serialises byte-for-byte as receipt leaf 2. A denial is a decision with rules
+  and a receipt, not an exception. Rule state is an immutable ledger with a
+  monotonic sequence: reservations count against a sliding window from the moment
+  they exist, settling relabels rather than re-counts, and `reconcile()` compares
+  rail history to signer state in both directions.
+- **Approval assertions are pinned** (`RECEIPT-SPEC.md` §3.3): WebAuthn passkeys
+  and Ed25519 keys, every binary member as hex of the exact bytes, quorum over
+  distinct approver ids. `LEFT_pre` is pinned too (§3.2) — LEFT with leaf 2's
+  escalation omitted and its outcome set back to `escalate` — so a reader holding
+  only the finished receipt can recompute the challenge the approvers signed.
+- **Four deferred verification checks now run.** `policy.signature`,
+  `intent.matches_settled_fields`, `settlement.anchor_equals_left` and
+  `settlement.signed_blob` execute whenever the receipt carries their inputs and
+  report `not_implemented` by name when it does not. The settlement leaf gains an
+  optional `policy_signature` carrying the exact bytes the policy key signed,
+  which is what makes check 7 possible offline; adding an optional member keeps
+  the frozen tag. A forger who rebuilds the whole tree consistently still cannot
+  produce that signature — three new tamper vectors are receipts where every
+  structural check passes and the receipt proves nothing.
+- **`merkl.signer` — the co-signer process.** Ed25519 keystore encrypted at rest
+  behind a three-method port so a Nitro keystore drops in; agent-signed requests
+  with nonce and expiry (`merkl-signer-request-v1`) verified against the key in
+  the policy, never the key in the request; sealed, sequenced state that refuses
+  to roll back; JSON-RPC over a Unix socket, documented in `docs/SIGNER-RPC.md`
+  as the same contract phase 3 speaks over vsock.
+- **The anchor placeholder** (`RECEIPT-SPEC.md` §3.4) resolves the ordering
+  problem in the split tree. LEFT covers the policy decision, so it cannot exist
+  before the signer decides — yet the transaction has to carry it. The adapter
+  prepares 32 zero bytes, the signer checks they are untouched, writes LEFT over
+  them itself and signs the result, and the adapter reproduces the same bytes
+  independently. The signer never parses a rail's binary format to know that the
+  memo it authorized is the memo that settles.
+- **`merkl.adapters`** — `fake` (a deterministic in-memory rail that enforces
+  2-of-2 quorum and refuses a lone signature with `BAD_QUORUM`), `xrpl`
+  (multisigned Payments anchored by memo, treasury bootstrap that installs the
+  signer list before disabling the master key and then reads the account back,
+  settlement-proof capture from the validations stream), and `signer_dev`
+  (SignerPort clients over a socket and in-process).
+- **`ReceiptBuilder`** (`merkl/sdk/receipts.py`) — propose → route → co-sign →
+  settle → attest. Re-prepares the transaction with the real commitment and
+  requires it to equal the bytes the signer signed before submitting; releases
+  the reservation when a rail refuses; commits the envelope hash as one
+  `transaction` action in the enclosing session, optionally and one-way.
+- **`merkl signer serve`, `merkl treasury init --xrpl-testnet`,
+  `merkl treasury verify`.** Extras `[xrpl]` and `[signer]`.
+- **Scenario suite**: five scenarios (benign payment, prompt-injection drain,
+  over-threshold with 2-of-3 approval mixing a passkey and a key, structuring
+  across a sliding window, reference mismatch) green against the in-memory rail
+  and against XRPL testnet (`MERKL_XRPL_TESTNET=1`, skipped otherwise).
+- **New vector file** `approvals.json`: WebAuthn and Ed25519 assertions, valid
+  and invalid, plus quorum counting. The three vector receipts now carry real
+  Ed25519 policy signatures, anchors equal to their own LEFT and transaction
+  hashes that derive from their blobs.
+
+### Changed
+
+- `Settlement` gains optional `policy_signature`; `DEFERRED_CHECKS` drops the
+  four checks this phase implemented and keeps `signer.attestation` (phase 3),
+  `settlement.ledger_inclusion` (phase 4) and `session.log_join` (phase 4).
+  Committed vectors were regenerated for both reasons.
+- `merkl.core` now imports `cryptography` — a declared runtime dependency
+  already — to *verify* signatures. It still makes none: no private key enters
+  the pure core.
+
 - **`merkl.core` — the pure core of Merkl's proof formats.** No HTTP, no
   database, no filesystem, no clock, and no dependency beyond the standard
   library and `merkl.shared`. It holds the Merkle tree and inclusion proofs
