@@ -322,6 +322,15 @@ class SettlementProof:
     ledger_hash: str | None = None
     ledger_header: JSONValue = None
     transaction: JSONValue = None
+    tx_path: JSONValue = None
+    """Siblings and directions from this transaction to the header's transaction root.
+
+    The link that turns "a quorum signed some ledger" into "this payment is in
+    it". XRPL captures leave it ``None`` and name ``shamap_path`` in
+    :attr:`missing`; the fake rail builds it, so the offline-inclusion path is
+    exercised rather than merely specified.
+    """
+
     validations: tuple[JSONValue, ...] = ()
     captured: tuple[str, ...] = ()
     missing: tuple[str, ...] = ()
@@ -339,6 +348,7 @@ class SettlementProof:
                 "ledger_hash": self.ledger_hash,
                 "ledger_header": self.ledger_header,
                 "transaction": self.transaction,
+                "tx_path": self.tx_path,
                 "validations": list(self.validations),
                 "captured": list(self.captured),
                 "missing": list(self.missing),

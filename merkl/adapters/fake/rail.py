@@ -20,14 +20,18 @@ with, so it is the part that must not be simplified.
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import itertools
 from collections.abc import Sequence
 from decimal import Decimal
 from typing import Final
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
 from merkl.core.canonical import JSONObject, format_decimal, parse_decimal, parse_instant
 from merkl.core.crypto import ed25519_verify, tagged
 from merkl.core.intent import CurrencyRef, Intent, currency_from_content
+from merkl.core.merkle import MerkleTree
 from merkl.core.policy.document import asset_key
 from merkl.core.policy.state import Outflow
 from merkl.core.rail import (
@@ -43,12 +47,18 @@ from merkl.core.rail import (
     UnsignedTx,
     fake_tx_id,
 )
+from merkl.core.verify.settlement import fake_ledger_hash, fake_validation_message
 from merkl.shared.errors import MerklError
-from merkl.shared.hashing import canonical_bytes
+from merkl.shared.hashing import SHA256Hash, canonical_bytes
 
 FAKE_TX_TAG: Final = b"merkl-fake-tx-v1"
 FIRST_LEDGER: Final = 1_000_000
 DEFAULT_QUORUM: Final = 2
+
+
+def merkle_root(digests: Sequence[bytes]) -> str:
+    """Merkl's Merkle root over raw digests, lowercase hex — the fold used everywhere."""
+    return MerkleTree.build([SHA256Hash(d) for d in digests]).root.hex()
 
 
 class FakeRailError(MerklError):
@@ -61,6 +71,45 @@ class FakeRailError(MerklError):
         self.engine_result = engine_result
 
 
+@dataclasses.dataclass(frozen=True)
+class FakeValidator:
+    """One validator of the fake network: a name and the key it signs ledgers with."""
+
+    name: str
+    private_key: Ed25519PrivateKey
+
+    @property
+    def public_key(self) -> str:
+        return self.private_key.public_key().public_bytes_raw().hex()
+
+    def sign(self, ledger_hash: str, ledger_index: int) -> JSONObject:
+        """The validation message this validator broadcasts for a closed ledger."""
+        message = fake_validation_message(ledger_hash, ledger_index)
+        return {
+            "validator": self.name,
+            "ledger_index": ledger_index,
+            "ledger_hash": ledger_hash,
+            "signature": self.private_key.sign(message).hex(),
+        }
+
+
+def validator_set(count: int = 3, *, prefix: str = "validator") -> tuple[FakeValidator, ...]:
+    """A deterministic validator set, so a scenario replays byte-identically.
+
+    The seeds are derived from the name and are not secret in any sense that
+    matters: this network exists only inside a test process.
+    """
+    return tuple(
+        FakeValidator(
+            name=f"{prefix}-{i}",
+            private_key=Ed25519PrivateKey.from_private_bytes(
+                hashlib.sha256(f"merkl-fake-validator:{prefix}-{i}".encode()).digest()
+            ),
+        )
+        for i in range(count)
+    )
+
+
 @dataclasses.dataclass
 class FakeLedger:
     """Balances, a signer list, and a clock. The whole ledger."""
@@ -70,6 +119,8 @@ class FakeLedger:
     quorum: int = DEFAULT_QUORUM
     ledger_index: int = FIRST_LEDGER
     outflows: list[Outflow] = dataclasses.field(default_factory=list)
+    validators: tuple[FakeValidator, ...] = dataclasses.field(default_factory=validator_set)
+    """Who signs closed ledgers. A verifier pins these; the proof never names them."""
 
     def credit(self, account: str, asset: str, value: str) -> None:
         key = (account, asset)
@@ -244,17 +295,42 @@ class FakeSettlementAdapter:
     # -- helpers ----------------------------------------------------------- #
 
     def _build_proof(self, ref: SettlementRef, signed: SignedTx) -> SettlementProof:
-        """A proof shaped like the real one, with the same honesty about gaps."""
+        """A proof shaped like the real one, and complete the way a real one is not.
+
+        This rail closes one transaction per ledger, so the transaction set has a
+        single member and the path to its root is empty — which the verifier folds
+        exactly as it folds a longer one. The point of building it here rather
+        than faking a verdict is that ``proven-offline`` (plan D10) is then a
+        state both implementations actually reach and both test suites actually
+        assert, instead of a branch nobody has run.
+        """
+        transaction_hash = merkle_root([bytes.fromhex(ref.tx_hash)])
+        header: JSONObject = {
+            "ledger_index": ref.ledger_index,
+            "close_time": ref.close_time,
+            "transaction_hash": transaction_hash,
+            "transaction_count": 1,
+        }
+        ledger_hash = fake_ledger_hash(header)
         return SettlementProof(
             rail=RAIL_FAKE,
             tx_hash=ref.tx_hash,
             ledger_index=ref.ledger_index,
-            ledger_hash=fake_tx_id(str(ref.ledger_index).encode()),
-            ledger_header={"ledger_index": ref.ledger_index, "close_time": ref.close_time},
+            ledger_hash=ledger_hash,
+            ledger_header=header,
             transaction={"blob": signed.blob, "engine_result": ref.engine_result},
-            validations=(),
-            captured=("ledger_header", "transaction"),
-            missing=("validator_signatures", "shamap_path"),
+            tx_path={"leaf_index": 0, "siblings": [], "directions": []},
+            validations=tuple(
+                v.sign(ledger_hash, ref.ledger_index) for v in self._ledger.validators
+            ),
+            captured=(
+                "ledger_header",
+                "transaction",
+                "shamap_path",
+                "validator_signatures",
+                "signed_blob",
+            ),
+            missing=(),
         )
 
 

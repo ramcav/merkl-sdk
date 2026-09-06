@@ -106,12 +106,20 @@ class TestFakeRail:
         blob = outcome.receipt.leaves.settlement.signed_tx_blob
         assert fake_tx_id(bytes.fromhex(blob)) == outcome.settlement.tx_hash
 
-    async def test_the_proof_names_what_it_lacks(self, tmp_path: Path) -> None:
+    async def test_the_proof_names_what_it_carries(self, tmp_path: Path) -> None:
+        """The fake rail captures everything an offline inclusion proof needs.
+
+        Phase 4 gave it a transaction-set root, a path to it and signed
+        validations, so ``missing`` is empty here and ``proven-offline`` is a
+        state the suite actually reaches. XRPL still names ``shamap_path``.
+        """
         rig = build_rig(tmp_path)
         outcome = await rig.builder.execute(
             instruction=rig.instruction(), intent=rig.intent()
         )
-        assert "shamap_path" in outcome.proof.missing
+        assert outcome.proof.missing == ()
+        assert "shamap_path" in outcome.proof.captured
+        assert outcome.proof.tx_path is not None
 
 
 class TestTxIdRules:
