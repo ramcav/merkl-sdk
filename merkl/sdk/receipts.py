@@ -42,6 +42,7 @@ from decimal import Decimal
 from typing import Any, Final
 
 from merkl.core.canonical import JSONObject, format_instant, parse_decimal, shift_instant
+from merkl.core.checks import VerificationResult
 from merkl.core.intent import Intent
 from merkl.core.policy.approvals import ApprovalAssertion
 from merkl.core.rail import (
@@ -63,7 +64,6 @@ from merkl.core.receipt import (
     Result,
     ResultOutcome,
     Settlement,
-    VerificationResult,
     authorization_commitment,
 )
 from merkl.sdk.decorators import get_current_session

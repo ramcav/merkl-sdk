@@ -57,6 +57,16 @@ signer = []
 signer-xrpl = [
     "xrpl-py>=4.0",
 ]
+# The AWS Nitro Enclave signer. Only merkl.adapters.nitro imports boto3, and
+# tests/signer/test_signer_purity.py refuses it anywhere under merkl/signer — the
+# signer knows a two-method SealingPort and never which cloud is behind it.
+#
+# Nothing in merkl.core needs this. Verifying an attestation document is pure:
+# a stdlib CBOR reader and `cryptography`, both already there. That is deliberate
+# — a verifier a stranger cannot run without an AWS SDK is not much of a verifier.
+nitro = [
+    "boto3>=1.34.100",
+]
 
 [tool.hatch.build.targets.sdist]
 exclude = [

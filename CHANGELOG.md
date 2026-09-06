@@ -11,6 +11,76 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ### Added
 
+- **`merkl.core.verify.attestation` — AWS Nitro attestation documents, verified
+  offline.** Parses the NSM's COSE_Sign1, walks the certificate chain to the AWS
+  Nitro Attestation PKI root embedded in the package (SHA-256
+  `641a0321…`, published as a zip whose digest is `8cf60e2b…`), checks the ES384
+  signature over a *rebuilt* `Sig_structure`, and reports nine named checks:
+  format, chain, certificate validity, signature, freshness, PCR allowlist, debug
+  mode, and the two bindings to the receipt. Certificate validity is measured at
+  the document's own timestamp rather than at `now` — an NSM leaf certificate
+  lives about three hours, and a receipt is read years later. `now` is an
+  argument everywhere, so verification is reproducible and `merkl.core` still
+  reads no clock.
+- **`merkl.core.verify.cbor` — the CBOR profile it needs, stdlib only.**
+  Definite lengths, shortest-form heads, no floats, no tags but COSE's, no
+  duplicate map keys, bounded depth and element counts. `cbor2` would have been a
+  dependency for the auditor, the JS verifier and the enclave image alike, in
+  order to accept shapes an attestation document may not contain. The
+  deterministic writer is not optional: verifying a COSE_Sign1 means re-encoding
+  the `Sig_structure` and checking the signature over *those* bytes.
+- **Check 8 runs.** `verify_receipt_structure` takes `attestation_trust` and
+  `now`, and holds leaf 3 against the envelope: the attested key must be
+  `signer_public_key` and the attested `user_data` must be `policy_hash`. Without
+  both, a genuine attestation from any enclave could be stapled to any receipt.
+  The allowlist and the moment are arguments, never values read from the receipt.
+  A null leaf 3 reports that the receipt *proves* it came from an unattested
+  signer, which is a fact rather than a gap.
+- **Attestation vectors: three documents AWS actually signed.** From
+  `evervault/attestation-doc-validation` (Apache-2.0, commit `10cc232f`), with
+  provenance, in `merkl/core/vectors/attestation/`. Seventeen cases including
+  tamper cases where the chain does not reach the pinned root, a PCR is edited
+  inside the signed payload, the timestamp is moved past the certificate window,
+  and a debug-mode enclave is refused. Every document is expired, which is the
+  point: only a verifier that takes `now` as an argument can check them at all.
+- **`NitroKeystore` and `merkl.signer.attestation`.** The policy key is generated
+  inside the enclave from NSM entropy mixed with the process CSPRNG, sealed
+  through a two-method `SealingPort` and handed to the parent as a ciphertext;
+  later boots open it only if the enclave measures the same. `attestation()`
+  asks the NSM for a fresh document on every call, binding the policy public key
+  and the current policy hash — read through a callable, so a `policy_update`
+  reaches the next attestation on its own. The NSM client is one `ioctl` on
+  `/dev/nsm` with CBOR on both sides, so no compiled dependency enters the image
+  whose every byte is measured into PCR0.
+- **`merkl.signer.vsock` — the same RPC, over the only wire an enclave has.**
+  Four bytes of length and then the same JSON. `server.handle_request` is now
+  transport-independent and both transports go through it; a test asserts they
+  answer byte-identically for the same router.
+- **`merkl.adapters.nitro` — KMS with the attestation as the credential.**
+  `kms:Decrypt` carrying the enclave's attestation as `Recipient` returns a CMS
+  envelope wrapped to an ephemeral key that exists only inside the enclave, so
+  the parent proxies the HTTPS and reads nothing. `cryptography` does not do CMS,
+  so `cms.py` walks exactly that structure and refuses every other — more than
+  one recipient, PKCS#1 v1.5 key transport, `AuthEnvelopedData`, non-minimal or
+  indefinite DER lengths. Tested against envelopes `openssl cms` produced. Two
+  KMS backends, `kmstool_enclave_cli` and botocore, behind the `[nitro]` extra.
+- **`merkl.adapters.signer_nitro`.** A subclass of `DevSignerClient` that adds no
+  RPC method — the parent proxy speaks the same contract, so an attested signer
+  is a constructor change. It adds `attestation_report()` and `assert_attested()`
+  for the question only an attested signer can answer.
+- **`nitro/` — the deployment.** Enclave image (installing the rail codec extra,
+  because the codec is what makes the policy signature mean something and must be
+  measured with the key it protects), parent proxy, and Terraform whose KMS key
+  policy conditions `kms:Decrypt` on `kms:RecipientAttestation:PCR0/1/2/8` while
+  leaving `kms:Encrypt` unconditioned — that condition key is not evaluated for
+  `Encrypt`, and conditioning it would deny the first boot the ability to seal
+  the key it just generated. `nitro/README.md` carries the runbook, the threat
+  notes, and a table of exactly which artifacts were executed and which were only
+  written.
+- **`docs/ATTESTATION-VERIFY.md`** — normative for check 8 and for the phase-4
+  JavaScript verifier, specified byte by byte.
+
+
 - **`merkl.core.policy` — the signed policy and the deterministic engine.**
   `PolicyDocument` v1 is hashed and signed over one pre-image under
   `merkl-policy-v1`, so a signature can never be valid for a document with a
@@ -86,10 +156,14 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ### Changed
 
+- `Check`, `CheckStatus` and `VerificationResult` moved to `merkl.core.checks`,
+  shared by both verifiers. `merkl.core.receipt` re-exports them unchanged.
+- `signer.attestation` left `DEFERRED_CHECKS`. Two remain, both phase 4.
+- `merkl.signer.server.handle_request` is public and transport-independent.
 - `Settlement` gains optional `policy_signature`; `DEFERRED_CHECKS` drops the
-  four checks this phase implemented and keeps `signer.attestation` (phase 3),
-  `settlement.ledger_inclusion` (phase 4) and `session.log_join` (phase 4).
-  Committed vectors were regenerated for both reasons.
+  four checks phase 2 implemented, and phase 3 removed a fifth. Two remain:
+  `settlement.ledger_inclusion` and `session.log_join`, both phase 4. Committed
+  vectors were regenerated for both reasons.
 - `PolicyDocument` gains a required `rail` member: a policy that does not say
   which ledger it governs cannot tell the signer which codec to load.
 - `merkl.core` now imports `cryptography` — a declared runtime dependency
