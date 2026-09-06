@@ -1,11 +1,19 @@
 """The keystore — where the policy key lives and never leaves.
 
+Two implementations, one four-method port, and nothing above this module knows
+which it is holding.
+
 ``DevKeystore`` keeps an Ed25519 key in a file, encrypted at rest with AES-GCM
 under a key derived from a passphrase. That is honest development storage and
 nothing more: the operating system can read the file, and so can anything running
-as the same user. The point of the interface is that ``NitroKeystore`` (phase 3)
-drops into the same three methods with the key sealed to an enclave measurement,
-and nothing above this module changes.
+as the same user. Its ``attestation()`` is ``None``, and every receipt it
+produces commits to that absence (plan D3).
+
+``NitroKeystore`` generates the key inside an AWS Nitro Enclave, from the NSM's
+entropy, and seals it with KMS under a key policy that refuses to decrypt for any
+enclave whose measurements differ. Its ``attestation()`` is a fresh NSM document
+binding the policy public key and the policy hash. The swap between them is a
+constructor argument, which is the whole point of the port existing.
 
 Three rules the code enforces rather than documents:
 
@@ -21,20 +29,24 @@ agent request signatures and the policy document signature.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import secrets
 import stat
+from collections.abc import Callable
 from pathlib import Path
 from typing import Final, Protocol
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from merkl.core.canonical import JSONValue
 from merkl.shared.errors import MerklError
+from merkl.signer.attestation import NsmPort, attestation_content
 
 KEY_FILE: Final = "policy-ed25519.json"
 PASSPHRASE_FILE: Final = "passphrase"
@@ -84,6 +96,15 @@ def _write_private(path: Path, payload: bytes) -> None:
     finally:
         os.close(fd)
     os.replace(tmp, path)
+
+
+def _public_hex(key: ed25519.Ed25519PrivateKey) -> str:
+    """The public half, lowercase hex. The private half has no such function."""
+    return (
+        key.public_key()
+        .public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+        .hex()
+    )
 
 
 def _derive(passphrase: bytes, salt: bytes, info: bytes = b"") -> bytes:
@@ -152,7 +173,7 @@ class DevKeystore:
                     "salt": salt.hex(),
                     "nonce": nonce.hex(),
                     "ciphertext": sealed.hex(),
-                    "public_key": self._public_hex(key),
+                    "public_key": _public_hex(key),
                 },
                 indent=2,
             ).encode()
@@ -177,22 +198,14 @@ class DevKeystore:
                 "the keystore passphrase is wrong, or the key file is damaged"
             ) from exc
         key = ed25519.Ed25519PrivateKey.from_private_bytes(raw)
-        if self._public_hex(key) != document.get("public_key"):
+        if _public_hex(key) != document.get("public_key"):
             raise KeystoreError("the keystore's public key does not match its private key")
         return key, salt
 
     # -- the port ---------------------------------------------------------- #
 
-    @staticmethod
-    def _public_hex(key: ed25519.Ed25519PrivateKey) -> str:
-        return (
-            key.public_key()
-            .public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
-            .hex()
-        )
-
     def public_key(self) -> str:
-        return self._public_hex(self._key)
+        return _public_hex(self._key)
 
     def sign(self, message: bytes) -> str:
         return self._key.sign(message).hex()
@@ -212,3 +225,171 @@ class DevKeystore:
 
     def __repr__(self) -> str:  # pragma: no cover - never leaks key material
         return f"DevKeystore(dir={self._dir!s}, public_key={self.public_key()[:16]}…)"
+
+
+# --------------------------------------------------------------------------- #
+# Nitro
+# --------------------------------------------------------------------------- #
+
+
+class SealingPort(Protocol):
+    """Encrypt to, and decrypt inside, this enclave. Implemented by KMS.
+
+    Two methods and no key material crosses the boundary, which is the only way
+    this can be a port at all. ``decrypt`` is the interesting half: on AWS it is
+    ``kms:Decrypt`` carrying the enclave's *attestation document* as the
+    ``Recipient``, so KMS returns the plaintext encrypted to an ephemeral public
+    key that exists only inside this enclave. The parent proxies the HTTPS and
+    learns nothing; the KMS key policy refuses the call unless the attestation's
+    PCRs match. See ``merkl.adapters.nitro.kms`` for the implementations and
+    ``nitro/README.md`` for the key policy.
+    """
+
+    def encrypt(self, plaintext: bytes) -> bytes:
+        """Return a ciphertext only this enclave measurement can open."""
+        ...
+
+    def decrypt(self, ciphertext: bytes) -> bytes:
+        """Open a ciphertext this enclave measurement produced."""
+        ...
+
+
+class SealedKeyPort(Protocol):
+    """Where the parent keeps the sealed key blob between boots.
+
+    The parent holds it because the enclave has no disk and no identity that
+    survives a restart. It is a ciphertext KMS will only open for an enclave with
+    the right measurements, so a parent that reads it, copies it, or hands it to
+    another instance still cannot use it.
+    """
+
+    def load(self) -> bytes | None:
+        """The stored blob, or ``None`` on the first boot."""
+        ...
+
+    def store(self, blob: bytes) -> None:
+        """Keep this blob for the next boot."""
+        ...
+
+
+class NitroKeystore:
+    """The policy key, generated inside an enclave and sealed to its measurements.
+
+    First boot: the key is generated here, from the NSM's entropy, and has never
+    existed anywhere else. It is encrypted through :class:`SealingPort` and the
+    ciphertext is handed to the parent. Later boots: the parent hands the
+    ciphertext back and KMS opens it only for an enclave whose PCRs match the key
+    policy. There is no path — not a bug, not a parent with root, not an AWS
+    operator — by which the private key leaves this process, because there is no
+    code here that returns it.
+
+    ``attestation()`` asks the NSM for a fresh document on every call, with the
+    policy public key as ``public_key`` and the current policy hash as
+    ``user_data``. Fresh, rather than cached, because an attestation is a
+    statement about a moment and a verifier is entitled to bound how old that
+    moment is. The policy hash comes from a callable rather than a value so a
+    ``policy_update`` (plan D16) is reflected in the very next attestation
+    without anything having to remember to re-bind it.
+    """
+
+    def __init__(
+        self,
+        *,
+        sealing: SealingPort,
+        nsm: NsmPort,
+        sealed_key: SealedKeyPort,
+        policy_hash: Callable[[], str] | None = None,
+    ) -> None:
+        self._sealing = sealing
+        self._nsm = nsm
+        self._sealed = sealed_key
+        self._policy_hash = policy_hash
+        self._key = self._load_or_create()
+
+    def bind_policy(self, policy_hash: Callable[[], str]) -> None:
+        """Tell the keystore where to read the current policy hash.
+
+        Called once, after the engine exists, because the engine needs the
+        keystore to be constructed first. A keystore that never gets bound
+        attests without ``user_data``, and ``merkl.core``'s check 8 then fails on
+        the missing binding rather than passing — the absence is visible.
+        """
+        self._policy_hash = policy_hash
+
+    # -- construction ------------------------------------------------------ #
+
+    def _load_or_create(self) -> ed25519.Ed25519PrivateKey:
+        blob = self._sealed.load()
+        if blob is None:
+            return self._create()
+        try:
+            raw = self._sealing.decrypt(blob)
+        except KeystoreError:
+            raise
+        except Exception as exc:
+            raise KeystoreError(
+                "the sealed policy key could not be opened; either this enclave does not "
+                "measure the same as the one that sealed it, or the blob is damaged"
+            ) from exc
+        if len(raw) != 32:
+            raise KeystoreError("the sealed blob is not a 32-byte Ed25519 seed")
+        return ed25519.Ed25519PrivateKey.from_private_bytes(raw)
+
+    def _create(self) -> ed25519.Ed25519PrivateKey:
+        """Generate the key here, from the NSM's entropy, and seal it.
+
+        The seed is mixed with ``secrets.token_bytes`` rather than taken from the
+        NSM alone: two independent sources means a fault in either one still
+        leaves a key the other made unpredictable.
+        """
+        hardware, software = self._nsm.random(32), secrets.token_bytes(32)
+        seed = bytes(a ^ b for a, b in zip(hardware, software, strict=True))
+        key = ed25519.Ed25519PrivateKey.from_private_bytes(seed)
+        try:
+            blob = self._sealing.encrypt(seed)
+        except Exception as exc:
+            raise KeystoreError(f"the new policy key could not be sealed: {exc}") from exc
+        if not blob:
+            raise KeystoreError("sealing produced an empty blob")
+        self._sealed.store(blob)
+        return key
+
+    # -- the port ---------------------------------------------------------- #
+
+    def public_key(self) -> str:
+        return _public_hex(self._key)
+
+    def sign(self, message: bytes) -> str:
+        return self._key.sign(message).hex()
+
+    def seal_key(self) -> bytes:
+        """A state-sealing key derived from the policy key, never stored.
+
+        Derived rather than sealed separately so there is one secret to protect
+        instead of two, and derived with a fixed salt so a snapshot written
+        before a reboot is still readable after it.
+        """
+        seed = self._key.private_bytes(
+            serialization.Encoding.Raw,
+            serialization.PrivateFormat.Raw,
+            serialization.NoEncryption(),
+        )
+        return HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=hashlib.sha256(bytes.fromhex(self.public_key())).digest(),
+            info=SEAL_INFO,
+        ).derive(seed)
+
+    def attestation(self) -> JSONValue:
+        """Receipt leaf 3: a fresh NSM document over this key and this policy."""
+        user_data = None
+        if self._policy_hash is not None:
+            user_data = bytes.fromhex(self._policy_hash())
+        document = self._nsm.attest(
+            public_key=bytes.fromhex(self.public_key()), user_data=user_data
+        )
+        return attestation_content(document, self.public_key())
+
+    def __repr__(self) -> str:  # pragma: no cover - never leaks key material
+        return f"NitroKeystore(public_key={self.public_key()[:16]}…)"
