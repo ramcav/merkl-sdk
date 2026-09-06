@@ -271,7 +271,7 @@ class TestStructuralVerification:
             assert check.status is CheckStatus.NOT_IMPLEMENTED
             assert check.detail
         for check in (result.get(name) for name in phase_deferred):
-            assert check is not None and "phase" in check.detail
+            assert check is not None and "needs" in check.detail
 
     def test_an_unattested_receipt_says_so_rather_than_passing(self) -> None:
         """Leaf 3 is null, and the receipt commits to that. It is not a gap."""

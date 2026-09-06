@@ -8,18 +8,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -64,7 +64,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -97,17 +97,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -150,18 +150,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -206,7 +206,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -239,17 +239,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -292,18 +292,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -349,7 +349,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee70",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b50",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -382,17 +382,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -435,18 +435,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -491,7 +491,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -524,17 +524,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -577,18 +577,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -634,7 +634,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -667,17 +667,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7690"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B20"
         },
         {
           "balance_deltas": [
@@ -720,18 +720,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -776,7 +776,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -809,17 +809,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -862,18 +862,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -918,7 +918,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -951,17 +951,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -1004,18 +1004,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -1043,7 +1043,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -1098,17 +1098,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -1151,18 +1151,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "28c0ce9b10ef5bc3f34f2c11157dd1f9200a49b9349212f4fb9e5a76c9078ca5"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -1208,7 +1208,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -1241,17 +1241,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -1294,15 +1294,15 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
         "root": "e80a7416e512cf8987dac2050e72dac7e0f5bcf2fd291d4fa6ccf031f3fc9dd2",
@@ -1349,7 +1349,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -1382,17 +1382,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -1435,18 +1435,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
         "left": "bea7a4b1046820b86970474be756c396d9228199f3694bcd01a015e159c5b54e",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -1492,7 +1492,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -1525,17 +1525,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -1578,18 +1578,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "fake",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -1633,7 +1633,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -1666,17 +1666,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -1719,18 +1719,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -1774,7 +1774,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -1807,17 +1807,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -1860,18 +1860,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
         "policy_hash": "7e9df29f30dd415dab5094765c414a8cd08353810516acacdf62d95bb69ba74c",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -1915,7 +1915,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -1948,17 +1948,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -2001,18 +2001,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -2056,7 +2056,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -2089,17 +2089,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -2142,18 +2142,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -2195,7 +2195,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -2228,17 +2228,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -2281,18 +2281,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -2338,7 +2338,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -2371,17 +2371,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -2418,18 +2418,18 @@
         "leaf_hashes": [
           "3b81ad70ddfc6725ee714c4e09bf56a4aa7373890e5a3f54d154e9cdfb9d045b",
           "18bd65777251c28d4e59e2b07990f62cb16bbd3b206bb4860b1e466ddd62cd5f",
-          "2ede5077d4ae3c1efa97285e03d25fb0fcaae66a9ee56030371a68210c9810b1",
+          "5d2c32ddc3cf532693b687d93b49fe3b279ab7d3a958dbeadf65c62849456211",
           "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
           "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
           "03e6f4c2b1fa22caa703165f265f75318422484d447675ae2926f55a94871a78",
           "c19d0f8fc694c73f2255b322fc5a317a15691ff8d0a87060fe29dafb583a04a3",
           "c19d0f8fc694c73f2255b322fc5a317a15691ff8d0a87060fe29dafb583a04a3"
         ],
-        "left": "8f7f4bb8ddf9009b904c5a8745cd400127d58961cde79004e2cc3a1472a828f9",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "8134de081d991f685b74d5780b0e95010deb63cc769b98e1ebe5ab4f55ce6981",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000002",
-        "root": "0a407aa2562c03db17ae77cfb1db3738da705ced8158ede0b42de8b2f60ffbe0",
+        "root": "6d906f3b0a57fbe69ddd166bddb0046fe7bcd2798bb6bea26d95ba516248ad70",
         "signer_public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
         "treasury": "rTREASURY0000000000000000000000000",
         "version": "merkl-receipt-v1"
@@ -2467,7 +2467,7 @@
         },
         {
           "outcome": "deny",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rATTACKER is not on the allowlist",
@@ -2491,17 +2491,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [],
@@ -2525,18 +2525,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -2579,7 +2579,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -2612,17 +2612,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -2665,18 +2665,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "eb35a111df2ddaf7bedc11c8d0c08dde20ac27b92db48e828db4eb919131ad05",
+          "4cd30175d88677febf852407a2bbbaaa0b0ec4afda6fb572c11f0bb5d4ec622a",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "a5290c5d3e96fcdf97ab3cd78a8d774f50744ba19254afacddd45cd3545abf1c",
+        "root": "3fd5045139d7a5392114c3fb4280075dc7edafd3482d913dfe955818064054d0",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -2720,7 +2720,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -2753,11 +2753,11 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -2800,18 +2800,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "70da8cfd734a2ca508698d3abb69a1b5d292fd30845725231a666252b5d275ed",
+          "4d6abf046f6fb28e874a3f6625c64c635acb0be67436058936490bb83eb8d078",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "290f86fbd0f1ba4ecad9ba98c0678e4aace3f347dd3d3f3dd49f7ac91058bc90",
+        "root": "1992574652fdaedafe9822dd143ecf95e499989fcaaa26624607c896ebdc7abf",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -2855,7 +2855,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -2888,17 +2888,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a200"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b30700"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -2941,18 +2941,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "aeb67464a56bcbe2db3d0f1b9bf86e6f5b3186fa695a83ad7f1e3748c39d09ee",
+          "a0e2531e3525622f4a728b034ce0d4225b9abf099a83087dc240b04929f21c1c",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "1e92864aab075a7a599a218f35cc53f4d30395fd60dc6359fcd50b6a91273afe",
+        "root": "8f095ef39ccac8b8b3adcdbe9d1dac431084e425d240bca90090dd149c057c49",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -2996,7 +2996,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -3029,7 +3029,7 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
             "payload": "61207061796c6f61642061626f757420736f6d65206f74686572207061796d656e7420656e746972656c79",
@@ -3038,8 +3038,8 @@
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -3082,18 +3082,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "d63a91099771ac75f2bc7ac3c8ecea22056be3ed094a153bb4d61918412be809",
+          "8b83710cc6d2ef72f5f679b097b590b7b66c67c1463e720d881729a8756e76d9",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "2812ac686b786d746f7af8945b83690051395c0a9b97b5fcc9c441eb4af511a5",
+        "root": "57e7d390f90da0ac11a2de06c40a29f85ce6c54d5a9a0511812eca64af8dd08b",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -3137,7 +3137,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -3170,17 +3170,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2ac0",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2ac0",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -3223,18 +3223,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "8715fc16df8fe857ba5cb3bbb97ff929aab1ea8f98c9b3b830d528f4f975d695",
+          "0a4ec0f2a7cd0899a18b0bc049f628802975011dccbb1535e65907f83e1bef23",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "35fe65783a0dffd69c7da59c3f195aeadd16984cd78e31eb747af13cbbc1a3bd",
+        "root": "a0423d3e56a3683673c861e6534a3acd749a6297064d92cb707f4d330cd47f99",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -3278,7 +3278,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -3314,14 +3314,14 @@
           "observed_anchor": "860f1175e6314a6352c0e7287178758ad2140532e2bb617dc2d5054131c0c044",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -3364,18 +3364,18 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "66db380f35d6141062170a2118c9cdb23fe0f1c3c18e14d7c6d75dac2bf7a17d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
-        "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
         "rail": "xrpl",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "17f299bc785b046786c48831d03b775f9abbdd77a49c58b68de2030904b7edef",
+        "root": "73308919081198b9c6284a0cfb7977cf7bc07351fc049c2a95b1693573ac904a",
         "session_locator": {
           "leaf_index": 7,
           "session_id": "01936b2e-1111-7000-8000-000000000001"
@@ -3419,7 +3419,7 @@
         },
         {
           "outcome": "allow",
-          "policy_hash": "bb6a054a4bdb1cd769e6b521ebf9193aced1a760d0c19ddbb3c8d764d66fee77",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
           "rules": [
             {
               "detail": "rSUPPLIER is on the allowlist",
@@ -3452,17 +3452,17 @@
         {
           "close_time": "2026-01-02T03:04:41Z",
           "ledger_index": 94211337,
-          "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+          "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
           "policy_signature": {
             "algorithm": "ed25519",
-            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+            "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
             "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-            "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+            "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
           },
           "rail": "xrpl",
           "settlement_proof_ref": "settlement-proof-0001",
-          "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-          "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+          "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
         },
         {
           "balance_deltas": [
@@ -3504,9 +3504,9 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
@@ -3545,8 +3545,8 @@
               ],
               "siblings": [
                 "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
-                "4e7702781ea248b9b2a5b6110e67a8d7df6da1f75bba2b471ce0d958c4efa8a3",
-                "5fb1106fafa73f6c50c30aa223bfd07b7176b29ee0a615767288f11b86a6510b"
+                "45adf69a0fd4755eef2d8f4708e4d0b4e62560370c1474bf5ca118f63665cd5e",
+                "b6eea93b79d26fddcac6a851b6feff2d7fbe680e25841baa416463d29b444b48"
               ]
             }
           },
@@ -3554,17 +3554,17 @@
             "content": {
               "close_time": "2026-01-02T03:04:41Z",
               "ledger_index": 94211337,
-              "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+              "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
               "policy_signature": {
                 "algorithm": "ed25519",
-                "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+                "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
                 "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-                "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+                "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
               },
               "rail": "xrpl",
               "settlement_proof_ref": "settlement-proof-0001",
-              "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-              "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+              "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+              "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
             },
             "index": 4,
             "name": "settlement",
@@ -3577,14 +3577,14 @@
               "siblings": [
                 "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
                 "c73a5240c0fff6dc5faf6742951fad947c55475de89378e3f64610b16d392411",
-                "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716"
+                "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e"
               ]
             }
           }
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "version": "merkl-receipt-v1"
       },
       "expected_failing_checks": [
@@ -3594,7 +3594,7 @@
       "expected_ok": false,
       "kind": "disclosure",
       "name": "disclosure-destination-rewritten",
-      "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9"
+      "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83"
     },
     {
       "base": "allow-settled",
@@ -3603,9 +3603,9 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
@@ -3644,8 +3644,8 @@
               ],
               "siblings": [
                 "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
-                "4e7702781ea248b9b2a5b6110e67a8d7df6da1f75bba2b471ce0d958c4efa8a3",
-                "5fb1106fafa73f6c50c30aa223bfd07b7176b29ee0a615767288f11b86a6510b"
+                "45adf69a0fd4755eef2d8f4708e4d0b4e62560370c1474bf5ca118f63665cd5e",
+                "b6eea93b79d26fddcac6a851b6feff2d7fbe680e25841baa416463d29b444b48"
               ]
             }
           },
@@ -3653,17 +3653,17 @@
             "content": {
               "close_time": "2026-01-02T03:04:41Z",
               "ledger_index": 94211337,
-              "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+              "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
               "policy_signature": {
                 "algorithm": "ed25519",
-                "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+                "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
                 "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-                "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+                "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
               },
               "rail": "xrpl",
               "settlement_proof_ref": "settlement-proof-0001",
-              "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-              "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+              "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+              "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
             },
             "index": 4,
             "name": "settlement",
@@ -3676,14 +3676,14 @@
               "siblings": [
                 "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f70",
                 "c73a5240c0fff6dc5faf6742951fad947c55475de89378e3f64610b16d392411",
-                "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716"
+                "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e"
               ]
             }
           }
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "version": "merkl-receipt-v1"
       },
       "expected_failing_checks": [
@@ -3692,7 +3692,7 @@
       "expected_ok": false,
       "kind": "disclosure",
       "name": "disclosure-sibling-changed",
-      "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9"
+      "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83"
     },
     {
       "base": "allow-settled",
@@ -3701,9 +3701,9 @@
         "leaf_hashes": [
           "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
           "d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
-          "39b58de63df8235b39ddcdc4e0a0d2355642dd06b67a436fdc80524f679c3228",
+          "c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
           "9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
-          "a71fa623bb74e9cff52b0baa4c90a10b24f32ff0ddf5d4ee79de65edcd9d735f",
+          "d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
           "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
           "b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670"
@@ -3742,8 +3742,8 @@
               ],
               "siblings": [
                 "10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
-                "4e7702781ea248b9b2a5b6110e67a8d7df6da1f75bba2b471ce0d958c4efa8a3",
-                "5fb1106fafa73f6c50c30aa223bfd07b7176b29ee0a615767288f11b86a6510b"
+                "45adf69a0fd4755eef2d8f4708e4d0b4e62560370c1474bf5ca118f63665cd5e",
+                "b6eea93b79d26fddcac6a851b6feff2d7fbe680e25841baa416463d29b444b48"
               ]
             }
           },
@@ -3751,17 +3751,17 @@
             "content": {
               "close_time": "2026-01-02T03:04:41Z",
               "ledger_index": 94211337,
-              "observed_anchor": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+              "observed_anchor": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
               "policy_signature": {
                 "algorithm": "ed25519",
-                "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e0946dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc779971617a3292a9a0830cac40655fd85e531363f7d32a4",
+                "payload": "c36df0096c0549aea3638101d412bce615561be8d797fadd4887d03775e82a9739c8fdafa3f8e094624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e17a3292a9a0830cac40655fd85e531363f7d32a4",
                 "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
-                "signature": "812f07e7e41cdd56e2683655e042e0c8f545460a21f3befaf36d3d631066cc74f7758cd4f4a407e3d1370bf278ec08d93c522153af56136e0b88e415f105a205"
+                "signature": "320bda9ad4faa3ee24ba81fdd328ade99bd58b39eb8b8621b67563eb2cce1b6f3bcac6e36393300d7a06bb55f4f65e51e64944f6ac39af5a95f8a46989b3070f"
               },
               "rail": "xrpl",
               "settlement_proof_ref": "settlement-proof-0001",
-              "signed_tx_blob": "120000226dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc77997169b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
-              "tx_hash": "82095105F45C50BC394B6D99B557C4522DC458D13EC6C164CEC1A76ABA9A7692"
+              "signed_tx_blob": "12000022624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e9b70cd54740473d8ab4345a99fcf65eea97f84cbc1f72194f261ec0a1ad4ef18709411c164145665c0c2b7d102b902a0e93a700c19f347baf90a2acc",
+              "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27"
             },
             "index": 4,
             "name": "settlement",
@@ -3774,14 +3774,14 @@
               "siblings": [
                 "7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
                 "c73a5240c0fff6dc5faf6742951fad947c55475de89378e3f64610b16d392411",
-                "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716"
+                "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e"
               ]
             }
           }
         ],
-        "left": "6dfa88a0a1f55f7371ea0ba0c9143767bded95736d64adb392a9acdfc7799716",
+        "left": "624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
-        "root": "42ce341bf890dbd6096a9e46e01a67a7f69d300409db5eb21fcba4ec4b5126d9",
+        "root": "d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
         "version": "merkl-receipt-v1"
       },
       "expected_failing_checks": [

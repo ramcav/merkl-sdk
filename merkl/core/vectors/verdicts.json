@@ -1,0 +1,1692 @@
+{
+  "cases": [
+    {
+      "material": {
+        "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+        "attestation_trust": null,
+        "policy_document": {
+          "document": {
+            "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+            "agents": [
+              {
+                "agent_id": "agent-accounts-payable",
+                "allowlist_assets": [
+                  {
+                    "code": "RLUSD",
+                    "issuer": "rISSUER000000000000000000000000000"
+                  }
+                ],
+                "allowlist_destinations": [
+                  "rSUPPLIER0000000000000000000000000"
+                ],
+                "per_tx_cap": [
+                  {
+                    "amount": "10000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ],
+                "public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+                "reference_binding": {
+                  "allowed_kinds": [
+                    "invoice",
+                    "contract"
+                  ],
+                  "allowlist": [],
+                  "hashes": [],
+                  "required": true
+                },
+                "windows": [
+                  {
+                    "amount": "20000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    },
+                    "seconds": 86400
+                  }
+                ]
+              }
+            ],
+            "approvers": [
+              {
+                "credential_type": "ed25519",
+                "id": "alice@example.com",
+                "origins": [],
+                "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "bob@example.com",
+                "origins": [],
+                "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "carol@example.com",
+                "origins": [],
+                "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+                "user_verification": false
+              }
+            ],
+            "format": "merkl-policy-v1",
+            "rail": "xrpl",
+            "risk": {
+              "threshold": "1"
+            },
+            "tiers": {
+              "human": {
+                "expires_seconds": 3600,
+                "quorum": 2,
+                "thresholds": [
+                  {
+                    "amount": "1000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ]
+              },
+              "instant": {}
+            },
+            "treasury": "rTREASURY0000000000000000000000000",
+            "version": "2026.01.0"
+          },
+          "signature": "707a1a0db5a53de22a426650e06a68cf9af3aaac5d81bee59c6c36f251b23e2150e79eb195e4460e02e126c5e065c85bd6fd4ace6a550fde536b92b4a2b3f400",
+          "signer_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad"
+        },
+        "session_bundle": {
+          "actions": [
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000000",
+              "action_type": "tool_call",
+              "category": "",
+              "depends_on": [],
+              "display_name": "",
+              "drift_score": 0,
+              "drift_score_str": "0.0",
+              "guardrail_result": "passed",
+              "input_hash": "f244b238e33ab1747903716d7b96578bd6d086bea9623925f178914279b2cd85",
+              "leaf_hash": "e1a556e79446dbae92b93b4715f96b90ebc6a4f4df5124354d0662380ef00ea0",
+              "output_hash": "6eda232997c73ed7c2865a8c62d9915716d0f0ceaf93d1fcf357763eaca9de2f",
+              "proof": {
+                "directions": [
+                  "right",
+                  "right",
+                  "right"
+                ],
+                "leaf_index": 0,
+                "root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+                "siblings": [
+                  "09853f2cf7360477c5391b8745dfbc5936bb00eafacf41f295cc2ee7fe4aa5f9",
+                  "fde30fe11551250b190efa458a863ef260c14363be68d171df0d94c3bbc0ed3f",
+                  "e2d09d50b72db684c57a34c158cf889a15bd15a4723d4fddeb4163b356c693f3"
+                ]
+              },
+              "receipt_id": null,
+              "session_id": "01936b2e-1111-7000-8000-000000000001",
+              "status": "success",
+              "timestamp": "2026-01-02T03:04:00+00:00",
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000001",
+              "action_type": "tool_call",
+              "category": "",
+              "depends_on": [],
+              "display_name": "",
+              "drift_score": 0,
+              "drift_score_str": "0.0",
+              "guardrail_result": "passed",
+              "input_hash": "eaa1cb2fc8e00e19ff080cbc8f4e81afb3b5c0c0360b14c76c4b73c41ac24f6a",
+              "leaf_hash": "09853f2cf7360477c5391b8745dfbc5936bb00eafacf41f295cc2ee7fe4aa5f9",
+              "output_hash": "780abdc35c40051d70c2cf4e9e75df85dff06c78058e9d8e9aa5a93f0ed73b23",
+              "proof": {
+                "directions": [
+                  "left",
+                  "right",
+                  "right"
+                ],
+                "leaf_index": 1,
+                "root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+                "siblings": [
+                  "e1a556e79446dbae92b93b4715f96b90ebc6a4f4df5124354d0662380ef00ea0",
+                  "fde30fe11551250b190efa458a863ef260c14363be68d171df0d94c3bbc0ed3f",
+                  "e2d09d50b72db684c57a34c158cf889a15bd15a4723d4fddeb4163b356c693f3"
+                ]
+              },
+              "receipt_id": null,
+              "session_id": "01936b2e-1111-7000-8000-000000000001",
+              "status": "success",
+              "timestamp": "2026-01-02T03:04:01+00:00",
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000002",
+              "action_type": "tool_call",
+              "category": "",
+              "depends_on": [],
+              "display_name": "",
+              "drift_score": 0,
+              "drift_score_str": "0.0",
+              "guardrail_result": "passed",
+              "input_hash": "39bdc24092c3b05b03b16be4b79fa99a49ecf736c18aeff1743b3fb8fc75a363",
+              "leaf_hash": "4a080269cc8539dc70ae787a0d6f6f2276a29d058f6b1d60f96624caa0be6f79",
+              "output_hash": "77cb3e9f23d3f17f611f2721e8888011bccd957b351cab6bab4cb28504a2f207",
+              "proof": {
+                "directions": [
+                  "right",
+                  "left",
+                  "right"
+                ],
+                "leaf_index": 2,
+                "root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+                "siblings": [
+                  "8efa172eb779d5eb5e0f517510307414fc8120ca6922b49df457da6dbdfe472f",
+                  "6db2e47460a9ee9638dddf7c207383cf68a0fcfe9d71e17a123b775f5f813a24",
+                  "e2d09d50b72db684c57a34c158cf889a15bd15a4723d4fddeb4163b356c693f3"
+                ]
+              },
+              "receipt_id": null,
+              "session_id": "01936b2e-1111-7000-8000-000000000001",
+              "status": "success",
+              "timestamp": "2026-01-02T03:04:02+00:00",
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000003",
+              "action_type": "tool_call",
+              "category": "",
+              "depends_on": [],
+              "display_name": "",
+              "drift_score": 0,
+              "drift_score_str": "0.0",
+              "guardrail_result": "passed",
+              "input_hash": "38a063828dc10c4497273a1a93f1640878f33b96ebbbe81884226834033fc26f",
+              "leaf_hash": "8efa172eb779d5eb5e0f517510307414fc8120ca6922b49df457da6dbdfe472f",
+              "output_hash": "c999febbd0dcbf77542702862f3aae09716c7a1c5aace51e7e4e9f44480fff3f",
+              "proof": {
+                "directions": [
+                  "left",
+                  "left",
+                  "right"
+                ],
+                "leaf_index": 3,
+                "root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+                "siblings": [
+                  "4a080269cc8539dc70ae787a0d6f6f2276a29d058f6b1d60f96624caa0be6f79",
+                  "6db2e47460a9ee9638dddf7c207383cf68a0fcfe9d71e17a123b775f5f813a24",
+                  "e2d09d50b72db684c57a34c158cf889a15bd15a4723d4fddeb4163b356c693f3"
+                ]
+              },
+              "receipt_id": null,
+              "session_id": "01936b2e-1111-7000-8000-000000000001",
+              "status": "success",
+              "timestamp": "2026-01-02T03:04:03+00:00",
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000004",
+              "action_type": "tool_call",
+              "category": "",
+              "depends_on": [],
+              "display_name": "",
+              "drift_score": 0,
+              "drift_score_str": "0.0",
+              "guardrail_result": "passed",
+              "input_hash": "88ab1197cc2959deada5f30a245385128e3f3de0396b5e9e0203d8c42ddf42d3",
+              "leaf_hash": "4bbba7402d38b689f72a4bbec3a07ddf7ef7092db8acc1cd5eb90594c8d578bf",
+              "output_hash": "50d9aee7cb44f7120f5ed5d2a5c17aedf89cc2708f5aee14e5816a16a1909a1f",
+              "proof": {
+                "directions": [
+                  "right",
+                  "right",
+                  "left"
+                ],
+                "leaf_index": 4,
+                "root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+                "siblings": [
+                  "0f51fe389e1d5b3cc9515fe3b335e36b2d454c540a1286177ac1f2be536a2566",
+                  "ac8db00bb03d8d7b0d81f4b8d192e2f44681e91b54406cb5894865a2a3802cca",
+                  "aa3d3955ad9b7b6405a8eca6599a951a4104c33878db153593cfb2cd63b7e02f"
+                ]
+              },
+              "receipt_id": null,
+              "session_id": "01936b2e-1111-7000-8000-000000000001",
+              "status": "success",
+              "timestamp": "2026-01-02T03:04:04+00:00",
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000005",
+              "action_type": "tool_call",
+              "category": "",
+              "depends_on": [],
+              "display_name": "",
+              "drift_score": 0,
+              "drift_score_str": "0.0",
+              "guardrail_result": "passed",
+              "input_hash": "7dfaae03ebaf96e63c7c476e4868611389883300daffd634a82bb411df1f4cd0",
+              "leaf_hash": "0f51fe389e1d5b3cc9515fe3b335e36b2d454c540a1286177ac1f2be536a2566",
+              "output_hash": "3ea69d4363e469acdd4059f5b4475ed0bb82e0c06cdc1d3fa52f920c01226edb",
+              "proof": {
+                "directions": [
+                  "left",
+                  "right",
+                  "left"
+                ],
+                "leaf_index": 5,
+                "root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+                "siblings": [
+                  "4bbba7402d38b689f72a4bbec3a07ddf7ef7092db8acc1cd5eb90594c8d578bf",
+                  "ac8db00bb03d8d7b0d81f4b8d192e2f44681e91b54406cb5894865a2a3802cca",
+                  "aa3d3955ad9b7b6405a8eca6599a951a4104c33878db153593cfb2cd63b7e02f"
+                ]
+              },
+              "receipt_id": null,
+              "session_id": "01936b2e-1111-7000-8000-000000000001",
+              "status": "success",
+              "timestamp": "2026-01-02T03:04:05+00:00",
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000006",
+              "action_type": "tool_call",
+              "category": "",
+              "depends_on": [],
+              "display_name": "",
+              "drift_score": 0,
+              "drift_score_str": "0.0",
+              "guardrail_result": "passed",
+              "input_hash": "fa43fb708f404ecb2fa54be2af24e799fc2bd53dc9a3812a59ac7624c8fd95d7",
+              "leaf_hash": "59e1349465b7c957962513c8f7244721eaad3b0f83e1069dfa7ee93ab050f205",
+              "output_hash": "1d8a3debd7f8612cc00ea8250d8928eba7050c2f0d330f20bf01d101e18eafde",
+              "proof": {
+                "directions": [
+                  "right",
+                  "left",
+                  "left"
+                ],
+                "leaf_index": 6,
+                "root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+                "siblings": [
+                  "bd3b44d5104a005af7e1f269860788879317ad59c3fc7e5880593a94fdcd8983",
+                  "adbbc008218ac67b07f99d73ac353dcd5e8a438d6c246c81314450cace12fd14",
+                  "aa3d3955ad9b7b6405a8eca6599a951a4104c33878db153593cfb2cd63b7e02f"
+                ]
+              },
+              "receipt_id": null,
+              "session_id": "01936b2e-1111-7000-8000-000000000001",
+              "status": "success",
+              "timestamp": "2026-01-02T03:04:06+00:00",
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000007",
+              "action_type": "transaction",
+              "category": "",
+              "depends_on": [],
+              "display_name": "",
+              "drift_score": 0,
+              "drift_score_str": "0.0",
+              "guardrail_result": "passed",
+              "input_hash": "6fa493a874ef14fc16ed998df97a1849781b435353e7cd07f8e53d5a7d9f54bb",
+              "leaf_hash": "bd3b44d5104a005af7e1f269860788879317ad59c3fc7e5880593a94fdcd8983",
+              "output_hash": "8fc4e9bfed067cc89c2f0258f2e0551a7bdaca1af92d2b304fe29648ef06e6bf",
+              "proof": {
+                "directions": [
+                  "left",
+                  "left",
+                  "left"
+                ],
+                "leaf_index": 7,
+                "root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+                "siblings": [
+                  "59e1349465b7c957962513c8f7244721eaad3b0f83e1069dfa7ee93ab050f205",
+                  "adbbc008218ac67b07f99d73ac353dcd5e8a438d6c246c81314450cace12fd14",
+                  "aa3d3955ad9b7b6405a8eca6599a951a4104c33878db153593cfb2cd63b7e02f"
+                ]
+              },
+              "receipt_id": "01936b2e-2222-7000-8000-000000000001",
+              "session_id": "01936b2e-1111-7000-8000-000000000001",
+              "status": "success",
+              "timestamp": "2026-01-02T03:04:07+00:00",
+              "tool_name": "xrpl_payment"
+            }
+          ],
+          "receipts": [],
+          "session": {
+            "action_count": 8,
+            "agent_id": "agent-accounts-payable",
+            "leaf_count": 8,
+            "root_hash": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+            "session_id": "01936b2e-1111-7000-8000-000000000001",
+            "status": "closed"
+          },
+          "version": "1.2"
+        },
+        "settlement_proof": {
+          "captured": [
+            "ledger_header",
+            "validated_transaction_with_metadata",
+            "validator_validations",
+            "signed_blob"
+          ],
+          "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+          "ledger_header": {
+            "account_hash": "14311e1371520b3d91998437c03622bb90fe2bdb7c43781dacb6b7ca69cff1b0",
+            "close_flags": 0,
+            "close_time": 792000010,
+            "close_time_resolution": 10,
+            "ledger_index": 94211337,
+            "parent_close_time": 792000000,
+            "parent_hash": "b6a77b431531b64a9beba5296de5880fd3d803575d7fcb0689fd30663f973c48",
+            "total_coins": "99988877766655544",
+            "transaction_hash": "e897e383ffd203f8545af9d38d7a233b56a8f3b4cd92362cb9c06fd4f9395c29"
+          },
+          "ledger_index": 94211337,
+          "missing": [
+            "shamap_path"
+          ],
+          "rail": "xrpl",
+          "transaction": {
+            "hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27",
+            "validated": true
+          },
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27",
+          "validations": [
+            {
+              "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+              "ledger_index": 94211337,
+              "validation_public_key": "nHUnvalidator1"
+            },
+            {
+              "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+              "ledger_index": 94211337,
+              "validation_public_key": "nHUnvalidator2"
+            },
+            {
+              "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+              "ledger_index": 94211337,
+              "validation_public_key": "nHUnvalidator3"
+            }
+          ]
+        },
+        "validator_trust": {
+          "quorum": 2,
+          "validators": {
+            "nHUnvalidator1": "",
+            "nHUnvalidator2": "",
+            "nHUnvalidator3": ""
+          }
+        }
+      },
+      "name": "allow-settled",
+      "verdict": {
+        "attested": null,
+        "checks": [
+          {
+            "detail": "version 'merkl-receipt-v1'",
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "detail": "7 leaf contents",
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "detail": "['instruction', 'intent', 'policy_decision'] are present in every receipt",
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b vs committed 10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9 vs committed d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425 vs committed c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817 vs committed 9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997 vs committed d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d vs committed 7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670 vs committed b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "detail": "leaf 7 must repeat leaf 6",
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "detail": "LEFT over leaves 0-3 is 624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "detail": "the supplied policy hashes to the 4bc56bce57e996f2… the decision names and the pinned admin key signed it",
+            "name": "policy.document",
+            "status": "pass"
+          },
+          {
+            "detail": "this decision did not escalate, so nothing was signed",
+            "name": "policy.escalation_challenge",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "this decision did not escalate, so nobody approved",
+            "name": "policy.approval_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "the policy key signed a payload carrying LEFT",
+            "name": "policy.signature",
+            "status": "pass"
+          },
+          {
+            "detail": "no PCR allowlist and moment were pinned, so nothing says which enclave this is",
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "rSUPPLIER0000000000000000000000000 received 250.00 RLUSD",
+            "name": "intent.matches_settled_fields",
+            "status": "pass"
+          },
+          {
+            "detail": "the rail carried 624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e, LEFT is 624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+            "name": "settlement.anchor_equals_left",
+            "status": "pass"
+          },
+          {
+            "detail": "the blob hashes to AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27, the receipt names AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27",
+            "name": "settlement.signed_blob",
+            "status": "pass"
+          },
+          {
+            "detail": "the proof is about xrpl transaction AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27 in ledger 94211337",
+            "name": "settlement.proof_matches_receipt",
+            "status": "pass"
+          },
+          {
+            "detail": "the header hashes to 108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159, the proof names 108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+            "name": "settlement.ledger_header",
+            "status": "pass"
+          },
+          {
+            "detail": "3 of 3 pinned validators named this ledger, but the capture carries no signature this verifier can check — agreement counted, not proved",
+            "name": "settlement.validator_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path",
+            "name": "settlement.ledger_inclusion",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "RIGHT over leaves 4-7 is b6eea93b79d26fddcac6a851b6feff2d7fbe680e25841baa416463d29b444b48",
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "detail": "SHA-256(LEFT || RIGHT) is d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope rail 'xrpl'",
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope treasury 'rTREASURY0000000000000000000000000'",
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope policy_hash 4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "detail": "the envelope hash is action 7 of session 01936b2e-1111-7000-8000-000000000001, and that action proves into the session root",
+            "name": "session.log_join",
+            "status": "pass"
+          }
+        ],
+        "complete": false,
+        "level": 2,
+        "level_detail": "level 2: this receipt is committed in a session log whose checkpoint and inclusion proof were checked here",
+        "log": {
+          "actions": [
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000000",
+              "committed_leaf": "e1a556e79446dbae92b93b4715f96b90ebc6a4f4df5124354d0662380ef00ea0",
+              "computed_leaf": "e1a556e79446dbae92b93b4715f96b90ebc6a4f4df5124354d0662380ef00ea0",
+              "derived_root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+              "index": 0,
+              "leaf_matches": true,
+              "ok": true,
+              "proof_ok": true,
+              "receipt_id": null,
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000001",
+              "committed_leaf": "09853f2cf7360477c5391b8745dfbc5936bb00eafacf41f295cc2ee7fe4aa5f9",
+              "computed_leaf": "09853f2cf7360477c5391b8745dfbc5936bb00eafacf41f295cc2ee7fe4aa5f9",
+              "derived_root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+              "index": 1,
+              "leaf_matches": true,
+              "ok": true,
+              "proof_ok": true,
+              "receipt_id": null,
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000002",
+              "committed_leaf": "4a080269cc8539dc70ae787a0d6f6f2276a29d058f6b1d60f96624caa0be6f79",
+              "computed_leaf": "4a080269cc8539dc70ae787a0d6f6f2276a29d058f6b1d60f96624caa0be6f79",
+              "derived_root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+              "index": 2,
+              "leaf_matches": true,
+              "ok": true,
+              "proof_ok": true,
+              "receipt_id": null,
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000003",
+              "committed_leaf": "8efa172eb779d5eb5e0f517510307414fc8120ca6922b49df457da6dbdfe472f",
+              "computed_leaf": "8efa172eb779d5eb5e0f517510307414fc8120ca6922b49df457da6dbdfe472f",
+              "derived_root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+              "index": 3,
+              "leaf_matches": true,
+              "ok": true,
+              "proof_ok": true,
+              "receipt_id": null,
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000004",
+              "committed_leaf": "4bbba7402d38b689f72a4bbec3a07ddf7ef7092db8acc1cd5eb90594c8d578bf",
+              "computed_leaf": "4bbba7402d38b689f72a4bbec3a07ddf7ef7092db8acc1cd5eb90594c8d578bf",
+              "derived_root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+              "index": 4,
+              "leaf_matches": true,
+              "ok": true,
+              "proof_ok": true,
+              "receipt_id": null,
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000005",
+              "committed_leaf": "0f51fe389e1d5b3cc9515fe3b335e36b2d454c540a1286177ac1f2be536a2566",
+              "computed_leaf": "0f51fe389e1d5b3cc9515fe3b335e36b2d454c540a1286177ac1f2be536a2566",
+              "derived_root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+              "index": 5,
+              "leaf_matches": true,
+              "ok": true,
+              "proof_ok": true,
+              "receipt_id": null,
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000006",
+              "committed_leaf": "59e1349465b7c957962513c8f7244721eaad3b0f83e1069dfa7ee93ab050f205",
+              "computed_leaf": "59e1349465b7c957962513c8f7244721eaad3b0f83e1069dfa7ee93ab050f205",
+              "derived_root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+              "index": 6,
+              "leaf_matches": true,
+              "ok": true,
+              "proof_ok": true,
+              "receipt_id": null,
+              "tool_name": "read_file"
+            },
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000007",
+              "committed_leaf": "bd3b44d5104a005af7e1f269860788879317ad59c3fc7e5880593a94fdcd8983",
+              "computed_leaf": "bd3b44d5104a005af7e1f269860788879317ad59c3fc7e5880593a94fdcd8983",
+              "derived_root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+              "index": 7,
+              "leaf_matches": true,
+              "ok": true,
+              "proof_ok": true,
+              "receipt_id": "01936b2e-2222-7000-8000-000000000001",
+              "tool_name": "xrpl_payment"
+            }
+          ],
+          "checks": [
+            {
+              "name": "log.actions",
+              "status": "pass"
+            },
+            {
+              "name": "log.session_root",
+              "status": "pass"
+            },
+            {
+              "name": "log.continuation",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.audit_entry",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.inclusion",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.checkpoint_body",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.checkpoint_signature",
+              "status": "not_implemented"
+            }
+          ],
+          "complete": false,
+          "evidence": [],
+          "ok": true
+        },
+        "ok": true,
+        "receipt_id": "01936b2e-2222-7000-8000-000000000001",
+        "settlement": {
+          "ledger_inclusion": "supplied-unverified",
+          "ledger_inclusion_detail": "the capture does not prove inclusion offline; missing: shamap_path",
+          "transaction_authorization": "verified",
+          "transaction_authorization_detail": "the policy key signed a payload carrying LEFT, and the transaction id re-derives from the blob that was submitted"
+        },
+        "summary": {
+          "approved": "No person was asked: the policy allowed it outright.",
+          "instructed": "The agent was told to make this payment — a person typed it. It traces back to 01936b2e-3333-7000-8000-000000000001.",
+          "rule": "The policy allowed it at the instant tier; 4 rules ran and all of them passed.",
+          "settled": "250.00 RLUSD went to rSUPPLIER0000000000000000000000000 on xrpl, transaction AE50AD5E28E9C337…",
+          "signer": "The signer published an enclave attestation for its policy key.",
+          "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "when": "The ledger closed it at 2026-01-02T03:04:41Z."
+        }
+      }
+    },
+    {
+      "material": {
+        "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+        "attestation_trust": null,
+        "policy_document": {
+          "document": {
+            "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+            "agents": [
+              {
+                "agent_id": "agent-accounts-payable",
+                "allowlist_assets": [
+                  {
+                    "code": "RLUSD",
+                    "issuer": "rISSUER000000000000000000000000000"
+                  }
+                ],
+                "allowlist_destinations": [
+                  "rSUPPLIER0000000000000000000000000"
+                ],
+                "per_tx_cap": [
+                  {
+                    "amount": "10000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ],
+                "public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+                "reference_binding": {
+                  "allowed_kinds": [
+                    "invoice",
+                    "contract"
+                  ],
+                  "allowlist": [],
+                  "hashes": [],
+                  "required": true
+                },
+                "windows": [
+                  {
+                    "amount": "20000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    },
+                    "seconds": 86400
+                  }
+                ]
+              }
+            ],
+            "approvers": [
+              {
+                "credential_type": "ed25519",
+                "id": "alice@example.com",
+                "origins": [],
+                "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "bob@example.com",
+                "origins": [],
+                "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "carol@example.com",
+                "origins": [],
+                "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+                "user_verification": false
+              }
+            ],
+            "format": "merkl-policy-v1",
+            "rail": "xrpl",
+            "risk": {
+              "threshold": "1"
+            },
+            "tiers": {
+              "human": {
+                "expires_seconds": 3600,
+                "quorum": 2,
+                "thresholds": [
+                  {
+                    "amount": "1000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ]
+              },
+              "instant": {}
+            },
+            "treasury": "rTREASURY0000000000000000000000000",
+            "version": "2026.01.0"
+          },
+          "signature": "707a1a0db5a53de22a426650e06a68cf9af3aaac5d81bee59c6c36f251b23e2150e79eb195e4460e02e126c5e065c85bd6fd4ace6a550fde536b92b4a2b3f400",
+          "signer_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad"
+        },
+        "session_bundle": null,
+        "settlement_proof": null,
+        "validator_trust": null
+      },
+      "name": "deny-not-submitted",
+      "verdict": {
+        "attested": false,
+        "checks": [
+          {
+            "detail": "version 'merkl-receipt-v1'",
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "detail": "7 leaf contents",
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "detail": "['instruction', 'intent', 'policy_decision'] are present in every receipt",
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 3b81ad70ddfc6725ee714c4e09bf56a4aa7373890e5a3f54d154e9cdfb9d045b vs committed 3b81ad70ddfc6725ee714c4e09bf56a4aa7373890e5a3f54d154e9cdfb9d045b",
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 18bd65777251c28d4e59e2b07990f62cb16bbd3b206bb4860b1e466ddd62cd5f vs committed 18bd65777251c28d4e59e2b07990f62cb16bbd3b206bb4860b1e466ddd62cd5f",
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 5d2c32ddc3cf532693b687d93b49fe3b279ab7d3a958dbeadf65c62849456211 vs committed 5d2c32ddc3cf532693b687d93b49fe3b279ab7d3a958dbeadf65c62849456211",
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe vs committed bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc vs committed db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 03e6f4c2b1fa22caa703165f265f75318422484d447675ae2926f55a94871a78 vs committed 03e6f4c2b1fa22caa703165f265f75318422484d447675ae2926f55a94871a78",
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed c19d0f8fc694c73f2255b322fc5a317a15691ff8d0a87060fe29dafb583a04a3 vs committed c19d0f8fc694c73f2255b322fc5a317a15691ff8d0a87060fe29dafb583a04a3",
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "detail": "leaf 7 must repeat leaf 6",
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "detail": "LEFT over leaves 0-3 is 8134de081d991f685b74d5780b0e95010deb63cc769b98e1ebe5ab4f55ce6981",
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "detail": "the supplied policy hashes to the 4bc56bce57e996f2… the decision names and the pinned admin key signed it",
+            "name": "policy.document",
+            "status": "pass"
+          },
+          {
+            "detail": "this decision did not escalate, so nothing was signed",
+            "name": "policy.escalation_challenge",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "this decision did not escalate, so nobody approved",
+            "name": "policy.approval_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there is no policy signature to check",
+            "name": "policy.signature",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "leaf 3 is null: this receipt proves it was produced by an unattested signer",
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there are no settled fields to compare",
+            "name": "intent.matches_settled_fields",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there is no anchor to compare",
+            "name": "settlement.anchor_equals_left",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there is no signed blob",
+            "name": "settlement.signed_blob",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there is no proof to read",
+            "name": "settlement.proof_matches_receipt",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there is no ledger to check",
+            "name": "settlement.ledger_header",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so no validators signed anything",
+            "name": "settlement.validator_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "unchecked: nothing settled, so there is no ledger inclusion to establish",
+            "name": "settlement.ledger_inclusion",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "RIGHT over leaves 4-7 is f4723e99995c138f956dd9af98f880827a3d87f4bc9368753f23549e52ccf242",
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "detail": "SHA-256(LEFT || RIGHT) is 6d906f3b0a57fbe69ddd166bddb0046fe7bcd2798bb6bea26d95ba516248ad70",
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope rail 'xrpl'",
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope treasury 'rTREASURY0000000000000000000000000'",
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope policy_hash 4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "detail": "no session bundle was supplied, so this is a level-1 verdict",
+            "name": "session.log_join",
+            "status": "not_implemented"
+          }
+        ],
+        "complete": false,
+        "level": 1,
+        "level_detail": "level 1: verified against the signer key, the rail and this receipt alone — joining a session log would add completeness, a notary signature and an anchor",
+        "ok": true,
+        "receipt_id": "01936b2e-2222-7000-8000-000000000002",
+        "settlement": {
+          "ledger_inclusion": "unchecked",
+          "ledger_inclusion_detail": "nothing settled, so there is no ledger inclusion to establish",
+          "transaction_authorization": "absent",
+          "transaction_authorization_detail": "nothing settled, so no transaction was authorized"
+        },
+        "summary": {
+          "approved": null,
+          "instructed": "The agent was told to make this payment — a standing mandate authorized it.",
+          "rule": "The policy refused it at the instant tier — destination_allowlist, per_tx_cap, reference_required blocked it.",
+          "settled": "Nothing settled. The refusal is what this receipt records.",
+          "signer": "The signer is unattested: leaf 3 is null, so nothing proves which machine held the policy key.",
+          "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "when": "The intent was valid until 2026-01-02T03:09:05Z."
+        }
+      }
+    },
+    {
+      "material": {
+        "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+        "attestation_trust": null,
+        "policy_document": {
+          "document": {
+            "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+            "agents": [
+              {
+                "agent_id": "agent-accounts-payable",
+                "allowlist_assets": [
+                  {
+                    "code": "RLUSD",
+                    "issuer": "rISSUER000000000000000000000000000"
+                  }
+                ],
+                "allowlist_destinations": [
+                  "rSUPPLIER0000000000000000000000000"
+                ],
+                "per_tx_cap": [
+                  {
+                    "amount": "10000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ],
+                "public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+                "reference_binding": {
+                  "allowed_kinds": [
+                    "invoice",
+                    "contract"
+                  ],
+                  "allowlist": [],
+                  "hashes": [],
+                  "required": true
+                },
+                "windows": [
+                  {
+                    "amount": "20000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    },
+                    "seconds": 86400
+                  }
+                ]
+              }
+            ],
+            "approvers": [
+              {
+                "credential_type": "ed25519",
+                "id": "alice@example.com",
+                "origins": [],
+                "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "bob@example.com",
+                "origins": [],
+                "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "carol@example.com",
+                "origins": [],
+                "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+                "user_verification": false
+              }
+            ],
+            "format": "merkl-policy-v1",
+            "rail": "xrpl",
+            "risk": {
+              "threshold": "1"
+            },
+            "tiers": {
+              "human": {
+                "expires_seconds": 3600,
+                "quorum": 2,
+                "thresholds": [
+                  {
+                    "amount": "1000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ]
+              },
+              "instant": {}
+            },
+            "treasury": "rTREASURY0000000000000000000000000",
+            "version": "2026.01.0"
+          },
+          "signature": "707a1a0db5a53de22a426650e06a68cf9af3aaac5d81bee59c6c36f251b23e2150e79eb195e4460e02e126c5e065c85bd6fd4ace6a550fde536b92b4a2b3f400",
+          "signer_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad"
+        },
+        "session_bundle": null,
+        "settlement_proof": {
+          "captured": [
+            "ledger_header",
+            "validated_transaction_with_metadata",
+            "validator_validations",
+            "signed_blob"
+          ],
+          "ledger_hash": "8146ca129539ab566c4d05654a3c3a4faf398e6ebafb143c3cb7540246d63765",
+          "ledger_header": {
+            "account_hash": "8a8c3bc4f501cd132b662f637f75981aa8596e3dd386a48929a449a5dccd606e",
+            "close_flags": 0,
+            "close_time": 792000010,
+            "close_time_resolution": 10,
+            "ledger_index": 94212004,
+            "parent_close_time": 792000000,
+            "parent_hash": "21e8ef6f421ae9c6c9d26b91863ccea644592c1e38415459f1bff20804aecbb7",
+            "total_coins": "99988877766655544",
+            "transaction_hash": "672c24fe32539e2b58d0a50449a5251ae22e0663042f6039ffe3abc35f1dd956"
+          },
+          "ledger_index": 94212004,
+          "missing": [
+            "shamap_path"
+          ],
+          "rail": "xrpl",
+          "transaction": {
+            "hash": "4895E079A9228C10FE17429DC186EDFC9CBFBD1BE408A5ED430AB1C8AEBAE696",
+            "validated": true
+          },
+          "tx_hash": "4895E079A9228C10FE17429DC186EDFC9CBFBD1BE408A5ED430AB1C8AEBAE696",
+          "validations": [
+            {
+              "ledger_hash": "8146ca129539ab566c4d05654a3c3a4faf398e6ebafb143c3cb7540246d63765",
+              "ledger_index": 94212004,
+              "validation_public_key": "nHUnvalidator1"
+            },
+            {
+              "ledger_hash": "8146ca129539ab566c4d05654a3c3a4faf398e6ebafb143c3cb7540246d63765",
+              "ledger_index": 94212004,
+              "validation_public_key": "nHUnvalidator2"
+            },
+            {
+              "ledger_hash": "8146ca129539ab566c4d05654a3c3a4faf398e6ebafb143c3cb7540246d63765",
+              "ledger_index": 94212004,
+              "validation_public_key": "nHUnvalidator3"
+            }
+          ]
+        },
+        "validator_trust": {
+          "quorum": 2,
+          "validators": {
+            "nHUnvalidator1": "",
+            "nHUnvalidator2": "",
+            "nHUnvalidator3": ""
+          }
+        }
+      },
+      "name": "escalated-approved-settled",
+      "verdict": {
+        "attested": null,
+        "checks": [
+          {
+            "detail": "version 'merkl-receipt-v1'",
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "detail": "7 leaf contents",
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "detail": "['instruction', 'intent', 'policy_decision'] are present in every receipt",
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed e9020623907afeb692954dcbdf0a3f57db5e977aa231ac60a89c61e9a8964a2f vs committed e9020623907afeb692954dcbdf0a3f57db5e977aa231ac60a89c61e9a8964a2f",
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 2e98b22487b5557f2b6706656aa217ea7c9167e6a8c5ff90f78a6b4963ba13e8 vs committed 2e98b22487b5557f2b6706656aa217ea7c9167e6a8c5ff90f78a6b4963ba13e8",
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed e8d07586bdb2edef99507494c7afff1d9c0a87991833e2a9e8963b57cb5de7b3 vs committed e8d07586bdb2edef99507494c7afff1d9c0a87991833e2a9e8963b57cb5de7b3",
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 34dcfbc9444e1ffd648f3492a12ddfa0cde52cda8e40b8bcb41c47086df4b5b8 vs committed 34dcfbc9444e1ffd648f3492a12ddfa0cde52cda8e40b8bcb41c47086df4b5b8",
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 224de22ea49b1efa0413542fc10737710c21e1d8db837be87125a1117651793d vs committed 224de22ea49b1efa0413542fc10737710c21e1d8db837be87125a1117651793d",
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed d68e21d0cd4814cb80ccefff13ed48772696308be51d328b13dd4cb829397eaa vs committed d68e21d0cd4814cb80ccefff13ed48772696308be51d328b13dd4cb829397eaa",
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 720425fe5cb3507b192639682e15d558b74b946c10a407efa0b441906b98d321 vs committed 720425fe5cb3507b192639682e15d558b74b946c10a407efa0b441906b98d321",
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "detail": "leaf 7 must repeat leaf 6",
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "detail": "LEFT over leaves 0-3 is 0e8e5e33c06789ebafc40660ceac6f0cdb89892e70895fae25f43094ec072804",
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "detail": "the supplied policy hashes to the 4bc56bce57e996f2… the decision names and the pinned admin key signed it",
+            "name": "policy.document",
+            "status": "pass"
+          },
+          {
+            "detail": "LEFT_pre over these leaves is a28227e5adeb923004bd9927bf9b168cec20c87267713490d44d3bdcbc68c23c, the escalation names a28227e5adeb923004bd9927bf9b168cec20c87267713490d44d3bdcbc68c23c",
+            "name": "policy.escalation_challenge",
+            "status": "pass"
+          },
+          {
+            "detail": "2 of 2 required approvals verify",
+            "name": "policy.approval_quorum",
+            "status": "pass"
+          },
+          {
+            "detail": "the policy key signed a payload carrying LEFT",
+            "name": "policy.signature",
+            "status": "pass"
+          },
+          {
+            "detail": "no PCR allowlist and moment were pinned, so nothing says which enclave this is",
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "rSUPPLIER0000000000000000000000000 received 4500.00 RLUSD",
+            "name": "intent.matches_settled_fields",
+            "status": "pass"
+          },
+          {
+            "detail": "the rail carried 0e8e5e33c06789ebafc40660ceac6f0cdb89892e70895fae25f43094ec072804, LEFT is 0e8e5e33c06789ebafc40660ceac6f0cdb89892e70895fae25f43094ec072804",
+            "name": "settlement.anchor_equals_left",
+            "status": "pass"
+          },
+          {
+            "detail": "the blob hashes to 4895E079A9228C10FE17429DC186EDFC9CBFBD1BE408A5ED430AB1C8AEBAE696, the receipt names 4895E079A9228C10FE17429DC186EDFC9CBFBD1BE408A5ED430AB1C8AEBAE696",
+            "name": "settlement.signed_blob",
+            "status": "pass"
+          },
+          {
+            "detail": "the proof is about xrpl transaction 4895E079A9228C10FE17429DC186EDFC9CBFBD1BE408A5ED430AB1C8AEBAE696 in ledger 94212004",
+            "name": "settlement.proof_matches_receipt",
+            "status": "pass"
+          },
+          {
+            "detail": "the header hashes to 8146ca129539ab566c4d05654a3c3a4faf398e6ebafb143c3cb7540246d63765, the proof names 8146ca129539ab566c4d05654a3c3a4faf398e6ebafb143c3cb7540246d63765",
+            "name": "settlement.ledger_header",
+            "status": "pass"
+          },
+          {
+            "detail": "3 of 3 pinned validators named this ledger, but the capture carries no signature this verifier can check — agreement counted, not proved",
+            "name": "settlement.validator_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path",
+            "name": "settlement.ledger_inclusion",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "RIGHT over leaves 4-7 is dc3142077e3721be81bb11a38d85c9387c3dfcef2b88465829620ffc00849dd6",
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "detail": "SHA-256(LEFT || RIGHT) is 11b9a8acfa5fe0350b2226f3ac43ae87587bf0edd7d901c8380fcbf3a7433f68",
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope rail 'xrpl'",
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope treasury 'rTREASURY0000000000000000000000000'",
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope policy_hash 4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "detail": "no session bundle was supplied, so this is a level-1 verdict",
+            "name": "session.log_join",
+            "status": "not_implemented"
+          }
+        ],
+        "complete": false,
+        "level": 1,
+        "level_detail": "level 1: verified against the signer key, the rail and this receipt alone — joining a session log would add completeness, a notary signature and an anchor",
+        "ok": true,
+        "receipt_id": "01936b2e-2222-7000-8000-000000000003",
+        "settlement": {
+          "ledger_inclusion": "supplied-unverified",
+          "ledger_inclusion_detail": "the capture does not prove inclusion offline; missing: shamap_path",
+          "transaction_authorization": "verified",
+          "transaction_authorization_detail": "the policy key signed a payload carrying LEFT, and the transaction id re-derives from the blob that was submitted"
+        },
+        "summary": {
+          "approved": "2 of 2 required approvers signed it: alice@example.com, bob@example.com.",
+          "instructed": "The agent was told to make this payment — a person typed it. It traces back to 01936b2e-3333-7000-8000-000000000002.",
+          "rule": "The policy allowed it at the human tier; 3 rules ran and all of them passed.",
+          "settled": "4500.00 RLUSD went to rSUPPLIER0000000000000000000000000 on xrpl, transaction 4895E079A9228C10…",
+          "signer": "The signer published an enclave attestation for its policy key.",
+          "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "when": "The ledger closed it at 2026-01-02T03:25:02Z."
+        }
+      }
+    },
+    {
+      "material": {
+        "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+        "attestation_trust": null,
+        "policy_document": {
+          "document": {
+            "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+            "agents": [
+              {
+                "agent_id": "agent-accounts-payable",
+                "allowlist_assets": [
+                  {
+                    "code": "RLUSD",
+                    "issuer": "rISSUER000000000000000000000000000"
+                  }
+                ],
+                "allowlist_destinations": [
+                  "rSUPPLIER0000000000000000000000000"
+                ],
+                "per_tx_cap": [
+                  {
+                    "amount": "10000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ],
+                "public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+                "reference_binding": {
+                  "allowed_kinds": [
+                    "invoice",
+                    "contract"
+                  ],
+                  "allowlist": [],
+                  "hashes": [],
+                  "required": true
+                },
+                "windows": [
+                  {
+                    "amount": "20000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    },
+                    "seconds": 86400
+                  }
+                ]
+              }
+            ],
+            "approvers": [
+              {
+                "credential_type": "ed25519",
+                "id": "alice@example.com",
+                "origins": [],
+                "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "bob@example.com",
+                "origins": [],
+                "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "carol@example.com",
+                "origins": [],
+                "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+                "user_verification": false
+              }
+            ],
+            "format": "merkl-policy-v1",
+            "rail": "xrpl",
+            "risk": {
+              "threshold": "1"
+            },
+            "tiers": {
+              "human": {
+                "expires_seconds": 3600,
+                "quorum": 2,
+                "thresholds": [
+                  {
+                    "amount": "1000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ]
+              },
+              "instant": {}
+            },
+            "treasury": "rTREASURY0000000000000000000000000",
+            "version": "2026.01.0"
+          },
+          "signature": "707a1a0db5a53de22a426650e06a68cf9af3aaac5d81bee59c6c36f251b23e2150e79eb195e4460e02e126c5e065c85bd6fd4ace6a550fde536b92b4a2b3f400",
+          "signer_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad"
+        },
+        "session_bundle": null,
+        "settlement_proof": {
+          "captured": [
+            "ledger_header",
+            "transaction",
+            "shamap_path",
+            "validator_signatures"
+          ],
+          "ledger_hash": "c0b25552ce6ddcf406ae6184c3d3e6612609af7d04e8fb4b52f3a10fbcc858a7",
+          "ledger_header": {
+            "close_time": "2026-01-02T03:31:00Z",
+            "ledger_index": 1000042,
+            "transaction_count": 1,
+            "transaction_hash": "b98e14a1041a33363d6174ea2e79ec78b1b73ae1db76d2659fab42062373ec7e"
+          },
+          "ledger_index": 1000042,
+          "missing": [],
+          "rail": "fake",
+          "transaction": {
+            "blob": "beef2793f8cd7a1d7ff8c7e70e003bb5456eb96cf27d10db0b5eb5404ba088f59d1d1b9bf1064d0271146962f6d33f954e055210098ee1d33e9553bce5f621f2",
+            "engine_result": "tesSUCCESS"
+          },
+          "tx_hash": "B98E14A1041A33363D6174EA2E79EC78B1B73AE1DB76D2659FAB42062373EC7E",
+          "tx_path": {
+            "directions": [],
+            "leaf_index": 0,
+            "siblings": []
+          },
+          "validations": [
+            {
+              "ledger_hash": "c0b25552ce6ddcf406ae6184c3d3e6612609af7d04e8fb4b52f3a10fbcc858a7",
+              "ledger_index": 1000042,
+              "signature": "2058f591eabecc5f8c6f69bbd7a83e700be5d8b927cfd84b19cd8bf52667a9cb2a78676a80410bba9898986dbb8c144f4f564a7d17a39aa082ec6a66ee38d209",
+              "validator": "validator-0"
+            },
+            {
+              "ledger_hash": "c0b25552ce6ddcf406ae6184c3d3e6612609af7d04e8fb4b52f3a10fbcc858a7",
+              "ledger_index": 1000042,
+              "signature": "79c7819dbce80a830aedb66ea9b45614267c4b3657b66b0e3e755fcf9219b7a5995bd0c41bb7910255e87480ad588bfea92f951f46e2745f2ce923c20b81e40b",
+              "validator": "validator-1"
+            },
+            {
+              "ledger_hash": "c0b25552ce6ddcf406ae6184c3d3e6612609af7d04e8fb4b52f3a10fbcc858a7",
+              "ledger_index": 1000042,
+              "signature": "a8a3f58818d5ee95bce7a73a20c09819d3a50ec067145775931148265bea49421c8825eb80940633dd2c28dcf94ce2327c26794312d8769fd3b3534a059a5006",
+              "validator": "validator-2"
+            }
+          ]
+        },
+        "validator_trust": {
+          "quorum": 2,
+          "validators": {
+            "validator-0": "9b88a266b0a52b9f892d61e9fcd8a89bdb795acaf68058ea5e0e1ae4619cff0d",
+            "validator-1": "c10bef80685f7f25eff5162309f9ee74809a5cc5782fe5613ce925f191bfe399",
+            "validator-2": "b12db94d18bf95b2713261c2ace9ec6b6b2abb70fef9e3a77ad0d99b92ca6db2"
+          }
+        }
+      },
+      "name": "allow-settled-fake-rail",
+      "verdict": {
+        "attested": false,
+        "checks": [
+          {
+            "detail": "version 'merkl-receipt-v1'",
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "detail": "7 leaf contents",
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "detail": "['instruction', 'intent', 'policy_decision'] are present in every receipt",
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed a272a1bb94df7001653d97459eaf5e0a329917e1bcfa2ef2e38eff28ba64c49f vs committed a272a1bb94df7001653d97459eaf5e0a329917e1bcfa2ef2e38eff28ba64c49f",
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 888ac14e5fd168c97ef1fd026a23f72dbdf8f932e101ba97f0696a8d7062d521 vs committed 888ac14e5fd168c97ef1fd026a23f72dbdf8f932e101ba97f0696a8d7062d521",
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 5460431c97caf83763e434da2bebb459f9c68c5d505941c2a31c490b8724581d vs committed 5460431c97caf83763e434da2bebb459f9c68c5d505941c2a31c490b8724581d",
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe vs committed bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 5770e5270737cc2b552c08d53d293c27a7c9d3744b272530278a044683c0c441 vs committed 5770e5270737cc2b552c08d53d293c27a7c9d3744b272530278a044683c0c441",
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed a5ec924083406ebedef6754f03421c30b81ed03cac4f6af2e8448951e132ad2a vs committed a5ec924083406ebedef6754f03421c30b81ed03cac4f6af2e8448951e132ad2a",
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 1346a2fe520e3c125bcba9200871b134ada028b721896a8e69f100e8c20bf979 vs committed 1346a2fe520e3c125bcba9200871b134ada028b721896a8e69f100e8c20bf979",
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "detail": "leaf 7 must repeat leaf 6",
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "detail": "LEFT over leaves 0-3 is 2793f8cd7a1d7ff8c7e70e003bb5456eb96cf27d10db0b5eb5404ba088f59d1d",
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "detail": "the supplied policy hashes to the 4bc56bce57e996f2… the decision names and the pinned admin key signed it",
+            "name": "policy.document",
+            "status": "pass"
+          },
+          {
+            "detail": "this decision did not escalate, so nothing was signed",
+            "name": "policy.escalation_challenge",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "this decision did not escalate, so nobody approved",
+            "name": "policy.approval_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "the policy key signed a payload carrying LEFT",
+            "name": "policy.signature",
+            "status": "pass"
+          },
+          {
+            "detail": "leaf 3 is null: this receipt proves it was produced by an unattested signer",
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "rSUPPLIER0000000000000000000000000 received 120.00 RLUSD",
+            "name": "intent.matches_settled_fields",
+            "status": "pass"
+          },
+          {
+            "detail": "the rail carried 2793f8cd7a1d7ff8c7e70e003bb5456eb96cf27d10db0b5eb5404ba088f59d1d, LEFT is 2793f8cd7a1d7ff8c7e70e003bb5456eb96cf27d10db0b5eb5404ba088f59d1d",
+            "name": "settlement.anchor_equals_left",
+            "status": "pass"
+          },
+          {
+            "detail": "the blob hashes to B98E14A1041A33363D6174EA2E79EC78B1B73AE1DB76D2659FAB42062373EC7E, the receipt names B98E14A1041A33363D6174EA2E79EC78B1B73AE1DB76D2659FAB42062373EC7E",
+            "name": "settlement.signed_blob",
+            "status": "pass"
+          },
+          {
+            "detail": "the proof is about fake transaction B98E14A1041A33363D6174EA2E79EC78B1B73AE1DB76D2659FAB42062373EC7E in ledger 1000042",
+            "name": "settlement.proof_matches_receipt",
+            "status": "pass"
+          },
+          {
+            "detail": "the header hashes to c0b25552ce6ddcf406ae6184c3d3e6612609af7d04e8fb4b52f3a10fbcc858a7, the proof names c0b25552ce6ddcf406ae6184c3d3e6612609af7d04e8fb4b52f3a10fbcc858a7",
+            "name": "settlement.ledger_header",
+            "status": "pass"
+          },
+          {
+            "detail": "3 of 3 pinned validators signed ledger c0b25552ce6ddcf406ae6184c3d3e6612609af7d04e8fb4b52f3a10fbcc858a7, quorum is 2",
+            "name": "settlement.validator_quorum",
+            "status": "pass"
+          },
+          {
+            "detail": "proven-offline: 3 of 3 pinned validators signed ledger c0b25552ce6ddcf406ae6184c3d3e6612609af7d04e8fb4b52f3a10fbcc858a7, quorum is 2; the transaction folds to the header's transaction root b98e14a1041a33363d6174ea2e79ec78b1b73ae1db76d2659fab42062373ec7e",
+            "name": "settlement.ledger_inclusion",
+            "status": "pass"
+          },
+          {
+            "detail": "RIGHT over leaves 4-7 is a109c870be74762e28d819c0e368d8e8e88bc0bdc7263eb1ae97c3b269970338",
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "detail": "SHA-256(LEFT || RIGHT) is a17b4eedf0a7dcdbfed8bee07bcac14547daa3187ec7c0498f5d2fc525d15359",
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope rail 'fake'",
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope treasury 'rTREASURY0000000000000000000000000'",
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope policy_hash 4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "detail": "no session bundle was supplied, so this is a level-1 verdict",
+            "name": "session.log_join",
+            "status": "not_implemented"
+          }
+        ],
+        "complete": false,
+        "level": 1,
+        "level_detail": "level 1: verified against the signer key, the rail and this receipt alone — joining a session log would add completeness, a notary signature and an anchor",
+        "ok": true,
+        "receipt_id": "01936b2e-2222-7000-8000-000000000004",
+        "settlement": {
+          "ledger_inclusion": "proven-offline",
+          "ledger_inclusion_detail": "3 of 3 pinned validators signed ledger c0b25552ce6ddcf406ae6184c3d3e6612609af7d04e8fb4b52f3a10fbcc858a7, quorum is 2; the transaction folds to the header's transaction root b98e14a1041a33363d6174ea2e79ec78b1b73ae1db76d2659fab42062373ec7e",
+          "transaction_authorization": "verified",
+          "transaction_authorization_detail": "the policy key signed a payload carrying LEFT, and the transaction id re-derives from the blob that was submitted"
+        },
+        "summary": {
+          "approved": "No person was asked: the policy allowed it outright.",
+          "instructed": "The agent was told to make this payment — a system triggered it. It traces back to 01936b2e-3333-7000-8000-000000000004.",
+          "rule": "The policy allowed it at the instant tier; 3 rules ran and all of them passed.",
+          "settled": "120.00 RLUSD went to rSUPPLIER0000000000000000000000000 on fake, transaction B98E14A1041A3336…",
+          "signer": "The signer is unattested: leaf 3 is null, so nothing proves which machine held the policy key.",
+          "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "when": "The ledger closed it at 2026-01-02T03:31:00Z."
+        }
+      }
+    }
+  ],
+  "description": "The complete verdict for each receipt in receipts.json, read with the material recorded beside it. Two settlement lines (plan D10) and one level (plan D9), never a single boolean.",
+  "spec": "docs/RECEIPT-SPEC.md"
+}

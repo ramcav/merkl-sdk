@@ -793,6 +793,27 @@ def escalation_challenge(leaves: ReceiptLeaves) -> SHA256Hash:
     return authorization_commitment(pre)
 
 
+def escalation_challenge_from_contents(contents: Sequence[JSONValue]) -> SHA256Hash:
+    """``LEFT_pre`` computed from raw leaf contents rather than from parsed models.
+
+    Same two edits as :func:`escalation_challenge` — drop ``escalation``, force
+    ``outcome`` to ``escalate`` — applied to the JSON a verifier was handed. A
+    verifier reads contents, not objects, and a receipt whose other leaves no
+    longer parse must still be able to recompute the challenge its approvers
+    signed; that is what turns "the approvals verify" into "the approvals verify
+    against *this* payment".
+    """
+    if len(contents) < 4:
+        raise ReceiptError("LEFT_pre needs leaves 0-3")
+    decision = contents[2]
+    if not isinstance(decision, dict):
+        raise ReceiptError("LEFT_pre needs a policy_decision object")
+    pre = {k: v for k, v in decision.items() if k != "escalation"}
+    pre["outcome"] = PolicyOutcome.ESCALATE.value
+    head: list[JSONValue] = [contents[0], contents[1], pre, contents[3]]
+    return build_left([receipt_leaf(LEAF_NAMES[i], head[i]) for i in range(4)])
+
+
 def build_tree(leaves: Sequence[SHA256Hash]) -> MerkleTree:
     """The eight-leaf tree over seven leaf hashes, padded the usual way."""
     if len(leaves) not in (LEAF_COUNT, PADDED_LEAF_COUNT):
@@ -986,15 +1007,25 @@ CHECK_LOG_JOIN: Final = "session.log_join"
 DEFERRED_CHECKS: Final[tuple[tuple[str, str], ...]] = (
     (
         CHECK_LEDGER_INCLUSION,
-        "phase 4: fold the captured settlement proof against a pinned validator set",
+        "needs a settlement proof and a pinned validator set: "
+        "merkl.core.verify.receipt.verify_receipt",
     ),
-    (CHECK_LOG_JOIN, "phase 4: envelope hash committed in the session log (level 2)"),
+    (
+        CHECK_LOG_JOIN,
+        "needs the session bundle the envelope hash was committed in: "
+        "merkl.core.verify.receipt.verify_receipt",
+    ),
 )
-"""Checks the spec defines but no phase has implemented yet, with the phase that will.
+"""Checks this function cannot run, and where the one that can lives.
 
-These are the extension points. A later phase replaces the deferred entry with a
-real check of the same name; the vectors then move that name from
-``not_implemented`` to ``pass``. Phase 2 emptied four of the original seven:
+These are the extension points. A caller with the material replaces the deferred
+entry with a real check of the same name, in the position the spec gives it; the
+vectors then move that name from ``not_implemented`` to ``pass``. Phase 4
+implements both of the remaining two in
+:func:`merkl.core.verify.receipt.verify_receipt`, which is where the arguments
+they need — a settlement proof, a validator key set, a session bundle — belong,
+since none of them may come out of the receipt. Phase 2 emptied four of the
+original seven:
 ``policy.signature``, ``intent.matches_settled_fields``,
 ``settlement.anchor_equals_left`` and ``settlement.signed_blob`` now run whenever
 the receipt carries the data they need, and report ``not_implemented`` by name

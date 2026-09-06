@@ -84,7 +84,7 @@ def test_library_modules_do_no_io_and_read_no_clock(path: pathlib.Path) -> None:
 
 
 def test_only_the_generators_write() -> None:
-    """Two of them: the receipt vectors, and the attestation ones.
+    """Three of them: the receipt vectors, the attestation ones, and the bundles.
 
     Both are scripts rather than library code — they are excluded from
     ``LIBRARY_MODULES`` above and run by hand or by CI, never on an import path.
@@ -97,4 +97,8 @@ def test_only_the_generators_write() -> None:
         if "write_text" in p.read_text(encoding="utf-8")
         or "open(" in p.read_text(encoding="utf-8")
     }
-    assert writers == {"vectors/generate.py", "vectors/attestation/generate.py"}
+    assert writers == {
+        "vectors/generate.py",
+        "vectors/attestation/generate.py",
+        "vectors/bundles/generate.py",
+    }

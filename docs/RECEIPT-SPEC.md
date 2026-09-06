@@ -310,17 +310,23 @@ verdict that hides which half was checked.
 | 4 | `leaf.<name>` (×7) — content rehashes to the committed leaf hash | implemented |
 | 5 | `leaves.padding` — `leaf_hashes[7] == leaf_hashes[6]` | implemented |
 | 6 | `commitment.left` — leaves 0-3 fold to the committed LEFT | implemented |
+| 6b | `policy.document` — the supplied policy hashes to the one the decision names, and the pinned admin key signed it | implemented |
+| 6c | `policy.escalation_challenge` — the challenge is `LEFT_pre` over these leaves | implemented |
+| 6d | `policy.approval_quorum` — enough distinct approvers the policy names signed it | implemented |
 | 7 | `policy.signature` — the policy key signed a payload carrying LEFT | implemented |
 | 8 | `signer.attestation` — the attestation document and its PCR allowlist | implemented |
 | 9 | `intent.matches_settled_fields` — destination, amount and currency agree | implemented |
 | 10 | `settlement.anchor_equals_left` — the rail memo equals LEFT | implemented |
 | 11 | `settlement.signed_blob` — the tx hash re-derives from the signed blob | implemented |
-| 12 | `settlement.ledger_inclusion` — inclusion proof against pinned validators | phase 4 |
+| 11b | `settlement.proof_matches_receipt` — the capture is about this transaction in this ledger | implemented |
+| 11c | `settlement.ledger_header` — the header hashes to the ledger hash it claims | implemented |
+| 11d | `settlement.validator_quorum` — enough pinned validators signed that ledger hash | implemented |
+| 12 | `settlement.ledger_inclusion` — the composite: is this transaction in that ledger | implemented |
 | 13 | `commitment.right` — leaves 4-6 (plus padding) fold to RIGHT | implemented |
 | 14 | `commitment.root` — `ROOT == H(LEFT \|\| RIGHT)` | implemented |
 | 15 | `envelope.rail` / `envelope.treasury` — match the intent leaf | implemented |
 | 16 | `envelope.policy_hash` — matches the decision leaf | implemented |
-| 17 | `session.log_join` — the envelope hash is committed in the log (level 2) | phase 4 |
+| 17 | `session.log_join` — the envelope hash is committed in the log (level 2) | implemented |
 
 A deferred check is reported as `not_implemented`. That is not a pass. When a
 later phase implements one, the check keeps its name and the vectors move it from
@@ -356,6 +362,67 @@ Two facts about check 11 worth stating, since they are per-rail:
 | `fake` | `SHA-256("merkl-fake-tx-v1" ‖ NUL ‖ signed_blob)`, uppercase hex |
 
 A rail this verifier has no rule for reports `not_implemented`, not `pass`.
+
+### 7.1 The two settlement lines and the level
+
+`verify_receipt_structure` answers everything a receipt can be asked about
+itself. `merkl.core.verify.receipt.verify_receipt` runs the rest and reports what
+the answers add up to, in the shape plan D9 and D10 require. Never one boolean.
+
+**Transaction authorization** — did the policy key sign the bytes that settled?
+
+| Value | Meaning |
+|-------|---------|
+| `verified` | check 7 passed, and where the blob is present check 11 passed with it |
+| `absent` | nothing settled, or the receipt carries no signature to check |
+| `contradicted` | a signature is present and it does not authorize this transaction |
+
+**Ledger inclusion** — is that transaction in a ledger anyone can check?
+
+| Value | Meaning |
+|-------|---------|
+| `proven-offline` | the header hashes to a ledger a pinned validator quorum signed, and a path folds this transaction into that header's transaction root |
+| `verified-live` | the caller queried the rail and saw it validated. Weaker: it trusts whoever answered |
+| `supplied-unverified` | the receipt names a ledger and nothing above established inclusion |
+| `unchecked` | nothing settled, or no proof was supplied |
+
+**Level** (plan D9) is `1` when the receipt was verified against the signer key,
+the rail and itself, and `2` when `session.log_join` also passed — the envelope
+hash is the `input_hash` of the action the receipt names, and that action proves
+into a session root whose checkpoint and log inclusion were checked here. Level 1
+is not a lesser verdict; it is a different question, answered fully.
+
+### 7.2 What a settlement capture can prove
+
+A capture taken at settlement time (plan D20) is read as three separate checks,
+because collapsing them is how a verifier claims more than it holds.
+`settlement.ledger_header` recomputes the ledger hash from the header — for XRPL
+that is `SHA-512Half("LWR\0" ‖ ledger_index(4) ‖ total_coins(8) ‖ parent_hash(32)
+‖ transaction_hash(32) ‖ account_hash(32) ‖ parent_close_time(4) ‖ close_time(4)
+‖ close_time_resolution(1) ‖ close_flags(1))` — which is what binds the ledger's
+transaction-set root to the identity validators sign.
+`settlement.validator_quorum` counts *distinct* pinned validators whose
+validation names that hash. And `settlement.ledger_inclusion` needs one more
+link: `tx_path`, siblings and directions folding the transaction id into the
+header's `transaction_hash`, with the same `SHA-256(left ‖ right)` fold used
+everywhere else here.
+
+XRPL captures do not carry that path (`shamap_path` is in the proof's own
+`missing` list), and XRPL's validation stream publishes secp256k1 validator keys
+without republishing the serialized `STValidation` that was signed — so on XRPL
+the quorum is counted, not verified, and the check says exactly that rather than
+passing. The fake rail carries both, under two tags of its own that are **not**
+any real rail's encoding:
+
+```
+fake ledger hash = SHA-256("merkl-fake-ledger-v1" ‖ NUL ‖ ledger_index(8, BE)
+                           ‖ transaction_hash(32))
+fake validation  = Ed25519 over "merkl-fake-validation-v1" ‖ NUL
+                                ‖ ledger_hash(32) ‖ ledger_index(8, BE)
+```
+
+They exist so `proven-offline` is a state both implementations reach and both
+test suites assert, instead of a branch nobody has ever run.
 
 A disclosure is verified with the same names plus `disclosure.root` (the
 disclosure's root equals the one the reader pinned) and `proof.<name>` (the
@@ -395,14 +462,26 @@ implementation.
 | `action_leaf.json` | `merkl-leaf-v1` leaves including unicode, empty fields, unsorted `depends_on`, exponent drift scores |
 | `receipt_leaf.json` | `merkl-receipt-leaf-v1` leaves including a null leaf per name, unicode, key-order pairs, scalars |
 | `approvals.json` | WebAuthn and Ed25519 assertions over a challenge, valid and invalid, plus quorum counting cases |
-| `receipts.json` | three complete receipts (allow, deny, escalated-then-approved) with leaf hashes, halves, root, envelope hash, proofs, disclosure and the full verification result |
+| `receipts.json` | four complete receipts (allow, deny, escalated-then-approved, and an unattested allow settled on the fake rail) with leaf hashes, halves, root, envelope hash, proofs, disclosure and the full structural verification result |
+| `verdicts.json` | the full reading of each of those receipts — every check, both settlement lines, the level — beside the exact material the verifier was given to reach it |
 | `tampered.json` | receipts and disclosures that must fail, each with the exact set of check names a conforming verifier reports |
+| `bundles/` | proof bundles merkl-api actually exported (v1.1, v1.1 with a continuation, v1.2 with a receipt) plus mutations of them, in `bundles/cases.json` |
+| `attestation/` | three documents AWS actually signed, and the cases over them |
 | `manifest.json` | index, spec version, generator seed |
 
 Regenerate with `python -m merkl.core.vectors.generate`; `--check` fails if the
 committed files are stale. The generator refuses to emit a tamper case whose
 declared failures disagree with what the verifier reports, so the fixtures cannot
-drift into agreeing with a bug.
+drift into agreeing with a bug. `bundles/` and `attestation/` have their own
+generators (`python -m merkl.core.vectors.bundles.generate`,
+`python -m merkl.core.vectors.attestation.generate`) because their inputs are
+files on disk rather than anything this repository computes.
+
+`verdicts.json` is the one that pins the *arguments* as tightly as the answers.
+Each case records the settlement proof, the validator key set and quorum, the
+policy document and the admin key the verifier was handed, and then the verdict
+those produce. A verifier that reached the same verdict from different material
+would be a different verifier.
 
 ## Compatibility
 

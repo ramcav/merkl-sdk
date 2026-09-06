@@ -32,8 +32,18 @@ from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference
 from merkl.core.leaf import action_leaf, receipt_leaf
 from merkl.core.merkle import MerkleProof, MerkleTree
 from merkl.core.policy.approvals import ApprovalAssertion, verify_assertion, verify_quorum
-from merkl.core.policy.document import ApproverCredential
-from merkl.core.rail import xrpl_tx_id
+from merkl.core.policy.document import (
+    AgentSection,
+    ApproverCredential,
+    AssetLimit,
+    HumanTier,
+    PolicyDocument,
+    ReferenceBinding,
+    SignedPolicy,
+    Tiers,
+    WindowRule,
+)
+from merkl.core.rail import RAIL_FAKE, fake_tx_id, xrpl_tx_id
 from merkl.core.receipt import (
     HALF_LEVEL,
     LEAF_NAMES,
@@ -59,6 +69,12 @@ from merkl.core.receipt import (
     verify_receipt_structure,
 )
 from merkl.core.vectors import VECTORS_DIR, fixtures
+from merkl.core.verify.receipt import verify_receipt
+from merkl.core.verify.settlement import (
+    ValidatorTrust,
+    fake_ledger_hash,
+    xrpl_ledger_hash,
+)
 from merkl.shared.hashing import SHA256Hash
 
 SEED = 20260905
@@ -74,6 +90,15 @@ AGENT_PRIVATE = fixtures.ed25519_key("agent-accounts-payable")
 SIGNER_PRIVATE = fixtures.ed25519_key("policy-signer")
 AGENT_KEY = fixtures.ed25519_public_hex(AGENT_PRIVATE)
 SIGNER_KEY = fixtures.ed25519_public_hex(SIGNER_PRIVATE)
+
+ADMIN_PRIVATE = fixtures.ed25519_key("policy-admin")
+ADMIN_KEY = fixtures.ed25519_public_hex(ADMIN_PRIVATE)
+
+VALIDATOR_PRIVATE = tuple(fixtures.ed25519_key(f"fake-validator-{i}") for i in range(3))
+VALIDATOR_KEYS = {
+    f"validator-{i}": fixtures.ed25519_public_hex(key)
+    for i, key in enumerate(VALIDATOR_PRIVATE)
+}
 
 ALICE_PRIVATE = fixtures.ed25519_key("approver-alice")
 BOB_PRIVATE = fixtures.ed25519_key("approver-bob")
@@ -520,6 +545,74 @@ def approval_vectors() -> JSONObject:
 # --------------------------------------------------------------------------- #
 
 
+# --------------------------------------------------------------------------- #
+# The policy the receipts were decided under
+# --------------------------------------------------------------------------- #
+
+
+def _policy_document() -> PolicyDocument:
+    """The document whose hash every receipt in these vectors names.
+
+    Real, not a placeholder: ``policy.document`` looks the policy up **by hash**,
+    so a fixture whose policy_hash was a digest of a sentence could never exercise
+    that check. Publishing the document is also what makes the escalated receipt
+    checkable by a stranger — the approver keys are in here, and without them
+    "two people signed" is a claim rather than a finding.
+    """
+    return PolicyDocument(
+        version="2026.01.0",
+        treasury=TREASURY,
+        rail="xrpl",
+        admin_public_key=ADMIN_KEY,
+        agents=(
+            AgentSection(
+                agent_id="agent-accounts-payable",
+                public_key=AGENT_KEY,
+                allowlist_destinations=(DESTINATION,),
+                allowlist_assets=(RLUSD,),
+                per_tx_cap=(AssetLimit(asset=RLUSD, amount="10000.00"),),
+                windows=(WindowRule(asset=RLUSD, amount="20000.00", seconds=86400),),
+                reference_binding=ReferenceBinding(
+                    required=True, allowed_kinds=("invoice", "contract")
+                ),
+            ),
+        ),
+        tiers=Tiers(
+            human=HumanTier(
+                thresholds=(AssetLimit(asset=RLUSD, amount="1000.00"),),
+                quorum=2,
+                expires_seconds=3600,
+            )
+        ),
+        approvers=(
+            ApproverCredential(
+                id="alice@example.com",
+                credential_type="ed25519",
+                public_key=fixtures.ed25519_public_hex(ALICE_PRIVATE),
+            ),
+            ApproverCredential(
+                id="bob@example.com",
+                credential_type="ed25519",
+                public_key=fixtures.ed25519_public_hex(BOB_PRIVATE),
+            ),
+            ApproverCredential(
+                id="carol@example.com",
+                credential_type="ed25519",
+                public_key=fixtures.ed25519_public_hex(CAROL_PRIVATE),
+            ),
+        ),
+    )
+
+
+POLICY = _policy_document()
+POLICY_HASH = POLICY.policy_hash()
+SIGNED_POLICY = SignedPolicy(
+    document=POLICY,
+    signer_public_key=ADMIN_KEY,
+    signature=ADMIN_PRIVATE.sign(POLICY.pre_image()).hex(),
+)
+
+
 def _intent(**overrides: Any) -> Intent:
     fields: dict[str, Any] = {
         "rail": "xrpl",
@@ -593,7 +686,7 @@ def _allow_receipt(rng: random.Random) -> Receipt:
     )
     intent = _intent()
     decision = PolicyDecision(
-        policy_hash=digest("policy document 2026.01.0"),
+        policy_hash=POLICY_HASH,
         rules=(
             PolicyRule("destination_allowlist", "pass", "rSUPPLIER is on the allowlist"),
             PolicyRule("per_tx_cap", "pass", "250.00 RLUSD is under the 1000 RLUSD cap"),
@@ -659,7 +752,7 @@ def _deny_receipt(rng: random.Random) -> Receipt:
             reference=None,
         ),
         policy_decision=PolicyDecision(
-            policy_hash=digest("policy document 2026.01.0"),
+            policy_hash=POLICY_HASH,
             rules=(
                 PolicyRule("destination_allowlist", "fail", "rATTACKER is not on the allowlist"),
                 PolicyRule("per_tx_cap", "fail", "9000.00 RLUSD is over the 1000 RLUSD cap"),
@@ -721,7 +814,7 @@ def _escalated_receipt(rng: random.Random) -> Receipt:
         ),
     )
     escalated = PolicyDecision(
-        policy_hash=digest("policy document 2026.01.0"),
+        policy_hash=POLICY_HASH,
         rules=rules,
         outcome="escalate",
         tier="human",
@@ -791,6 +884,125 @@ def _escalated_receipt(rng: random.Random) -> Receipt:
     )
 
 
+def _fake_settlement(rng: random.Random, left: SHA256Hash) -> tuple[Settlement, JSONObject]:
+    """A settlement on the fake rail, with the capture that proves it offline.
+
+    XRPL captures still name ``shamap_path`` as missing, so on that rail the
+    ledger-inclusion line stops at ``supplied-unverified`` no matter how good the
+    validator set is. The fake rail closes that last link, which is the only way
+    ``proven-offline`` is a state both verifiers can be tested against.
+    """
+    blob_bytes = bytes.fromhex("beef") + left.bytes + bytes.fromhex(_blob(rng, 30))
+    tx_hash = fake_tx_id(blob_bytes)
+    payload = bytes.fromhex(_blob(rng, 24)) + left.bytes + bytes.fromhex(_blob(rng, 8))
+    ledger_index = 1_000_042
+    header: JSONObject = {
+        "ledger_index": ledger_index,
+        "close_time": "2026-01-02T03:31:00Z",
+        "transaction_hash": MerkleTree.build([SHA256Hash(bytes.fromhex(tx_hash))]).root.hex(),
+        "transaction_count": 1,
+    }
+    ledger_hash = fake_ledger_hash(header)
+    proof: JSONObject = {
+        "rail": RAIL_FAKE,
+        "tx_hash": tx_hash,
+        "ledger_index": ledger_index,
+        "ledger_hash": ledger_hash,
+        "ledger_header": header,
+        "transaction": {"blob": blob_bytes.hex(), "engine_result": "tesSUCCESS"},
+        "tx_path": {"leaf_index": 0, "siblings": [], "directions": []},
+        "validations": [
+            {
+                "validator": name,
+                "ledger_index": ledger_index,
+                "ledger_hash": ledger_hash,
+                "signature": key.sign(
+                    b"merkl-fake-validation-v1\x00"
+                    + bytes.fromhex(ledger_hash)
+                    + ledger_index.to_bytes(8, "big")
+                ).hex(),
+            }
+            for name, key in zip(VALIDATOR_KEYS, VALIDATOR_PRIVATE, strict=True)
+        ],
+        "captured": ["ledger_header", "transaction", "shamap_path", "validator_signatures"],
+        "missing": [],
+    }
+    settlement = Settlement(
+        rail=RAIL_FAKE,
+        tx_hash=tx_hash,
+        ledger_index=ledger_index,
+        close_time="2026-01-02T03:31:00Z",
+        signed_tx_blob=blob_bytes.hex(),
+        observed_anchor=left.hex(),
+        settlement_proof_ref=f"{RAIL_FAKE}:{ledger_index}:{tx_hash[:16].lower()}",
+        policy_signature=PolicySignature(
+            algorithm="ed25519",
+            public_key=SIGNER_KEY,
+            signature=SIGNER_PRIVATE.sign(payload).hex(),
+            payload=payload.hex(),
+        ),
+    )
+    return settlement, proof
+
+
+FAKE_PROOF: JSONObject = {}
+"""Filled by :func:`_fake_receipt`; the capture the fake-rail verdict is read against."""
+
+
+def _fake_receipt(rng: random.Random) -> Receipt:
+    """The same allow, settled on the fake rail so inclusion can be proven offline."""
+    global FAKE_PROOF  # noqa: PLW0603 - one fixture, built once, read by the verdicts
+    instruction = Instruction(
+        source="system",
+        content_hash=digest("scheduled supplier run"),
+        ref="01936b2e-3333-7000-8000-000000000004",
+    )
+    intent = _intent(
+        rail=RAIL_FAKE,
+        amount=Amount(value="120.00", currency=RLUSD),
+        nonce="1122334455667788990011223344556677",
+    )
+    decision = PolicyDecision(
+        policy_hash=POLICY_HASH,
+        rules=(
+            PolicyRule("destination_allowlist", "pass", "rSUPPLIER is on the allowlist"),
+            PolicyRule("per_tx_cap", "pass", "120.00 RLUSD is under the 10000 RLUSD cap"),
+            PolicyRule("reference_required", "pass", "invoice INV-2026-0042 supplied"),
+        ),
+        outcome="allow",
+        tier="instant",
+    )
+    left = authorization_commitment(_authorization(instruction, intent, decision, None))
+    settlement, proof = _fake_settlement(rng, left)
+    FAKE_PROOF = proof
+    leaves = ReceiptLeaves(
+        instruction=instruction,
+        intent=intent,
+        policy_decision=decision,
+        signer_attestation=None,
+        settlement=settlement,
+        result=Result(
+            outcome="settled",
+            engine_result="tesSUCCESS",
+            balance_deltas=(
+                BalanceDelta(TREASURY, RLUSD, "-120.00"),
+                BalanceDelta(DESTINATION, RLUSD, "120.00"),
+            ),
+        ),
+        reasoning=Reasoning(
+            content_hash=digest("model trace for the scheduled run"),
+            source="claude-code",
+            note="Unattested dev signer: leaf 3 is null and the receipt says so.",
+        ),
+    )
+    return Receipt.build(
+        receipt_id="01936b2e-2222-7000-8000-000000000004",
+        leaves=leaves,
+        agent_id="agent-accounts-payable",
+        signer_public_key=SIGNER_KEY,
+    )
+
+
 def _receipt_case(name: str, description: str, receipt: Receipt, reveal: list[str]) -> JSONObject:
     tree = receipt.tree()
     disclosure = receipt.disclose(reveal)
@@ -830,6 +1042,7 @@ def receipts(rng: random.Random) -> dict[str, Receipt]:
         "allow-settled": _allow_receipt(rng),
         "deny-not-submitted": _deny_receipt(rng),
         "escalated-approved-settled": _escalated_receipt(rng),
+        "allow-settled-fake-rail": _fake_receipt(rng),
     }
 
 
@@ -847,11 +1060,18 @@ def receipt_vectors(built: dict[str, Receipt]) -> JSONObject:
             "A payment over the per-transaction cap: the signer escalated, two "
             "approvers signed the challenge, and the payment then settled."
         ),
+        "allow-settled-fake-rail": (
+            "The same allow on the fake rail, produced by an unattested dev signer: "
+            "leaf 3 is null and the receipt commits to its absence. Its settlement "
+            "capture carries a path to the ledger's transaction root, which is what "
+            "lets ledger inclusion reach proven-offline."
+        ),
     }
     reveal = {
         "allow-settled": ["intent", "settlement"],
         "deny-not-submitted": ["policy_decision"],
         "escalated-approved-settled": ["intent", "policy_decision", "result"],
+        "allow-settled-fake-rail": ["instruction", "settlement"],
     }
     return {
         "description": (
@@ -872,6 +1092,204 @@ def receipt_vectors(built: dict[str, Receipt]) -> JSONObject:
 # --------------------------------------------------------------------------- #
 # 5. Tampered cases
 # --------------------------------------------------------------------------- #
+
+
+# --------------------------------------------------------------------------- #
+# 6. Verdicts — the whole reading, with the material the verifier brought
+# --------------------------------------------------------------------------- #
+
+
+def _xrpl_proof(settlement: Settlement) -> JSONObject:
+    """An XRPL capture shaped the way phase 2 captures one.
+
+    Header, validated transaction, validations — and ``shamap_path`` in
+    ``missing``, because rippled's ledger request does not hand back the path
+    from a transaction to the ledger's transaction root. The header still hashes,
+    which binds that root to the ledger identity; what is absent is the last hop,
+    and the fixture says so instead of implying otherwise.
+    """
+    header: JSONObject = {
+        "ledger_index": settlement.ledger_index,
+        "total_coins": "99988877766655544",
+        "parent_hash": digest(f"parent of {settlement.ledger_index}"),
+        "transaction_hash": digest(f"transaction set of {settlement.ledger_index}"),
+        "account_hash": digest(f"account state of {settlement.ledger_index}"),
+        "parent_close_time": 792_000_000,
+        "close_time": 792_000_010,
+        "close_time_resolution": 10,
+        "close_flags": 0,
+    }
+    return {
+        "rail": "xrpl",
+        "tx_hash": settlement.tx_hash,
+        "ledger_index": settlement.ledger_index,
+        "ledger_hash": xrpl_ledger_hash(header),
+        "ledger_header": header,
+        "transaction": {"hash": settlement.tx_hash, "validated": True},
+        "validations": [
+            {
+                "validation_public_key": name,
+                "ledger_index": settlement.ledger_index,
+                "ledger_hash": xrpl_ledger_hash(header),
+            }
+            for name in ("nHUnvalidator1", "nHUnvalidator2", "nHUnvalidator3")
+        ],
+        "captured": ["ledger_header", "validated_transaction_with_metadata",
+                     "validator_validations", "signed_blob"],
+        "missing": ["shamap_path"],
+    }
+
+
+XRPL_TRUST: JSONObject = {
+    "validators": {"nHUnvalidator1": "", "nHUnvalidator2": "", "nHUnvalidator3": ""},
+    "quorum": 2,
+}
+"""Pinned XRPL validators with no checkable key: agreement is counted, not proved."""
+
+FAKE_TRUST: JSONObject = {"validators": cast("JSONValue", VALIDATOR_KEYS), "quorum": 2}
+
+
+def _bundle_action(
+    index: int, session_id: str, input_hash: str, receipt_id: str | None
+) -> JSONObject:
+    """One bundle row, with the exact strings ``merkl-leaf-v1`` hashes."""
+    action: JSONObject = {
+        "action_id": f"01936b2e-4444-7000-8000-00000000000{index}",
+        "session_id": session_id,
+        "action_type": "transaction" if receipt_id else "tool_call",
+        "tool_name": "xrpl_payment" if receipt_id else "read_file",
+        "input_hash": input_hash,
+        "output_hash": digest(f"output of action {index}"),
+        "timestamp": f"2026-01-02T03:04:{index:02d}+00:00",
+        "drift_score": 0,
+        "drift_score_str": "0.0",
+        "guardrail_result": "passed",
+        "display_name": "",
+        "depends_on": [],
+        "status": "success",
+        "category": "",
+        "receipt_id": receipt_id,
+    }
+    action["leaf_hash"] = action_leaf(
+        action_id=cast("str", action["action_id"]),
+        session_id=session_id,
+        action_type=cast("str", action["action_type"]),
+        tool_name=cast("str", action["tool_name"]),
+        input_hash=input_hash,
+        output_hash=cast("str", action["output_hash"]),
+        timestamp=cast("str", action["timestamp"]),
+        drift_score="0.0",
+        guardrail_result="passed",
+    ).hex()
+    return action
+
+
+def _session_bundle(receipt: Receipt) -> JSONObject:
+    """A session that actually commits this receipt's envelope, at the leaf it names.
+
+    The receipt's ``session_locator`` says which action carries it, so the bundle
+    is built out to that index: filler actions before it, then one whose
+    ``input_hash`` *is* the envelope hash. Every leaf gets a real inclusion proof
+    against a real tree, because the join is only meaningful if the action it
+    lands on is itself provably in the session.
+
+    No audit entry and no checkpoint — those are the notary's, and leaving them
+    out is what makes this the *minimal* level-2 join: the log checks that need
+    them report ``not_implemented`` by name while the join itself passes.
+    """
+    locator = receipt.envelope.session_locator
+    assert locator is not None
+    session_id = locator.session_id
+    actions = [
+        _bundle_action(i, session_id, digest(f"filler input {i}"), None)
+        for i in range(locator.leaf_index)
+    ]
+    actions.append(
+        _bundle_action(
+            locator.leaf_index,
+            session_id,
+            receipt.envelope_hash().hex(),
+            receipt.envelope.receipt_id,
+        )
+    )
+    tree = MerkleTree.build(
+        [SHA256Hash(bytes.fromhex(cast("str", a["leaf_hash"]))) for a in actions]
+    )
+    root = tree.root.hex()
+    for i, action in enumerate(actions):
+        action["proof"] = {**_proof(tree.get_proof(i)), "root": root, "leaf_index": i}
+    return {
+        "version": "1.2",
+        "session": {
+            "session_id": session_id,
+            "agent_id": "agent-accounts-payable",
+            "root_hash": root,
+            "leaf_count": len(actions),
+            "action_count": len(actions),
+            "status": "closed",
+        },
+        "actions": cast("list[JSONValue]", actions),
+        "receipts": [],
+    }
+
+
+def _material(name: str, receipt: Receipt) -> JSONObject:
+    """What a verifier brings to each case, written down so the JS brings the same."""
+    settlement = receipt.leaves.settlement
+    proof: JSONValue = None
+    trust: JSONValue = None
+    if settlement is not None and settlement.rail == RAIL_FAKE:
+        proof, trust = FAKE_PROOF, cast("JSONValue", FAKE_TRUST)
+    elif settlement is not None:
+        proof, trust = _xrpl_proof(settlement), cast("JSONValue", XRPL_TRUST)
+    joined = name == "allow-settled"
+    return {
+        "settlement_proof": proof,
+        "validator_trust": trust,
+        "policy_document": SIGNED_POLICY.to_content(),
+        "admin_public_key": ADMIN_KEY,
+        "attestation_trust": None,
+        "session_bundle": _session_bundle(receipt) if joined else None,
+    }
+
+
+def verdict_vectors(built: dict[str, Receipt]) -> JSONObject:
+    """The full reading of each receipt: every check, both settlement lines, the level.
+
+    ``material`` is the whole point. Nothing in it comes out of the receipt: the
+    policy document is looked up by hash, the validator set and its quorum are the
+    verifier's, and the attestation trust is deliberately null here so that check
+    stays ``not_implemented`` rather than passing on a document nobody pinned
+    measurements for. Both implementations must produce the recorded verdict from
+    the recorded material and nothing else.
+    """
+    cases: list[JSONValue] = []
+    for name, receipt in built.items():
+        material = _material(name, receipt)
+        trust = cast("dict[str, Any] | None", material["validator_trust"])
+        verdict = verify_receipt(
+            receipt.envelope,
+            receipt.leaves,
+            settlement_proof=material["settlement_proof"],
+            validator_trust=(
+                ValidatorTrust(validators=trust["validators"], quorum=trust["quorum"])
+                if trust
+                else None
+            ),
+            policy_document=material["policy_document"],
+            admin_public_key=cast("str", material["admin_public_key"]),
+            session_bundle=cast("dict[str, Any] | None", material["session_bundle"]),
+        )
+        cases.append({"name": name, "material": material, "verdict": verdict.to_content()})
+    return {
+        "description": (
+            "The complete verdict for each receipt in receipts.json, read with the "
+            "material recorded beside it. Two settlement lines (plan D10) and one "
+            "level (plan D9), never a single boolean."
+        ),
+        "spec": SPEC,
+        "cases": cases,
+    }
 
 
 def _with(content: JSONValue, key: str, value: JSONValue) -> JSONValue:
@@ -1378,6 +1796,7 @@ def build_all() -> dict[str, JSONObject]:
         "receipt_leaf.json": receipt_leaf_vectors(),
         "approvals.json": approval_vectors(),
         "receipts.json": receipt_vectors(built),
+        "verdicts.json": verdict_vectors(built),
         "tampered.json": tampered_vectors(built),
     }
     files["manifest.json"] = {
