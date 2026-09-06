@@ -32,6 +32,7 @@ from merkl.core.canonical import (
     format_decimal,
     parse_decimal,
 )
+from merkl.core.checks import Check, CheckStatus, VerificationResult
 from merkl.core.intent import (
     NATIVE_XRP,
     Amount,
@@ -64,8 +65,6 @@ from merkl.core.receipt import (
     LEAF_NAMES,
     RECEIPT_VERSION,
     BalanceDelta,
-    Check,
-    CheckStatus,
     DisclosedLeaf,
     Disclosure,
     Envelope,
@@ -85,7 +84,6 @@ from merkl.core.receipt import (
     SessionLocator,
     Settlement,
     SignerAttestation,
-    VerificationResult,
     authorization_commitment,
     build_left,
     build_right,

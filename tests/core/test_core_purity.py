@@ -83,11 +83,18 @@ def test_library_modules_do_no_io_and_read_no_clock(path: pathlib.Path) -> None:
                 assert func.attr not in IMPURE_ATTRIBUTES, f"{path.name} calls .{func.attr}()"
 
 
-def test_the_generator_is_the_only_module_that_writes() -> None:
-    writers = [
-        p.name
+def test_only_the_generators_write() -> None:
+    """Two of them: the receipt vectors, and the attestation ones.
+
+    Both are scripts rather than library code — they are excluded from
+    ``LIBRARY_MODULES`` above and run by hand or by CI, never on an import path.
+    Anything else in ``merkl.core`` that touched a file would be a verifier that
+    needs a filesystem to answer a question about bytes it was handed.
+    """
+    writers = {
+        str(p.relative_to(CORE))
         for p in ALL_MODULES
         if "write_text" in p.read_text(encoding="utf-8")
         or "open(" in p.read_text(encoding="utf-8")
-    ]
-    assert writers == ["generate.py"]
+    }
+    assert writers == {"vectors/generate.py", "vectors/attestation/generate.py"}
