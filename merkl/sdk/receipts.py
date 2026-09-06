@@ -63,6 +63,7 @@ from merkl.core.receipt import (
     ReceiptLeaves,
     Result,
     ResultOutcome,
+    SessionLocator,
     Settlement,
     authorization_commitment,
 )
@@ -247,7 +248,7 @@ class ReceiptBuilder:
             reasoning=reasoning,
         )
         receipt = self._build(receipt_id, leaves, response)
-        action_id = await self._join_session(receipt, response, depends_on)
+        receipt, action_id = await self._join_session(receipt, response, depends_on)
         await self._store_receipt(receipt)
         return ReceiptOutcome(
             receipt=receipt, decision=decision, action_id=action_id, reason=reason
@@ -327,7 +328,7 @@ class ReceiptBuilder:
         )
         receipt = self._build(receipt_id, leaves, response)
         await self._signer.settle(reservation_id, ref.tx_hash)
-        action_id = await self._join_session(receipt, response, depends_on)
+        receipt, action_id = await self._join_session(receipt, response, depends_on)
         await self._store_receipt(receipt)
         return ReceiptOutcome(
             receipt=receipt,
@@ -360,7 +361,7 @@ class ReceiptBuilder:
             reasoning=reasoning,
         )
         receipt = self._build(receipt_id, leaves, response)
-        action_id = await self._join_session(receipt, response, depends_on)
+        receipt, action_id = await self._join_session(receipt, response, depends_on)
         await self._store_receipt(receipt)
         return ReceiptOutcome(
             receipt=receipt, decision=decision, action_id=action_id, reason=str(error)
@@ -386,17 +387,32 @@ class ReceiptBuilder:
 
     async def _join_session(
         self, receipt: Receipt, response: JSONObject, depends_on: str | None
-    ) -> str | None:
+    ) -> tuple[Receipt, str | None]:
         """Commit the envelope hash as one action in the enclosing session (D4).
 
         The receipt inherits log inclusion, the checkpoint signature and Bitcoin
         anchoring from the session it lands in, with no second chain. The join is
         optional and one-way (D9): a receipt that never reaches a session is still
         a complete receipt, so a notary that is down cannot stop a payment.
+
+        A joined receipt's envelope carries a ``session_locator`` naming exactly
+        where its hash was committed — the notary uses it to link the stored
+        receipt back to the session and action (``docs/INTERFACES-P4.md`` sec 2).
+        The locator has to be in the envelope *before* it is hashed, so the leaf
+        index is the one piece of information predicted rather than read back:
+        the session assigns leaf indices in append order, so the next one is
+        exactly this session's current ``action_count``, true for the single
+        sequential writer this flow assumes.
         """
         session = get_current_session()
         if session is None:
-            return None
+            return receipt, None
+        locator = SessionLocator(
+            session_id=str(session.session_id), leaf_index=session.action_count
+        )
+        receipt = dataclasses.replace(
+            receipt, envelope=dataclasses.replace(receipt.envelope, session_locator=locator)
+        )
         outcome = receipt.leaves.result
         recorded = await session.record_action(
             tool_name=f"{receipt.envelope.rail}.payment",
@@ -409,7 +425,8 @@ class ReceiptBuilder:
             display_name=_display_name(receipt),
             depends_on=[depends_on] if depends_on else [],
         )
-        return str(recorded.get("action_id")) if isinstance(recorded, dict) else None
+        action_id = str(recorded.get("action_id")) if isinstance(recorded, dict) else None
+        return receipt, action_id
 
 
 def _guardrail(decision: PolicyDecision | None) -> str:

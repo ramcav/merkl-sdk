@@ -21,12 +21,18 @@ pytestmark = pytest.mark.asyncio
 class RecordingSession:
     """Just enough of SessionContext to see what the builder committed."""
 
-    def __init__(self) -> None:
+    def __init__(self, session_id: str = "01936b2e-1111-7000-8000-0001") -> None:
+        self.session_id = session_id
         self.actions: list[dict[str, Any]] = []
 
+    @property
+    def action_count(self) -> int:
+        return len(self.actions)
+
     async def record_action(self, **kwargs: Any) -> dict[str, Any]:
+        leaf_index = len(self.actions)
         self.actions.append(kwargs)
-        return {"action_id": f"action-{len(self.actions)}", "leaf_index": len(self.actions) - 1}
+        return {"action_id": f"action-{len(self.actions)}", "leaf_index": leaf_index}
 
 
 class TestSessionJoin:
@@ -63,6 +69,39 @@ class TestSessionJoin:
         finally:
             reset_current_session(token)
         recorded = canonical_hash(session.actions[0]["input_data"])
+        assert recorded.hex() == outcome.receipt.envelope_hash().hex()
+
+    async def test_the_envelope_carries_a_session_locator_the_notary_can_resolve(
+        self, tmp_path: Path
+    ) -> None:
+        """Without this, merkl-api's ``_link_session`` has nothing to join on.
+
+        The locator names where the envelope hash actually landed — this
+        session, at the leaf index the action is about to get — so the notary
+        can find the action a stored receipt claims to belong to
+        (``docs/INTERFACES-P4.md`` sec 2, ``StoreReceiptService._link_session``).
+        """
+        rig = build_rig(tmp_path)
+        session = RecordingSession()
+        token = set_current_session(session)
+        try:
+            # A prior action already occupies leaf 0, as a real session's
+            # human_input action would before a payment is proposed.
+            await session.record_action(tool_name="human_input", input_data="pay it")
+            outcome = await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
+        finally:
+            reset_current_session(token)
+
+        locator = outcome.receipt.envelope.session_locator
+        assert locator is not None
+        assert locator.session_id == session.session_id
+        assert locator.leaf_index == 1  # the transaction is the second action
+        assert session.actions[1]["input_data"]["session_locator"] == {
+            "session_id": session.session_id,
+            "leaf_index": 1,
+        }
+        # The locator is inside the envelope that was hashed, not bolted on after.
+        recorded = canonical_hash(session.actions[1]["input_data"])
         assert recorded.hex() == outcome.receipt.envelope_hash().hex()
 
     async def test_a_denial_is_recorded_as_a_blocked_action(self, tmp_path: Path) -> None:
