@@ -16,10 +16,16 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
   clients), `nitro` (KMS sealing and the CMS envelope it answers with)
 - `ReceiptBuilder` (`merkl/sdk/receipts.py`) — propose → route → co-sign →
   settle → attest, joining the enclosing session as one `transaction` action
+- `merkl.demo` — the five scenarios end to end (benign, prompt-injection drain,
+  over-threshold with 2-of-3 approval, structuring, reference mismatch),
+  rail-agnostic (`FakeEnvironment`, `XrplEnvironment`), rendered to a folder of
+  `verify.html` pages checked by both verifiers. `merkl demo` is the CLI entry
+  point
 - `MerklClient` — main entry point (endpoint URL, agent_id, API key)
 - `SessionContext` — async context manager for session lifecycle
 - `@trace` and `@guardrail` decorators for auto-recording actions (concurrency-safe via `contextvars`)
-- `merkl` CLI — `merkl install --claude-code [--global]` writes hooks into `settings.json`
+- `merkl` CLI — `merkl install --claude-code [--global]` writes hooks into
+  `settings.json`; `merkl demo [--xrpl-testnet]` runs the five scenarios
 - `HookState` (`merkl/hooks/claude_code.py`) — one tempfile-backed object per Claude Code session, owns session_id, turn rotation, dataflow snippets, sub-agent parent linkage
 - Framework integrations: LangChain, OpenAI, Google ADK, CrewAI — all route through `merkl.integrations._common.record_tool_call` so new action fields plumb through one call site
 - Shared value objects (`SHA256Hash`, `canonical_hash`, `SessionId`, `ActionId`, `Timestamp`, enums, errors) imported by both SDK and merkl-api
@@ -77,7 +83,9 @@ merkl/core/
     render.py      render_verify_html(bundle) -> str, the page merkl-api calls
     verify.html    the standalone page: sentences first, hashes behind expanders
     js/            merkl-verify.js — the same algorithms in JavaScript, published
-                   as @merkl/verify. No dependencies, Web Crypto only
+                   as @merkl/verify. No dependencies, Web Crypto only.
+                   cli.mjs is its terminal entry point (npx @merkl/verify /
+                   the merkl-verify bin), the same checks merkl verify runs
   vectors/       generate.py, fixtures.py + committed JSON fixtures
     attestation/   three documents AWS actually signed, and 17 cases over them
     bundles/       real merkl-api exports, and mutations of them that must fail
@@ -161,6 +169,29 @@ against. Rules:
   merkl-api's own code (`tests/core/reference/gen_merkl_api_reference.py`, run
   with merkl-api's interpreter). The SDK test must never import `merkl_api`.
 
+## merkl/demo — the five scenarios, as pages
+
+Not a mock of anything: a real `SignerEngine`, a real encrypted keystore, real
+signed approvals, against a swappable rail. Ships in the wheel — `merkl demo`
+is a real customer-facing entry point, not a dev-only script.
+
+```
+merkl/demo/
+  rig.py         one signer, one keystore, one policy, wired the way a real
+                 deployment is; every key derived from a public label so a run
+                 replays byte-identically
+  scenarios.py   the five scenarios, rail-agnostic over an Environment
+                 (FakeEnvironment, XrplEnvironment); require() raises
+                 ScenarioError rather than asserting, so a claim can't
+                 disappear under python -O
+  pages.py       scenario -> verify.html -> both verifiers, to a folder;
+                 PageReport.agreed is true only when both ran and both passed
+  xrpl_env.py    the same five scenarios against XRPL testnet; bootstrap is
+                 cached under ~/.merkl (same wallet files merkl treasury init
+                 and tests/scenarios/test_xrpl_testnet.py use) so a second run
+                 does not re-drain the faucet
+```
+
 ## Key Files
 
 - `merkl/sdk/client.py` — `MerklClient`: creates sessions, holds transport
@@ -171,10 +202,15 @@ against. Rules:
 - `merkl/integrations/` — langchain.py, openai.py, google_adk.py, crewai.py
 - `merkl/hooks/claude_code.py` — Claude Code PostToolUse + SessionEnd hook; `HookState` class owns all per-session scratch state
 - `merkl/cli/main.py` — the CLI: `verify`, `receipt show`, `disclose`, `approve`,
-  `reject`, `reconcile`, `install`, `signer serve`, `treasury`
+  `reject`, `reconcile`, `install`, `signer serve`, `treasury`, `demo`
 - `merkl/cli/verify.py` — `merkl verify` over a receipt, a bundle or a rendered
   verify.html; exit 0 nothing contradicted, 1 contradicted, 2 unreadable
+- `merkl/cli/demo.py` — `merkl demo`: fake rail always, XRPL testnet with
+  `--xrpl-testnet` / `MERKL_XRPL_TESTNET=1`; writes a folder of `verify.html`
+  and exits non-zero if a page does not verify cleanly
 - `merkl/cli/receipt.py`, `merkl/cli/approve.py`, `merkl/cli/reconcile.py`
+- `merkl/demo/scenarios.py`, `merkl/demo/pages.py`, `merkl/demo/xrpl_env.py` —
+  the five scenarios, the page-writer, and the XRPL testnet environment
 - `merkl/shared/hashing.py` — `SHA256Hash`, `canonical_hash()`, `canonical_bytes()` (deterministic JSON-sorted-keys hashing shared by SDK, hook, and server-side leaf verification)
 - `merkl/core/verify/attestation.py` — the attestation verifier and the embedded AWS Nitro root
 - `merkl/signer/vsock.py` — the length-prefixed JSON framing the enclave speaks
@@ -196,16 +232,22 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # 1232 tests, 7 skipped
-npm test                                        # 172 JS tests, node --test, no bundler
-mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py nitro
-ruff check merkl/core merkl/signer merkl/adapters nitro tests/core tests/signer
+pytest                                          # 1253 tests, 8 skipped
+npm test                                        # 182 JS tests, node --test, no bundler
+mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py nitro merkl/demo merkl/cli
+ruff check merkl/core merkl/signer merkl/adapters nitro tests/core tests/signer merkl/demo merkl/cli tests/demo
 python -m merkl.core.vectors.generate --check              # fixtures are current
 python -m merkl.core.vectors.attestation.generate --check  # and the attestation ones
 python -m merkl.core.vectors.bundles.generate --check      # and the bundle ones
 
-# XRPL testnet: opt-in, funds from the faucet, submits real transactions
+# the five scenarios, rendered and double-verified, on the fake rail
+merkl demo
+
+# XRPL testnet: opt-in, funds from the faucet the first time, submits real
+# transactions, then reuses the treasury cached under ~/.merkl
 MERKL_XRPL_TESTNET=1 pytest tests/scenarios/test_xrpl_testnet.py -v -s
+MERKL_XRPL_TESTNET=1 pytest tests/demo/test_xrpl_demo.py -v -s
+MERKL_XRPL_TESTNET=1 merkl demo --xrpl-testnet
 ```
 
 ## Releasing
@@ -213,8 +255,13 @@ MERKL_XRPL_TESTNET=1 pytest tests/scenarios/test_xrpl_testnet.py -v -s
 ```bash
 # bump the version in BOTH pyproject.toml and merkl/core/verify/js/package.json,
 # add a CHANGELOG.md section, commit, then:
-git tag v0.1.2 && git push origin v0.1.2
+git tag v0.2.0 && git push origin v0.2.0
 ```
+
+`CHANGELOG.md` carries a drafted `[0.2.0]` section already (the co-signer:
+scenarios, `merkl demo`, the README rewrite); `pyproject.toml` and
+`merkl/core/verify/js/package.json` are still `0.1.1` until that bump actually
+happens — drafting the notes is not cutting the release.
 
 The tag is the release decision: `.github/workflows/release.yml` refuses a tag that disagrees with `pyproject.toml` **or** with `@merkl/verify`'s `package.json`, runs both suites and all three vector checks, builds, publishes to PyPI via Trusted Publishing (OIDC, gated by the `pypi` environment) and `@merkl/verify` to npm with provenance (gated by the `npm` environment), and creates a GitHub Release from the matching CHANGELOG section. The two packages are versioned in lockstep because they are two implementations of one spec (plan D19): a reader holding one has to be able to assume the other agrees with it. `examples/` holds runnable demo agents against a local notary; `docs/adr/` records the shared-kernel design decisions.
 

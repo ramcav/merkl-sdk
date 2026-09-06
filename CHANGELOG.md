@@ -9,6 +9,53 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-06
+
+### Added — phase 5
+
+- **`merkl demo`** — runs the five scenarios end to end and writes each as a
+  self-contained `verify.html`, checked by both `merkl verify` and the new
+  `@merkl/verify` CLI over the same file before either is written to disk. The
+  fake rail always runs; `--xrpl-testnet` (or `MERKL_XRPL_TESTNET=1`) also runs
+  the same five stories against the real network, reusing the treasury cached
+  under `~/.merkl` (the same wallet files `merkl treasury init` and the pytest
+  suite use) so a second run does not re-drain the faucet, and prints a
+  transaction hash for every payment that actually settles.
+- **`merkl.demo`** — the rig, the five scenarios and the page-writer, as a
+  shipped package: a real signer, a real encrypted keystore, real approvals,
+  and a swappable `Environment` (`FakeEnvironment`, `XrplEnvironment`) so the
+  same five stories run unmodified against either rail. A scenario's claim
+  about itself raises `ScenarioError` rather than asserting, so it cannot
+  silently disappear under `python -O`.
+- **`@merkl/verify`'s CLI** (`merkl/core/verify/js/cli.mjs`, reachable as
+  `npx @merkl/verify` or the `merkl-verify` bin once installed) — the same
+  checks `merkl verify` runs, over a receipt, a bundle, or a rendered
+  `verify.html`, in the other implementation. A scenario page that only
+  `merkl verify` had checked would have been checked once; checked by both, it
+  has been checked by two programs that share no code.
+- **README rewritten** for the co-signer: an ASCII architecture diagram
+  (`merkl.sdk` → `merkl.signer` / `merkl.adapters` → `merkl.core`), the trust
+  model in plain words (who holds what, what a receipt needs to verify, what
+  Merkl never has, what the customer's enclave attests), a pointer to
+  `docs/RECEIPT-SPEC.md`, how to add a rail with `merkl.adapters.fake` as the
+  worked example, how to run the scenarios, and how to deploy the signer (dev,
+  Nitro). Sold as an AI accountability product; XRPL gets one sentence.
+
+Ran the XRPL path for real: bootstrap reused the treasury cached from an
+earlier phase, and four of the five scenarios settled with real transaction
+hashes recorded (the fifth, the prompt-injection drain, is a denial and
+settles nothing — that is what it is testing). Both verifiers agreed on every
+page, including the ones built from real testnet transactions.
+
+### Fixed — phase 5
+
+- **`merkl demo --no-node` always exited non-zero, even when nothing was
+  wrong.** `PageReport.agreed` requires two verifier readings by design — it
+  answers "did both agree" — but with `--no-node` only the Python reading ever
+  existed, so it was always `False`. `demo_command` now falls back to the
+  single reading's own verdict when the JavaScript verifier was not asked to
+  run, rather than reporting disagreement between a verifier and nothing.
+
 ### Added
 
 - **Verification is now two implementations of one spec (plan D7).**
