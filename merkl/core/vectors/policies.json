@@ -1,0 +1,645 @@
+{
+  "admin_challenge": "the 32-byte policy_hash, not the legacy pre-image and not LEFT_pre",
+  "cases": [
+    {
+      "description": "The legacy scheme: a raw Ed25519 signature over the tagged pre-image, pinned to the admin key the operator actually trusts.",
+      "expected_valid": true,
+      "name": "legacy-ed25519-valid",
+      "pinned_admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": "62fd60f1b07de9629b3d3c436947c460b1fe44c173feabc3a79ca8dd28192f146f66807ea5dad66cd6aab5cd3f1f421f0a8acf96aa1242cc9d9804383a779106",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "With no admin pinned, the document's own admin_public_key is trusted — the same thing an unpinned check has always done.",
+      "expected_valid": true,
+      "name": "legacy-ed25519-unpinned-trusts-the-document",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": "62fd60f1b07de9629b3d3c436947c460b1fe44c173feabc3a79ca8dd28192f146f66807ea5dad66cd6aab5cd3f1f421f0a8acf96aa1242cc9d9804383a779106",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "A rogue document nominates its own admin and signs itself; the operator pins the real admin key instead. This is the whole point of pinning.",
+      "expected_valid": false,
+      "name": "wrong-admin",
+      "pinned_admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "8f4fb8555a615cb437d6e569dfd8c3129c361eea61775a7129ef762596e074e8",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": "a4f65c6127b80ea3963d1dab2807eea4e74c046c1d74dce75736a70f615182d0efb50fb6ee3d554e468c021d743e133b4432b6f5c4445d848463153da3b8ed02",
+        "signer_public_key": "8f4fb8555a615cb437d6e569dfd8c3129c361eea61775a7129ef762596e074e8"
+      }
+    },
+    {
+      "description": "The signature and signer_public_key are untouched, but the document attached to them was edited after signing (the per-tx cap's version bumped). The pre-image no longer matches what was actually signed.",
+      "expected_valid": false,
+      "name": "edited-rule-after-signing",
+      "pinned_admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.1"
+        },
+        "signature": "62fd60f1b07de9629b3d3c436947c460b1fe44c173feabc3a79ca8dd28192f146f66807ea5dad66cd6aab5cd3f1f421f0a8acf96aa1242cc9d9804383a779106",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "The newer wire shape: an ApprovalAssertion carrying a plain Ed25519 signature over policy_hash, not the legacy pre-image scheme — the same shape a WebAuthn admin's ceremony produces, just signed differently.",
+      "expected_valid": true,
+      "name": "ed25519-assertion-admin-valid",
+      "pinned_admin": {
+        "credential_type": "ed25519",
+        "origins": [],
+        "public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6",
+        "user_verification": false
+      },
+      "signed_policy": {
+        "document": {
+          "admin": {
+            "credential_type": "ed25519",
+            "origins": [],
+            "public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6",
+            "user_verification": false
+          },
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": {
+          "approver_id": "admin",
+          "credential_type": "ed25519",
+          "signature": "db6ce1ece204e7ca24db54ea57946ebc617148024a25029f7787443ed9897d8e0cea1f869aa70c4d7ee3133a37b0c621516d7848d9b6cdb84d669ec11b6c0f0c",
+          "signed_at": "2026-02-01T09:05:00Z"
+        },
+        "signer_public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6"
+      }
+    },
+    {
+      "description": "An org signs a policy change with a WebAuthn admin credential from the dashboard. The challenge is the 32-byte policy_hash, checked exactly the way an approver's assertion is checked.",
+      "expected_valid": true,
+      "name": "webauthn-admin-valid",
+      "pinned_admin": {
+        "credential_type": "webauthn",
+        "origins": [
+          "https://admin.merkl.ai"
+        ],
+        "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+        "rp_id": "admin.merkl.ai",
+        "user_verification": true
+      },
+      "signed_policy": {
+        "document": {
+          "admin": {
+            "credential_type": "webauthn",
+            "origins": [
+              "https://admin.merkl.ai"
+            ],
+            "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+            "rp_id": "admin.merkl.ai",
+            "user_verification": true
+          },
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": {
+          "approver_id": "admin",
+          "authenticator_data": "9591888391c5d0dc91276a0b419a67a0fbb20b6aea83c152fcc68698fe4cfe4d0500000001",
+          "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a2275663131644441734a6635766c45527938784d666a41745135594141776c444a58706469417a7743787573222c226f726967696e223a2268747470733a2f2f61646d696e2e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+          "credential_type": "webauthn",
+          "signature": "304502207e34f127e51e3965dc887437c12a776583b710241cfa24e241eb75ef7df7771b022100f3c697019a4ca0d16765a2db430dec1dccfca288270ba6c2406a44319433b94a",
+          "signed_at": "2026-02-01T09:00:00Z"
+        },
+        "signer_public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408"
+      }
+    },
+    {
+      "description": "The same valid assertion, but the operator pins an admin credential whose allowed origins do not include the one clientDataJSON names — a signature harvested from a phishing page must not count.",
+      "expected_valid": false,
+      "name": "webauthn-origin-not-allowed",
+      "pinned_admin": {
+        "credential_type": "webauthn",
+        "origins": [
+          "https://evil.example.com"
+        ],
+        "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+        "rp_id": "admin.merkl.ai",
+        "user_verification": true
+      },
+      "signed_policy": {
+        "document": {
+          "admin": {
+            "credential_type": "webauthn",
+            "origins": [
+              "https://admin.merkl.ai"
+            ],
+            "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+            "rp_id": "admin.merkl.ai",
+            "user_verification": true
+          },
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": {
+          "approver_id": "admin",
+          "authenticator_data": "9591888391c5d0dc91276a0b419a67a0fbb20b6aea83c152fcc68698fe4cfe4d0500000001",
+          "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a2275663131644441734a6635766c45527938784d666a41745135594141776c444a58706469417a7743787573222c226f726967696e223a2268747470733a2f2f61646d696e2e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+          "credential_type": "webauthn",
+          "signature": "304502207e34f127e51e3965dc887437c12a776583b710241cfa24e241eb75ef7df7771b022100f3c697019a4ca0d16765a2db430dec1dccfca288270ba6c2406a44319433b94a",
+          "signed_at": "2026-02-01T09:00:00Z"
+        },
+        "signer_public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408"
+      }
+    },
+    {
+      "description": "Same admin, same assertion, but the document was edited after signing: policy_hash no longer matches the challenge the passkey actually signed.",
+      "expected_valid": false,
+      "name": "webauthn-edited-rule-after-signing",
+      "pinned_admin": {
+        "credential_type": "webauthn",
+        "origins": [
+          "https://admin.merkl.ai"
+        ],
+        "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+        "rp_id": "admin.merkl.ai",
+        "user_verification": true
+      },
+      "signed_policy": {
+        "document": {
+          "admin": {
+            "credential_type": "webauthn",
+            "origins": [
+              "https://admin.merkl.ai"
+            ],
+            "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+            "rp_id": "admin.merkl.ai",
+            "user_verification": true
+          },
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.1"
+        },
+        "signature": {
+          "approver_id": "admin",
+          "authenticator_data": "9591888391c5d0dc91276a0b419a67a0fbb20b6aea83c152fcc68698fe4cfe4d0500000001",
+          "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a2275663131644441734a6635766c45527938784d666a41745135594141776c444a58706469417a7743787573222c226f726967696e223a2268747470733a2f2f61646d696e2e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+          "credential_type": "webauthn",
+          "signature": "304502207e34f127e51e3965dc887437c12a776583b710241cfa24e241eb75ef7df7771b022100f3c697019a4ca0d16765a2db430dec1dccfca288270ba6c2406a44319433b94a",
+          "signed_at": "2026-02-01T09:00:00Z"
+        },
+        "signer_public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408"
+      }
+    },
+    {
+      "description": "An otherwise-valid-looking assertion whose approver_id is not 'admin' — the fixed role every admin assertion must name.",
+      "expected_valid": false,
+      "name": "assertion-does-not-name-the-admin-role",
+      "pinned_admin": {
+        "credential_type": "ed25519",
+        "origins": [],
+        "public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6",
+        "user_verification": false
+      },
+      "signed_policy": {
+        "document": {
+          "admin": {
+            "credential_type": "ed25519",
+            "origins": [],
+            "public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6",
+            "user_verification": false
+          },
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": {
+          "approver_id": "mallory",
+          "credential_type": "ed25519",
+          "signature": "db6ce1ece204e7ca24db54ea57946ebc617148024a25029f7787443ed9897d8e0cea1f869aa70c4d7ee3133a37b0c621516d7848d9b6cdb84d669ec11b6c0f0c",
+          "signed_at": "2026-02-01T09:05:00Z"
+        },
+        "signer_public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6"
+      }
+    }
+  ],
+  "description": "SignedPolicy admin signatures: the legacy raw Ed25519 signature over the tagged pre-image, and the newer ApprovalAssertion-shaped signature (Ed25519 or WebAuthn) over the 32-byte policy_hash. verify_policy_signature checks both; the legacy form's policy_hash is byte-identical to every policy signed before this shape existed.",
+  "spec": "docs/RECEIPT-SPEC.md"
+}

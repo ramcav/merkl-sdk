@@ -19,17 +19,22 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Final
+from typing import Any, Final
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 
 from merkl.core.crypto import b64url_encode
-from merkl.core.policy.approvals import ApprovalAssertion
+from merkl.core.intent import IssuedCurrency
+from merkl.core.policy.approvals import ADMIN_APPROVER_ID, ApprovalAssertion
 from merkl.core.policy.document import (
     CREDENTIAL_ED25519,
     CREDENTIAL_WEBAUTHN,
+    AdminCredential,
+    AgentSection,
     ApproverCredential,
+    AssetLimit,
+    PolicyDocument,
 )
 
 FLAG_UP_UV: Final = 0x05
@@ -160,3 +165,109 @@ def check_webauthn_fixture() -> None:
     check = verify_assertion(webauthn_assertion(), WEBAUTHN_CHALLENGE, webauthn_credential())
     if not check.valid:
         raise AssertionError(f"the frozen webauthn fixture no longer verifies: {check.detail}")
+
+
+# --------------------------------------------------------------------------- #
+# A policy document signed by a WebAuthn admin (plan D16, extended)
+# --------------------------------------------------------------------------- #
+#
+# Self-contained on purpose: this document exists only so an admin-signature
+# vector has a real `policy_hash` to sign, and it must never move out from
+# under the frozen signature below just because the receipts fixture's own
+# policy changed shape. Same "frozen quadruple" reasoning as the approvals
+# fixture above — ECDSA signing is randomized, so the signature is computed
+# once and checked by :func:`check_admin_webauthn_fixture` forever after.
+
+ADMIN_WEBAUTHN_SCALAR: Final = (
+    int.from_bytes(hashlib.sha256(b"merkl-vector-key/admin-passkey").digest(), "big")
+    % (P256_ORDER - 1)
+) + 1
+ADMIN_RP_ID: Final = "admin.merkl.ai"
+ADMIN_ORIGIN: Final = "https://admin.merkl.ai"
+ADMIN_SIGNED_AT: Final = "2026-02-01T09:00:00Z"
+
+ADMIN_VECTOR_TREASURY: Final = "rADMINVECTORTREASURY0000000000000000"
+ADMIN_VECTOR_DESTINATION: Final = "rADMINVECTORDEST00000000000000000000"
+ADMIN_VECTOR_ISSUER: Final = "rADMINVECTORISSUER000000000000000000"
+
+ADMIN_WEBAUTHN_SIGNATURE: Final = (
+    "304502207e34f127e51e3965dc887437c12a776583b710241cfa24e241eb75ef7df7771b"
+    "022100f3c697019a4ca0d16765a2db430dec1dccfca288270ba6c2406a44319433b94a"
+)
+"""Computed once with the admin passkey above; frozen so the vectors never change under CI."""
+
+
+def admin_test_document(**overrides: Any) -> PolicyDocument:
+    """A minimal, fully deterministic policy document, for admin-signature vectors only."""
+    fields: dict[str, Any] = {
+        "version": "2026.02.0",
+        "treasury": ADMIN_VECTOR_TREASURY,
+        "rail": "xrpl",
+        "agents": (
+            AgentSection(
+                agent_id="agent-admin-vector",
+                public_key=ed25519_public_hex(ed25519_key("admin-vector-agent")),
+                allowlist_destinations=(ADMIN_VECTOR_DESTINATION,),
+                allowlist_assets=(
+                    IssuedCurrency(code="RLUSD", issuer=ADMIN_VECTOR_ISSUER),
+                ),
+                per_tx_cap=(
+                    AssetLimit(
+                        asset=IssuedCurrency(code="RLUSD", issuer=ADMIN_VECTOR_ISSUER),
+                        amount="500.00",
+                    ),
+                ),
+            ),
+        ),
+        "admin_public_key": ed25519_public_hex(ed25519_key("admin-vector-legacy-admin")),
+    }
+    fields.update(overrides)
+    return PolicyDocument(**fields)
+
+
+def admin_webauthn_credential() -> AdminCredential:
+    return AdminCredential(
+        credential_type=CREDENTIAL_WEBAUTHN,
+        public_key=p256_public_hex(p256_key(ADMIN_WEBAUTHN_SCALAR)),
+        origins=(ADMIN_ORIGIN,),
+        rp_id=ADMIN_RP_ID,
+        user_verification=True,
+    )
+
+
+def admin_webauthn_document() -> PolicyDocument:
+    """The document the frozen admin WebAuthn signature was actually made over."""
+    return admin_test_document(admin_public_key=None, admin=admin_webauthn_credential())
+
+
+def admin_webauthn_assertion(*, signature: str = ADMIN_WEBAUTHN_SIGNATURE) -> ApprovalAssertion:
+    digest = bytes.fromhex(admin_webauthn_document().policy_hash())
+    return ApprovalAssertion(
+        approver_id=ADMIN_APPROVER_ID,
+        credential_type=CREDENTIAL_WEBAUTHN,
+        signature=signature,
+        client_data_json=client_data_json(digest, ADMIN_ORIGIN).hex(),
+        authenticator_data=authenticator_data(ADMIN_RP_ID).hex(),
+        signed_at=ADMIN_SIGNED_AT,
+    )
+
+
+def check_admin_webauthn_fixture() -> None:
+    """Fail loudly if the frozen admin WebAuthn signature no longer verifies."""
+    from merkl.core.policy.approvals import verify_assertion
+
+    document = admin_webauthn_document()
+    digest = bytes.fromhex(document.policy_hash())
+    credential_with_id = ApproverCredential(
+        id=ADMIN_APPROVER_ID,
+        credential_type=CREDENTIAL_WEBAUTHN,
+        public_key=admin_webauthn_credential().public_key,
+        origins=(ADMIN_ORIGIN,),
+        rp_id=ADMIN_RP_ID,
+        user_verification=True,
+    )
+    check = verify_assertion(admin_webauthn_assertion(), digest, credential_with_id)
+    if not check.valid:
+        raise AssertionError(
+            f"the frozen admin webauthn fixture no longer verifies: {check.detail}"
+        )

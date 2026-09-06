@@ -31,8 +31,16 @@ from merkl.core.canonical import JSONObject, JSONValue
 from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference
 from merkl.core.leaf import action_leaf, receipt_leaf
 from merkl.core.merkle import MerkleProof, MerkleTree
-from merkl.core.policy.approvals import ApprovalAssertion, verify_assertion, verify_quorum
+from merkl.core.policy.approvals import (
+    ADMIN_APPROVER_ID,
+    ApprovalAssertion,
+    verify_assertion,
+    verify_policy_signature,
+    verify_quorum,
+)
 from merkl.core.policy.document import (
+    CREDENTIAL_ED25519,
+    AdminCredential,
     AgentSection,
     ApproverCredential,
     AssetLimit,
@@ -537,6 +545,208 @@ def approval_vectors() -> JSONObject:
         ),
         "cases": cases,
         "quorum_cases": quorum_cases,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# 3b. Policy signatures — Ed25519 (legacy and assertion-shaped) and WebAuthn admins
+# --------------------------------------------------------------------------- #
+
+
+def _policy_signature_case(
+    name: str,
+    description: str,
+    signed: SignedPolicy,
+    *,
+    admin_public_key: str | None = None,
+    admin: AdminCredential | None = None,
+    expected_valid: bool,
+) -> JSONObject:
+    valid = verify_policy_signature(signed, admin_public_key=admin_public_key, admin=admin)
+    if valid is not expected_valid:
+        raise AssertionError(
+            f"{name}: expected valid={expected_valid}, verifier said {valid}"
+        )
+    case: JSONObject = {
+        "name": name,
+        "description": description,
+        "signed_policy": signed.to_content(),
+        "expected_valid": expected_valid,
+    }
+    if admin_public_key is not None:
+        case["pinned_admin_public_key"] = admin_public_key
+    if admin is not None:
+        case["pinned_admin"] = admin.to_content()
+    return case
+
+
+def policy_vectors() -> JSONObject:
+    """Admin signatures over a policy document (plan D16, extended).
+
+    Two wire shapes name the same thing: a raw Ed25519 signature over the
+    tagged pre-image (legacy, ``admin_public_key``), or an
+    ``ApprovalAssertion`` — Ed25519 or WebAuthn — over the 32-byte
+    ``policy_hash`` (``admin``). One verification function checks both, and it
+    is the same one an approver's assertion goes through.
+    """
+    fixtures.check_admin_webauthn_fixture()
+    legacy_admin = fixtures.ed25519_key("admin-vector-legacy-admin")
+    legacy_admin_key = fixtures.ed25519_public_hex(legacy_admin)
+    rogue_admin = fixtures.ed25519_key("admin-vector-rogue-admin")
+    rogue_admin_key = fixtures.ed25519_public_hex(rogue_admin)
+    new_admin = fixtures.ed25519_key("admin-vector-new-admin")
+    new_admin_key = fixtures.ed25519_public_hex(new_admin)
+
+    legacy_document = fixtures.admin_test_document(admin_public_key=legacy_admin_key)
+    legacy_signed = SignedPolicy(
+        document=legacy_document,
+        signature=legacy_admin.sign(legacy_document.pre_image()).hex(),
+        signer_public_key=legacy_admin_key,
+    )
+
+    rogue_document = fixtures.admin_test_document(admin_public_key=rogue_admin_key)
+    rogue_signed = SignedPolicy(
+        document=rogue_document,
+        signature=rogue_admin.sign(rogue_document.pre_image()).hex(),
+        signer_public_key=rogue_admin_key,
+    )
+
+    edited_document = fixtures.admin_test_document(
+        admin_public_key=legacy_admin_key, version="2026.02.1"
+    )
+    edited_signed = dataclasses.replace(legacy_signed, document=edited_document)
+
+    ed25519_admin_credential = AdminCredential(
+        credential_type=CREDENTIAL_ED25519, public_key=new_admin_key
+    )
+    ed25519_admin_document = fixtures.admin_test_document(
+        admin_public_key=None, admin=ed25519_admin_credential
+    )
+    ed25519_admin_digest = bytes.fromhex(ed25519_admin_document.policy_hash())
+    ed25519_admin_assertion = ApprovalAssertion(
+        approver_id=ADMIN_APPROVER_ID,
+        credential_type=CREDENTIAL_ED25519,
+        signature=new_admin.sign(ed25519_admin_digest).hex(),
+        signed_at="2026-02-01T09:05:00Z",
+    )
+    ed25519_admin_signed = SignedPolicy(
+        document=ed25519_admin_document,
+        signature=ed25519_admin_assertion.to_content(),
+        signer_public_key=new_admin_key,
+    )
+
+    webauthn_document = fixtures.admin_webauthn_document()
+    webauthn_credential = fixtures.admin_webauthn_credential()
+    webauthn_assertion = fixtures.admin_webauthn_assertion()
+    webauthn_signed = SignedPolicy(
+        document=webauthn_document,
+        signature=webauthn_assertion.to_content(),
+        signer_public_key=webauthn_credential.public_key,
+    )
+
+    webauthn_edited_document = fixtures.admin_test_document(
+        admin_public_key=None, admin=webauthn_credential, version="2026.02.1"
+    )
+    webauthn_edited_signed = dataclasses.replace(
+        webauthn_signed, document=webauthn_edited_document
+    )
+
+    misnamed_assertion = dataclasses.replace(ed25519_admin_assertion, approver_id="mallory")
+    misnamed_signed = SignedPolicy(
+        document=ed25519_admin_document,
+        signature=misnamed_assertion.to_content(),
+        signer_public_key=new_admin_key,
+    )
+
+    cases: list[JSONValue] = [
+        _policy_signature_case(
+            "legacy-ed25519-valid",
+            "The legacy scheme: a raw Ed25519 signature over the tagged pre-image, "
+            "pinned to the admin key the operator actually trusts.",
+            legacy_signed,
+            admin_public_key=legacy_admin_key,
+            expected_valid=True,
+        ),
+        _policy_signature_case(
+            "legacy-ed25519-unpinned-trusts-the-document",
+            "With no admin pinned, the document's own admin_public_key is trusted — "
+            "the same thing an unpinned check has always done.",
+            legacy_signed,
+            expected_valid=True,
+        ),
+        _policy_signature_case(
+            "wrong-admin",
+            "A rogue document nominates its own admin and signs itself; the operator "
+            "pins the real admin key instead. This is the whole point of pinning.",
+            rogue_signed,
+            admin_public_key=legacy_admin_key,
+            expected_valid=False,
+        ),
+        _policy_signature_case(
+            "edited-rule-after-signing",
+            "The signature and signer_public_key are untouched, but the document "
+            "attached to them was edited after signing (the per-tx cap's version "
+            "bumped). The pre-image no longer matches what was actually signed.",
+            edited_signed,
+            admin_public_key=legacy_admin_key,
+            expected_valid=False,
+        ),
+        _policy_signature_case(
+            "ed25519-assertion-admin-valid",
+            "The newer wire shape: an ApprovalAssertion carrying a plain Ed25519 "
+            "signature over policy_hash, not the legacy pre-image scheme — the same "
+            "shape a WebAuthn admin's ceremony produces, just signed differently.",
+            ed25519_admin_signed,
+            admin=ed25519_admin_credential,
+            expected_valid=True,
+        ),
+        _policy_signature_case(
+            "webauthn-admin-valid",
+            "An org signs a policy change with a WebAuthn admin credential from the "
+            "dashboard. The challenge is the 32-byte policy_hash, checked exactly the "
+            "way an approver's assertion is checked.",
+            webauthn_signed,
+            admin=webauthn_credential,
+            expected_valid=True,
+        ),
+        _policy_signature_case(
+            "webauthn-origin-not-allowed",
+            "The same valid assertion, but the operator pins an admin credential "
+            "whose allowed origins do not include the one clientDataJSON names — "
+            "a signature harvested from a phishing page must not count.",
+            webauthn_signed,
+            admin=dataclasses.replace(webauthn_credential, origins=("https://evil.example.com",)),
+            expected_valid=False,
+        ),
+        _policy_signature_case(
+            "webauthn-edited-rule-after-signing",
+            "Same admin, same assertion, but the document was edited after signing: "
+            "policy_hash no longer matches the challenge the passkey actually signed.",
+            webauthn_edited_signed,
+            admin=webauthn_credential,
+            expected_valid=False,
+        ),
+        _policy_signature_case(
+            "assertion-does-not-name-the-admin-role",
+            "An otherwise-valid-looking assertion whose approver_id is not 'admin' — "
+            "the fixed role every admin assertion must name.",
+            misnamed_signed,
+            admin=ed25519_admin_credential,
+            expected_valid=False,
+        ),
+    ]
+
+    return {
+        "description": (
+            "SignedPolicy admin signatures: the legacy raw Ed25519 signature over "
+            "the tagged pre-image, and the newer ApprovalAssertion-shaped signature "
+            "(Ed25519 or WebAuthn) over the 32-byte policy_hash. verify_policy_signature "
+            "checks both; the legacy form's policy_hash is byte-identical to every "
+            "policy signed before this shape existed."
+        ),
+        "spec": SPEC,
+        "admin_challenge": "the 32-byte policy_hash, not the legacy pre-image and not LEFT_pre",
+        "cases": cases,
     }
 
 
@@ -1795,6 +2005,7 @@ def build_all() -> dict[str, JSONObject]:
         "action_leaf.json": action_leaf_vectors(),
         "receipt_leaf.json": receipt_leaf_vectors(),
         "approvals.json": approval_vectors(),
+        "policies.json": policy_vectors(),
         "receipts.json": receipt_vectors(built),
         "verdicts.json": verdict_vectors(built),
         "tampered.json": tampered_vectors(built),

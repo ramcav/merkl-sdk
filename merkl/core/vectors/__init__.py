@@ -21,6 +21,7 @@ VECTOR_FILES: Final[tuple[str, ...]] = (
     "action_leaf.json",
     "receipt_leaf.json",
     "approvals.json",
+    "policies.json",
     "receipts.json",
     "verdicts.json",
     "tampered.json",

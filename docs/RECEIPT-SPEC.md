@@ -462,6 +462,7 @@ implementation.
 | `action_leaf.json` | `merkl-leaf-v1` leaves including unicode, empty fields, unsorted `depends_on`, exponent drift scores |
 | `receipt_leaf.json` | `merkl-receipt-leaf-v1` leaves including a null leaf per name, unicode, key-order pairs, scalars |
 | `approvals.json` | WebAuthn and Ed25519 assertions over a challenge, valid and invalid, plus quorum counting cases |
+| `policies.json` | admin signatures over a policy document — the legacy Ed25519-over-pre-image form and the newer ApprovalAssertion-over-`policy_hash` form (Ed25519 or WebAuthn) — valid and tampered (wrong admin, edited rule after signing, WebAuthn origin not allowed) |
 | `receipts.json` | four complete receipts (allow, deny, escalated-then-approved, and an unattested allow settled on the fake rail) with leaf hashes, halves, root, envelope hash, proofs, disclosure and the full structural verification result |
 | `verdicts.json` | the full reading of each of those receipts — every check, both settlement lines, the level — beside the exact material the verifier was given to reach it |
 | `tampered.json` | receipts and disclosures that must fail, each with the exact set of check names a conforming verifier reports |

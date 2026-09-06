@@ -18,6 +18,10 @@
       "file": "approvals.json"
     },
     {
+      "cases": 9,
+      "file": "policies.json"
+    },
+    {
       "cases": 4,
       "file": "receipts.json"
     },
