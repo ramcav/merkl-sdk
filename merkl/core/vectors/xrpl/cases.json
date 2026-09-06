@@ -135,6 +135,14 @@
       "expect_master_count": 6,
       "expect_quorum": 5,
       "expect_skipped_count": 0,
+      "masters": [
+        "ed061ecb51b5bd62665f5d1a5db1a62af84464bed77e7728235a7a551d4535e717",
+        "edadb6e6f7229f92909e5a6dbaf81ad1ec723d31b676cd8f5f3e926ad043d187c0",
+        "edf5b661ecc615c5c77d55f1b572fac6fe6c7b116eb0a0e3f1dceb9f48932548d0",
+        "edf62907763aad8ed21f7eaf3f36b5264856a375fbb47ce64383eed74847c8da6a",
+        "eda9beab987dcffedcf2067b24cc7b8cf0c210b358a891fe0ed78ec324fbb40adb",
+        "ed20bb134d03b54e3d2e6745775bf41fadf3c276399b1f3623081d7b66d0714e33"
+      ],
       "name": "testnet-unl"
     },
     {

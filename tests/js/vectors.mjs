@@ -33,6 +33,9 @@ export const tamperedVectors = () => load('tampered.json');
 export const attestationCases = () => load('attestation', 'cases.json');
 export const bundleCases = () => load('bundles', 'cases.json');
 export const bundleFile = (name) => load('bundles', name);
+export const xrplCases = () => load('xrpl', 'cases.json');
+export const xrplFixtures = () => load('xrpl', 'fixtures.json');
+export const xrplLedgerFixture = (name) => load('xrpl', name);
 
 /** The trust inputs a case pins, in the shape `verifyAttestation` takes. */
 export function attestationTrust(caseTrust, defaultRootPem) {

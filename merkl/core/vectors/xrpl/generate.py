@@ -204,6 +204,7 @@ def _validation_cases(fixtures: dict[str, Any]) -> list[JSONObject]:
 def _unl_cases(fixtures: dict[str, Any]) -> list[JSONObject]:
     unl = fixtures["unl"]
     reading = pin_validator_list(unl)
+    masters_json: list[JSONValue] = list(reading.masters)
 
     tampered = dict(unl)
     sig = bytearray(bytes.fromhex(tampered["signature"]))
@@ -228,6 +229,7 @@ def _unl_cases(fixtures: dict[str, Any]) -> list[JSONObject]:
             "expect_master_count": len(reading.masters),
             "expect_skipped_count": len(reading.skipped),
             "expect_quorum": reading.quorum(),
+            "masters": masters_json,
         },
         {
             "name": "testnet-unl-forged-top-level-signature",

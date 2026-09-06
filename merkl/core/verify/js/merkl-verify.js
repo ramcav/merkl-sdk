@@ -542,6 +542,147 @@ export async function p256Verify(publicKeyHex, derSignatureHex, message) {
   }
 }
 
+// secp256k1: Web Crypto has no support for this curve (it is not one of the
+// NIST curves browsers implement), so XRPL validator and manifest signatures
+// need a hand-written, constant-time-not-required verifier. Correctness here
+// means agreeing with Python's `cryptography` over the same real testnet
+// signatures — see `merkl/core/vectors/xrpl/cases.json` — and against the
+// standard secp256k1 test vectors in `tests/js/xrpl.test.mjs`.
+const SECP256K1_P = 2n ** 256n - 2n ** 32n - 977n;
+const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
+const SECP256K1_G = [
+  0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798n,
+  0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8n,
+];
+
+function mod(a, m) {
+  const r = a % m;
+  return r >= 0n ? r : r + m;
+}
+
+function modPow(base, exp, m) {
+  let result = 1n;
+  base = mod(base, m);
+  while (exp > 0n) {
+    if (exp & 1n) result = (result * base) % m;
+    exp >>= 1n;
+    base = (base * base) % m;
+  }
+  return result;
+}
+
+/** Extended Euclid. ``m`` is always prime here (the field or the curve order). */
+function modInverse(a, m) {
+  let [oldR, r] = [mod(a, m), m];
+  let [oldS, s] = [1n, 0n];
+  while (r !== 0n) {
+    const q = oldR / r;
+    [oldR, r] = [r, oldR - q * r];
+    [oldS, s] = [s, oldS - q * s];
+  }
+  return mod(oldS, m);
+}
+
+function ecDouble(point) {
+  if (point === null) return null;
+  const [x, y] = point;
+  if (y === 0n) return null;
+  const lambda = mod(3n * x * x * modInverse(2n * y, SECP256K1_P), SECP256K1_P);
+  const x3 = mod(lambda * lambda - 2n * x, SECP256K1_P);
+  return [x3, mod(lambda * (x - x3) - y, SECP256K1_P)];
+}
+
+function ecAdd(p1, p2) {
+  if (p1 === null) return p2;
+  if (p2 === null) return p1;
+  const [x1, y1] = p1;
+  const [x2, y2] = p2;
+  if (x1 === x2) {
+    if (mod(y1 + y2, SECP256K1_P) === 0n) return null;
+    return ecDouble(p1);
+  }
+  const lambda = mod((y2 - y1) * modInverse(x2 - x1, SECP256K1_P), SECP256K1_P);
+  const x3 = mod(lambda * lambda - x1 - x2, SECP256K1_P);
+  return [x3, mod(lambda * (x1 - x3) - y1, SECP256K1_P)];
+}
+
+/** Double-and-add. Not constant-time — this is a verifier, not a signer. */
+function ecScalarMult(k, point) {
+  let result = null;
+  let addend = point;
+  let n = k;
+  while (n > 0n) {
+    if (n & 1n) result = ecAdd(result, addend);
+    addend = ecDouble(addend);
+    n >>= 1n;
+  }
+  return result;
+}
+
+function bytesToBigInt(bytes) {
+  let n = 0n;
+  for (const b of bytes) n = (n << 8n) | BigInt(b);
+  return n;
+}
+
+/** The compressed SEC1 point (0x02/0x03 ‖ X) XRPL's node keys use, decoded and on-curve. */
+function secp256k1DecompressPoint(compressed) {
+  if (!compressed || compressed.length !== 33) return null;
+  const prefix = compressed[0];
+  if (prefix !== 2 && prefix !== 3) return null;
+  const x = bytesToBigInt(compressed.subarray(1));
+  const rhs = mod(((x * x) % SECP256K1_P) * x + 7n, SECP256K1_P);
+  let y = modPow(rhs, (SECP256K1_P + 1n) / 4n, SECP256K1_P);
+  if (mod(y * y, SECP256K1_P) !== rhs) return null;
+  if ((y % 2n === 0n) !== (prefix === 2)) y = SECP256K1_P - y;
+  return [x, y];
+}
+
+/** DER ``SEQUENCE { r INTEGER, s INTEGER }`` as two bigints. ``null`` if malformed. */
+function parseDerToScalars(der) {
+  if (!der || der.length < 8 || der[0] !== 0x30) return null;
+  let i = 1;
+  let len = der[i++];
+  if (len & 0x80) {
+    const n = len & 0x7f;
+    if (n < 1 || n > 2 || i + n > der.length) return null;
+    len = 0;
+    for (let k = 0; k < n; k++) len = (len << 8) | der[i++];
+  }
+  if (i + len !== der.length) return null;
+  const values = [];
+  for (let half = 0; half < 2; half++) {
+    if (der[i++] !== 0x02) return null;
+    const ilen = der[i++];
+    if (ilen === 0 || i + ilen > der.length) return null;
+    values.push(bytesToBigInt(der.subarray(i, i + ilen)));
+    i += ilen;
+  }
+  return i === der.length ? values : null;
+}
+
+/**
+ * ECDSA-secp256k1 verify over an already-hashed 32-byte digest.
+ *
+ * XRPL hashes every object with SHA-512Half before signing, never SHA-256, so
+ * this never hashes anything itself — the caller passes the digest.
+ * ``publicKeyHex`` is the 33-byte compressed point, ``signatureHex`` is DER.
+ */
+export function secp256k1VerifyDigest(publicKeyHex, signatureHex, digest) {
+  const point = secp256k1DecompressPoint(fromHex(publicKeyHex));
+  if (!point) return false;
+  const scalars = parseDerToScalars(fromHex(signatureHex));
+  if (!scalars) return false;
+  const [r, s] = scalars;
+  if (r <= 0n || r >= SECP256K1_N || s <= 0n || s >= SECP256K1_N) return false;
+  const e = mod(bytesToBigInt(digest), SECP256K1_N);
+  const w = modInverse(s, SECP256K1_N);
+  const u1 = mod(e * w, SECP256K1_N);
+  const u2 = mod(r * w, SECP256K1_N);
+  const sum = ecAdd(ecScalarMult(u1, SECP256K1_G), ecScalarMult(u2, point));
+  return sum !== null && mod(sum[0], SECP256K1_N) === r;
+}
+
 // ─── 8. approvals (plan D11, spec section 3.3) ─────────────────────────────
 
 const WEBAUTHN_GET = 'webauthn.get';
@@ -1326,6 +1467,297 @@ export async function verifyAttestation(
   ]);
 }
 
+// ─── 11a. XRPL primitives: SHAMap, STValidation, manifests ─────────────────
+//
+// The counterpart to `merkl/core/verify/xrpl.py`, checked against the same
+// real testnet fixtures in `merkl/core/vectors/xrpl/cases.json`. No base58
+// anywhere — every key this reads comes straight out of a binary field
+// already in raw form. See that module's docstring for the full picture.
+
+const XRPL_TX_NODE_PREFIX = fromHex('534e4400'); // "SND\0"
+const XRPL_INNER_NODE_PREFIX = fromHex('4d494e00'); // "MIN\0"
+const XRPL_VALIDATION_PREFIX = fromHex('56414c00'); // "VAL\0"
+const XRPL_MANIFEST_PREFIX = fromHex('4d414e00'); // "MAN\0"
+const XRPL_ZERO32 = new Uint8Array(32);
+
+/** The VL length prefix XRPL puts before a blob, then the offset just past it. */
+function xrplReadVlLength(data, i) {
+  if (i >= data.length) return null;
+  const b0 = data[i];
+  if (b0 <= 192) return [b0, i + 1];
+  if (b0 <= 240) {
+    if (i + 1 >= data.length) return null;
+    return [193 + (b0 - 193) * 256 + data[i + 1], i + 2];
+  }
+  if (i + 2 >= data.length) return null;
+  return [12481 + (b0 - 241) * 65536 + data[i + 1] * 256 + data[i + 2], i + 3];
+}
+
+function xrplEncodeVl(data) {
+  const n = data.length;
+  if (n <= 192) return concatBytes([new Uint8Array([n]), data]);
+  if (n <= 12480) {
+    const v = n - 193;
+    return concatBytes([new Uint8Array([193 + (v >> 8), v & 0xff]), data]);
+  }
+  if (n <= 918744) {
+    const v = n - 12481;
+    return concatBytes([new Uint8Array([241 + (v >> 16), (v >> 8) & 0xff, v & 0xff]), data]);
+  }
+  throw new Error('blob too long for XRPL VL encoding');
+}
+
+// Only the field types that appear in an STValidation or a manifest (see
+// rippled's SOTemplate for each): fixed-width integers/hashes, VL-encoded
+// blobs and Vector256, and the always-8-byte native (XRP) form of Amount.
+const XRPL_FIXED_WIDTH = { 16: 1, 1: 2, 2: 4, 3: 8, 4: 16, 17: 20, 20: 12, 5: 32, 21: 24, 22: 48, 23: 64 };
+const XRPL_VL_ENCODED = new Set([7, 19]);
+const XRPL_AMOUNT_TYPE = 6;
+
+/** Walk a serialized top-level object into `{typeCode, fieldCode, start, end, valueStart}` spans. */
+function xrplParseFields(data) {
+  const fields = [];
+  let i = 0;
+  const n = data.length;
+  while (i < n) {
+    const start = i;
+    let header = data[i++];
+    let typeCode = header >> 4;
+    let fieldCode = header & 0x0f;
+    if (typeCode === 0) typeCode = data[i++];
+    if (fieldCode === 0) fieldCode = data[i++];
+    let valueStart;
+    if (XRPL_VL_ENCODED.has(typeCode)) {
+      const lenResult = xrplReadVlLength(data, i);
+      if (lenResult === null) throw new Error(`truncated VL length prefix at offset ${start}`);
+      const [length, afterLen] = lenResult;
+      valueStart = afterLen;
+      i = afterLen + length;
+    } else if (typeCode === XRPL_AMOUNT_TYPE) {
+      if (i >= n) throw new Error(`truncated field (${typeCode},${fieldCode}) at offset ${start}`);
+      if ((data[i] & 0x80) !== 0) {
+        throw new Error(
+          `field (${typeCode},${fieldCode}) at offset ${start} is a non-native Amount, which ` +
+            'never appears in a Validation or Manifest object',
+        );
+      }
+      valueStart = i;
+      i += 8;
+    } else {
+      const width = XRPL_FIXED_WIDTH[typeCode];
+      if (width === undefined) {
+        throw new Error(`field (${typeCode},${fieldCode}) at offset ${start} has an unsupported type`);
+      }
+      valueStart = i;
+      i += width;
+    }
+    if (i > n) throw new Error(`field (${typeCode},${fieldCode}) at offset ${start} is truncated`);
+    fields.push({ typeCode, fieldCode, start, end: i, valueStart });
+  }
+  return fields;
+}
+
+/** `data` with the given `[typeCode, fieldCode]` spans excised, order preserved. */
+function xrplSigningPreimage(data, fields, exclude) {
+  const chunks = [];
+  for (const f of fields) {
+    if (!exclude.some(([t, c]) => t === f.typeCode && c === f.fieldCode)) {
+      chunks.push(data.subarray(f.start, f.end));
+    }
+  }
+  return concatBytes(chunks);
+}
+
+function xrplField(fields, data, typeCode, fieldCode) {
+  for (const f of fields) {
+    if (f.typeCode === typeCode && f.fieldCode === fieldCode) return data.subarray(f.valueStart, f.end);
+  }
+  return null;
+}
+
+/** 0xED means Ed25519 (raw message), 0x02/0x03 means secp256k1 (SHA-512Half digest). */
+async function xrplVerifyGeneric(publicKey, signature, message) {
+  if (publicKey.length !== 33) throw new Error(`public key must be 33 bytes, got ${publicKey.length}`);
+  if (publicKey[0] === 0xed) {
+    return (await ed25519Verify(toHex(publicKey.subarray(1)), toHex(signature), message)) === true;
+  }
+  if (publicKey[0] === 2 || publicKey[0] === 3) {
+    return secp256k1VerifyDigest(toHex(publicKey), toHex(signature), await sha512Half(message));
+  }
+  throw new Error(`public key has an unrecognized prefix byte 0x${publicKey[0].toString(16)}`);
+}
+
+/** A transaction-with-metadata SHAMap leaf's hash: `SHA-512Half("SND\0" ‖ VL(tx) ‖ VL(meta) ‖ id)`. */
+async function xrplTxLeafHash(txId, txBlob, metaBlob) {
+  if (txId.length !== 32) throw new Error(`tx id must be 32 bytes, got ${txId.length}`);
+  return sha512Half(
+    concatBytes([XRPL_TX_NODE_PREFIX, xrplEncodeVl(txBlob), xrplEncodeVl(metaBlob), txId]),
+  );
+}
+
+/** A SHAMap inner node's hash: 16 children, empty branches zeroed. */
+async function xrplInnerNodeHash(children) {
+  if (children.length !== 16) throw new Error('a SHAMap inner node has 16 branches');
+  if (children.every((c) => bytesEqual(c, XRPL_ZERO32))) return XRPL_ZERO32;
+  return sha512Half(concatBytes([XRPL_INNER_NODE_PREFIX, ...children]));
+}
+
+/**
+ * Recompute a SHAMap root from a leaf and its path. `null` on anything malformed.
+ *
+ * Recomputes the leaf from the transaction's own raw bytes (so the path is
+ * tied to *this* transaction's content) and folds `steps` leaf-to-root —
+ * see `merkl.core.verify.xrpl.fold_tx_path`, the Python counterpart.
+ */
+export async function xrplFoldTxPath(txIdHex, txBlobHex, metaHex, steps) {
+  try {
+    let current = await xrplTxLeafHash(fromHex(txIdHex), fromHex(txBlobHex), fromHex(metaHex));
+    for (const step of steps) {
+      const nibble = step && step.nibble;
+      const siblings = step && step.siblings;
+      if (!Number.isInteger(nibble) || nibble < 0 || nibble > 15) return null;
+      if (!Array.isArray(siblings) || siblings.length !== 15) return null;
+      const children = new Array(16).fill(XRPL_ZERO32);
+      children[nibble] = current;
+      let idx = 0;
+      for (let branch = 0; branch < 16; branch++) {
+        if (branch === nibble) continue;
+        const sibling = fromHex(siblings[idx++]);
+        if (sibling === null || sibling.length !== 32) return null;
+        children[branch] = sibling;
+      }
+      current = await xrplInnerNodeHash(children);
+    }
+    return toHex(current);
+  } catch {
+    return null;
+  }
+}
+
+/** Fields, `LedgerHash`, `SigningPubKey` and `Signature` — raw bytes. Throws if any is missing. */
+function xrplParseValidation(data) {
+  const fields = xrplParseFields(data);
+  const ledgerHash = xrplField(fields, data, 5, 1); // Hash256 LedgerHash, nth 1
+  const signingKey = xrplField(fields, data, 7, 3); // Blob SigningPubKey, nth 3
+  const signature = xrplField(fields, data, 7, 6); // Blob Signature, nth 6
+  if (ledgerHash === null || signingKey === null || signature === null) {
+    throw new Error('validation is missing LedgerHash, SigningPubKey or Signature');
+  }
+  return { fields, ledgerHash, signingKey, signature };
+}
+
+/** Recompute the signing hash and check `Signature` against `SigningPubKey`. */
+async function xrplVerifyValidation(data) {
+  const { fields, ledgerHash, signingKey, signature } = xrplParseValidation(data);
+  const preimage = xrplSigningPreimage(data, fields, [[7, 6]]);
+  const valid = await xrplVerifyGeneric(
+    signingKey,
+    signature,
+    concatBytes([XRPL_VALIDATION_PREFIX, preimage]),
+  );
+  const ledgerSeq = xrplField(fields, data, 2, 6); // UInt32 LedgerSequence, nth 6
+  return {
+    ledgerHash: toHex(ledgerHash),
+    signingKey: toHex(signingKey),
+    signatureValid: valid,
+    ledgerIndex: ledgerSeq ? Number(bytesToBigInt(ledgerSeq)) : null,
+  };
+}
+
+/** Fields, sequence, master key, ephemeral key, signature, master signature, domain. Throws if malformed. */
+function xrplParseManifest(data) {
+  const fields = xrplParseFields(data);
+  const sequence = xrplField(fields, data, 2, 4); // UInt32 Sequence, nth 4
+  const masterKey = xrplField(fields, data, 7, 1); // Blob PublicKey, nth 1
+  const signingKey = xrplField(fields, data, 7, 3); // Blob SigningPubKey, nth 3
+  const signature = xrplField(fields, data, 7, 6); // Blob Signature, nth 6
+  const masterSignature = xrplField(fields, data, 7, 18); // Blob MasterSignature, nth 18
+  const domain = xrplField(fields, data, 7, 7); // Blob Domain, nth 7 (optional)
+  if (sequence === null || masterKey === null || signingKey === null) {
+    throw new Error('manifest is missing Sequence, PublicKey or SigningPubKey');
+  }
+  if (signature === null || masterSignature === null) {
+    throw new Error('manifest is missing Signature or MasterSignature');
+  }
+  return { fields, sequence, masterKey, signingKey, signature, masterSignature, domain };
+}
+
+/** Recompute the manifest's signing hash and check both signatures against it. */
+async function xrplVerifyManifest(data) {
+  const { fields, sequence, masterKey, signingKey, signature, masterSignature, domain } =
+    xrplParseManifest(data);
+  const preimage = xrplSigningPreimage(data, fields, [
+    [7, 6],
+    [7, 18],
+  ]);
+  const message = concatBytes([XRPL_MANIFEST_PREFIX, preimage]);
+  const masterOk = await xrplVerifyGeneric(masterKey, masterSignature, message);
+  const ephemeralOk = await xrplVerifyGeneric(signingKey, signature, message);
+  return {
+    sequence: Number(bytesToBigInt(sequence)),
+    masterKey: toHex(masterKey),
+    signingKey: toHex(signingKey),
+    domain: domain ? new TextDecoder().decode(domain) : null,
+    masterSignatureValid: masterOk,
+    ephemeralSignatureValid: ephemeralOk,
+    valid: masterOk && ephemeralOk,
+  };
+}
+
+/**
+ * Does this captured validation entry count as a pinned validator's agreement?
+ *
+ * `null` when the entry cannot be attributed to any *pinned* master key —
+ * not evidence either way. See `merkl.core.verify.xrpl.evaluate_validation`,
+ * the Python counterpart this must agree with over the same fixtures.
+ */
+export async function evaluateXrplValidation(entry, ledgerHash, pinnedMasters) {
+  const raw = entry && entry.data;
+  if (typeof raw !== 'string' || !raw) {
+    return { outcome: 'unchecked', masterKey: null, detail: 'the entry carries no raw validation data' };
+  }
+  let validation;
+  try {
+    validation = await xrplVerifyValidation(fromHex(raw));
+  } catch (e) {
+    return { outcome: 'unchecked', masterKey: null, detail: `the validation does not parse: ${e.message}` };
+  }
+  const manifestB64 = entry.manifest;
+  if (typeof manifestB64 !== 'string' || !manifestB64) {
+    return {
+      outcome: 'unchecked',
+      masterKey: null,
+      detail: `no manifest was captured for signing key ${validation.signingKey}`,
+    };
+  }
+  let manifest;
+  try {
+    manifest = await xrplVerifyManifest(fromBase64(manifestB64));
+  } catch (e) {
+    return { outcome: 'unchecked', masterKey: null, detail: `the manifest does not parse: ${e.message}` };
+  }
+  const master = manifest.masterKey.toLowerCase();
+  const pinnedLower = new Set([...pinnedMasters].map((m) => m.toLowerCase()));
+  if (!pinnedLower.has(master)) return null;
+  if (!manifest.valid) {
+    return { outcome: 'unchecked', masterKey: master, detail: `validator ${master}'s manifest does not verify` };
+  }
+  if (manifest.signingKey.toLowerCase() !== validation.signingKey.toLowerCase()) {
+    return {
+      outcome: 'unchecked',
+      masterKey: master,
+      detail: `validator ${master}'s pinned manifest names a different ephemeral key`,
+    };
+  }
+  if (validation.ledgerHash.toLowerCase() !== ledgerHash.toLowerCase()) {
+    return { outcome: 'disagree', masterKey: master, detail: `validator ${master} signed a different ledger hash` };
+  }
+  if (!validation.signatureValid) {
+    return { outcome: 'disagree', masterKey: master, detail: `validator ${master}'s signature does not verify` };
+  }
+  return { outcome: 'agree', masterKey: master, detail: `validator ${master} signed ledger ${ledgerHash}` };
+}
+
 // ─── 12. settlement proofs (plan D20, spec section 7.2) ────────────────────
 
 export const CHECK_PROOF_MATCHES = 'settlement.proof_matches_receipt';
@@ -1396,6 +1828,21 @@ export function fakeValidationMessage(ledgerHash, ledgerIndex) {
 }
 
 export const VALIDATION_MESSAGE_RULES = { [RAIL_FAKE]: fakeValidationMessage };
+
+/** Fold a transaction id up the fake rail's toy binary tree. `null` when malformed. */
+function fakeTxPathRoot(txHashLower, path) {
+  return deriveRoot(txHashLower, path.siblings, path.directions);
+}
+
+/** Fold a transaction up XRPL's real 16-ary SHAMap. `null` when malformed. */
+function xrplTxPathRoot(txHashLower, path) {
+  const { tx_blob: txBlob, tx_meta: txMeta, steps } = path;
+  if (typeof txBlob !== 'string' || typeof txMeta !== 'string' || !Array.isArray(steps)) return null;
+  return xrplFoldTxPath(txHashLower, txBlob, txMeta, steps);
+}
+
+/** Rails whose transaction-set path this verifier can fold back to a root. */
+export const TX_PATH_ROOT_RULES = { [RAIL_FAKE]: fakeTxPathRoot, [RAIL_XRPL]: xrplTxPathRoot };
 
 function validatorId(entry) {
   for (const key of ['validator', 'validation_public_key', 'master_key', 'signing_key']) {
@@ -1474,6 +1921,56 @@ async function ledgerHeaderCheck(proof, rail) {
   ];
 }
 
+/**
+ * Count *pinned master keys* whose manifest-verified ephemeral key signed this ledger.
+ *
+ * Every link is checked by `evaluateXrplValidation`: the manifest's own two
+ * signatures, that its ephemeral key is the one that actually signed this
+ * validation, and that signature itself. A validator nobody pinned returns
+ * `null` and does not count either way.
+ */
+async function xrplQuorumCheck(ledgerHash, trust, entries) {
+  const agreed = new Set();
+  const disagreed = [];
+  let unchecked = 0;
+  for (const entry of entries) {
+    const verdict = await evaluateXrplValidation(entry, ledgerHash, Object.keys(trust.validators));
+    if (verdict === null) continue;
+    if (verdict.outcome === 'agree' && verdict.masterKey !== null) agreed.add(verdict.masterKey);
+    else if (verdict.outcome === 'disagree') disagreed.push(verdict.masterKey || '(unknown)');
+    else unchecked++;
+  }
+  const total = Object.keys(trust.validators).length;
+  if (disagreed.length) {
+    const names = [...new Set(disagreed)].sort().slice(0, 4).join(', ');
+    return check(
+      CHECK_VALIDATOR_QUORUM,
+      FAIL,
+      `${disagreed.length} pinned validator(s) did not sign ${ledgerHash}: ${names}`,
+    );
+  }
+  if (agreed.size >= trust.quorum) {
+    return outcome(
+      CHECK_VALIDATOR_QUORUM,
+      true,
+      `${agreed.size} of ${total} pinned validators signed ledger ${ledgerHash}, quorum is ${trust.quorum}`,
+    );
+  }
+  if (unchecked) {
+    return noData(
+      CHECK_VALIDATOR_QUORUM,
+      `${agreed.size} of ${total} pinned validators verified, ${unchecked} more validation ` +
+        'entries did not carry enough evidence (a raw validation blob and a manifest for it) ' +
+        'to check — agreement counted, not proved',
+    );
+  }
+  return outcome(
+    CHECK_VALIDATOR_QUORUM,
+    false,
+    `${agreed.size} of ${total} pinned validators signed ledger ${ledgerHash}, quorum is ${trust.quorum}`,
+  );
+}
+
 async function validatorQuorumCheck(proof, ledgerHash, trust, rail) {
   if (!trust || !trust.validators || !Object.keys(trust.validators).length) {
     return noData(
@@ -1489,6 +1986,9 @@ async function validatorQuorumCheck(proof, ledgerHash, trust, rail) {
   }
   if (ledgerHash === null) {
     return noData(CHECK_VALIDATOR_QUORUM, 'there is no ledger hash for the validations to agree about');
+  }
+  if (rail === RAIL_XRPL) {
+    return xrplQuorumCheck(ledgerHash, trust, entries);
   }
   const rule = VALIDATION_MESSAGE_RULES[rail];
   const agreed = new Set();
@@ -1575,7 +2075,8 @@ export async function readSettlementProof(
   let pathOk = false;
   let pathDetail = "the proof carries no path from this transaction to the ledger's transaction set";
   if (path && typeof path === 'object' && txRoot !== null) {
-    const derived = await deriveRoot(String(txHash).toLowerCase(), path.siblings, path.directions);
+    const rule = TX_PATH_ROOT_RULES[rail];
+    const derived = rule ? await rule(String(txHash).toLowerCase(), path) : null;
     pathOk = derived !== null && derived.toLowerCase() === txRoot.toLowerCase();
     pathDetail = pathOk
       ? `the transaction folds to the header's transaction root ${txRoot.toLowerCase()}`
