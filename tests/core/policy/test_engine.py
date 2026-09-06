@@ -220,9 +220,7 @@ class TestWindow:
         decision = decide(state=state, amount=Amount(value="200.00", currency=RLUSD))
         assert decision.denied
         assert outcome_of(decision, RULE_WINDOW) == "fail"
-        assert "in-flight" in next(
-            r.detail for r in decision.rules if r.name == RULE_WINDOW
-        )
+        assert "in-flight" in next(r.detail for r in decision.rules if r.name == RULE_WINDOW)
 
     def test_spend_outside_the_window_does_not_count(self) -> None:
         state = view(*(self._entry("800.00", shift_instant(NOW, -90000)) for _ in range(3)))

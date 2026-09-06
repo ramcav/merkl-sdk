@@ -30,7 +30,9 @@ class TestDemoCommand:
         assert Path("merkl-demo") == DEFAULT_OUT
 
     def test_xrpl_without_the_extra_installed_reports_a_clear_error(
-        self, tmp_path: Path, monkeypatch  # type: ignore[no-untyped-def]
+        self,
+        tmp_path: Path,
+        monkeypatch,  # type: ignore[no-untyped-def]
     ) -> None:
         """A missing xrpl/signer-xrpl extra is a clean exit, not a traceback."""
         import merkl.cli.demo as demo_module

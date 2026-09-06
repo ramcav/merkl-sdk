@@ -88,9 +88,10 @@ def test_a_stored_blob_comes_back_base64(tmp_path: Path) -> None:
     server, blobs = control(tmp_path)
     server.answer("store_sealed_key", {"blob": base64.b64encode(b"ciphertext").decode()})
     assert blobs.read(SEALED_KEY_FILE) == b"ciphertext"
-    assert server.answer("sealed_key", {})["result"]["blob"] == base64.b64encode(
-        b"ciphertext"
-    ).decode()
+    assert (
+        server.answer("sealed_key", {})["result"]["blob"]
+        == base64.b64encode(b"ciphertext").decode()
+    )
 
 
 def test_a_state_snapshot_goes_to_its_own_file(tmp_path: Path) -> None:
@@ -101,9 +102,7 @@ def test_a_state_snapshot_goes_to_its_own_file(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("method", ["propose", "sign_tx", "public_key", "", "attestation"])
-def test_the_control_channel_answers_only_its_own_methods(
-    tmp_path: Path, method: str
-) -> None:
+def test_the_control_channel_answers_only_its_own_methods(tmp_path: Path, method: str) -> None:
     """One direction, one dispatch table. The signer's contract is elsewhere."""
     server, _ = control(tmp_path)
     assert "error" in server.answer(method, {})

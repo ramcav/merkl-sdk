@@ -102,22 +102,17 @@ class XrplPayloadCodec:
         found: list[str] = []
         unknown = sorted(set(tx) - ALLOWED_FIELDS)
         if unknown:
-            found.append(
-                f"the transaction carries fields Intent v1 cannot account for: {unknown}"
-            )
+            found.append(f"the transaction carries fields Intent v1 cannot account for: {unknown}")
 
         if tx.get("TransactionType") != PAYMENT:
-            found.append(
-                f"TransactionType is {tx.get('TransactionType')!r}, not {PAYMENT!r}"
-            )
+            found.append(f"TransactionType is {tx.get('TransactionType')!r}, not {PAYMENT!r}")
         if tx.get("Account") != intent.treasury:
             found.append(
                 f"Account is {tx.get('Account')!r}, the intent pays from {intent.treasury!r}"
             )
         if tx.get("Destination") != intent.destination:
             found.append(
-                f"Destination is {tx.get('Destination')!r}, the intent pays "
-                f"{intent.destination!r}"
+                f"Destination is {tx.get('Destination')!r}, the intent pays {intent.destination!r}"
             )
 
         found.extend(self._amount_problems(tx.get("Amount"), intent))
@@ -193,10 +188,7 @@ class XrplPayloadCodec:
         if unknown:
             return [f"the memo carries unexpected members: {unknown}"]
         if str(memo.get("MemoType", "")).upper() != expected_type:
-            return [
-                f"MemoType is {memo.get('MemoType')!r}, not the Merkl anchor "
-                f"({MEMO_TYPE})"
-            ]
+            return [f"MemoType is {memo.get('MemoType')!r}, not the Merkl anchor ({MEMO_TYPE})"]
         if str(memo.get("MemoData", "")).upper() != expected_data:
             return [
                 f"MemoData is {memo.get('MemoData')!r}, the authorization commitment "

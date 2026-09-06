@@ -154,9 +154,7 @@ def build_policy(
     rail: str = "fake",
 ) -> PolicyDocument:
     """The scenario policy. Every knob a scenario needs to turn is a parameter."""
-    windows = (
-        (WindowRule(asset=asset, amount=window[0], seconds=window[1]),) if window else ()
-    )
+    windows = (WindowRule(asset=asset, amount=window[0], seconds=window[1]),) if window else ()
     return PolicyDocument(
         version=POLICY_VERSION,
         treasury=treasury,
@@ -180,9 +178,7 @@ def build_policy(
         tiers=Tiers(
             human=HumanTier(
                 thresholds=(
-                    (AssetLimit(asset=asset, amount=human_threshold),)
-                    if human_threshold
-                    else ()
+                    (AssetLimit(asset=asset, amount=human_threshold),) if human_threshold else ()
                 ),
                 quorum=quorum,
                 expires_seconds=3600,

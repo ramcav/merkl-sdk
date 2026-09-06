@@ -104,8 +104,7 @@ ADMIN_KEY = fixtures.ed25519_public_hex(ADMIN_PRIVATE)
 
 VALIDATOR_PRIVATE = tuple(fixtures.ed25519_key(f"fake-validator-{i}") for i in range(3))
 VALIDATOR_KEYS = {
-    f"validator-{i}": fixtures.ed25519_public_hex(key)
-    for i, key in enumerate(VALIDATOR_PRIVATE)
+    f"validator-{i}": fixtures.ed25519_public_hex(key) for i, key in enumerate(VALIDATOR_PRIVATE)
 }
 
 ALICE_PRIVATE = fixtures.ed25519_key("approver-alice")
@@ -409,8 +408,7 @@ def approval_vectors() -> JSONObject:
         [
             _assertion_case(
                 "ed25519-valid",
-                "An Ed25519 approval signs the raw 32-byte challenge, with no "
-                "envelope around it.",
+                "An Ed25519 approval signs the raw 32-byte challenge, with no envelope around it.",
                 ed_credential,
                 ed_assertion,
                 challenge,
@@ -564,9 +562,7 @@ def _policy_signature_case(
 ) -> JSONObject:
     valid = verify_policy_signature(signed, admin_public_key=admin_public_key, admin=admin)
     if valid is not expected_valid:
-        raise AssertionError(
-            f"{name}: expected valid={expected_valid}, verifier said {valid}"
-        )
+        raise AssertionError(f"{name}: expected valid={expected_valid}, verifier said {valid}")
     case: JSONObject = {
         "name": name,
         "description": description,
@@ -1029,9 +1025,7 @@ def _escalated_receipt(rng: random.Random) -> Receipt:
         outcome="escalate",
         tier="human",
     )
-    challenge = escalation_challenge(
-        _authorization(instruction, intent, escalated, attestation)
-    )
+    challenge = escalation_challenge(_authorization(instruction, intent, escalated, attestation))
     approvals = (
         fixtures.ed25519_assertion(
             approver_id="alice@example.com",
@@ -1344,8 +1338,12 @@ def _xrpl_proof(settlement: Settlement) -> JSONObject:
             }
             for name in ("nHUnvalidator1", "nHUnvalidator2", "nHUnvalidator3")
         ],
-        "captured": ["ledger_header", "validated_transaction_with_metadata",
-                     "validator_validations", "signed_blob"],
+        "captured": [
+            "ledger_header",
+            "validated_transaction_with_metadata",
+            "validator_validations",
+            "signed_blob",
+        ],
         "missing": ["shamap_path"],
     }
 
@@ -1628,8 +1626,7 @@ _UNBACKED_CASES: list[tuple[str, str, dict[str, Any], dict[str, Any], list[str]]
     ),
     (
         "rebuilt-with-an-anchor-that-is-not-left",
-        "The rail carried some other digest. The payment settled, but not this "
-        "authorization.",
+        "The rail carried some other digest. The payment settled, but not this authorization.",
         {"observed_anchor": digest("an anchor from another receipt")},
         {},
         ["settlement.anchor_equals_left"],

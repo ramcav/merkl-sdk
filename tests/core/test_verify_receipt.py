@@ -57,12 +57,8 @@ def _run(case: dict[str, Any], **overrides: Any) -> Any:
 
 
 class TestTheCommittedVerdicts:
-    @pytest.mark.parametrize(
-        "case", VERDICTS["cases"], ids=lambda c: str(c["name"])
-    )
-    def test_the_verdict_matches_the_fixture_byte_for_byte(
-        self, case: dict[str, Any]
-    ) -> None:
+    @pytest.mark.parametrize("case", VERDICTS["cases"], ids=lambda c: str(c["name"]))
+    def test_the_verdict_matches_the_fixture_byte_for_byte(self, case: dict[str, Any]) -> None:
         assert _run(case).to_content() == case["verdict"]
 
 
@@ -93,9 +89,9 @@ class TestTheTwoSettlementLines:
         receipt = copy.deepcopy(BY_NAME["allow-settled"])
         receipt["leaves"][4]["policy_signature"]["signature"] = "00" * 64
         envelope, leaves = receipt_from_content(receipt)
-        verdict = verify_receipt(envelope, leaves, settlement_proof=case["material"][
-            "settlement_proof"
-        ])
+        verdict = verify_receipt(
+            envelope, leaves, settlement_proof=case["material"]["settlement_proof"]
+        )
         assert verdict.transaction_authorization == AUTHORIZATION_CONTRADICTED
         assert not verdict.ok
 
@@ -132,10 +128,7 @@ class TestTheApprovals:
         receipt = BY_NAME["escalated-approved-settled"]
         envelope, leaves = receipt_from_content(receipt)
         verdict = verify_receipt(envelope, leaves)
-        assert (
-            verdict.result.get("policy.approval_quorum").status
-            is CheckStatus.NOT_IMPLEMENTED
-        )
+        assert verdict.result.get("policy.approval_quorum").status is CheckStatus.NOT_IMPLEMENTED
 
     def test_a_policy_that_hashes_elsewhere_is_not_this_receipts_policy(self) -> None:
         case = _case("allow-settled")

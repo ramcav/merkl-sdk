@@ -65,11 +65,15 @@ def serve_command(
     print(f"  state        {state.path} (sequence {state.sequence})")
     print(f"  listening    {where}")
     if relay_tokens:
-        print(f"  relay auth   {len(relay_tokens)} token(s) configured — every method but "
-              "propose now requires one")
+        print(
+            f"  relay auth   {len(relay_tokens)} token(s) configured — every method but "
+            "propose now requires one"
+        )
     else:
-        print("  relay auth   none configured — every method is reachable through the "
-              "transport alone ('merkl signer token add' to change that)")
+        print(
+            "  relay auth   none configured — every method is reachable through the "
+            "transport alone ('merkl signer token add' to change that)"
+        )
     print()
     print("  UNATTESTED SIGNER. No enclave vouches for this key, and every receipt it")
     print("  produces records that as a fact. Do not point real money at it.")

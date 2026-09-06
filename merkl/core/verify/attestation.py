@@ -487,8 +487,7 @@ def _chain(
 
     try:
         chain = tuple(
-            x509.load_der_x509_certificate(der)
-            for der in (*parsed.cabundle, parsed.certificate)
+            x509.load_der_x509_certificate(der) for der in (*parsed.cabundle, parsed.certificate)
         )
     except ValueError as exc:
         return (), Check(CHECK_CHAIN, CheckStatus.FAIL, f"a certificate is not valid DER: {exc}")
@@ -510,8 +509,7 @@ def _chain(
     return chain, outcome(
         CHECK_CHAIN,
         True,
-        f"{len(chain)} certificates from the pinned AWS Nitro root to "
-        f"{_common_name(chain[-1])}",
+        f"{len(chain)} certificates from the pinned AWS Nitro root to {_common_name(chain[-1])}",
     )
 
 
@@ -582,9 +580,7 @@ def _signature_check(chain: Sequence[x509.Certificate], parsed: AttestationDocum
     r = int.from_bytes(parsed.signature[:48], "big")
     s = int.from_bytes(parsed.signature[48:], "big")
     try:
-        key.verify(
-            encode_dss_signature(r, s), parsed.sig_structure(), ec.ECDSA(hashes.SHA384())
-        )
+        key.verify(encode_dss_signature(r, s), parsed.sig_structure(), ec.ECDSA(hashes.SHA384()))
     except InvalidSignature:
         return Check(
             CHECK_SIGNATURE,

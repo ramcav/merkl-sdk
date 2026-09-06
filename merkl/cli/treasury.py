@@ -30,9 +30,7 @@ def init_command(
     try:
         from merkl.adapters.xrpl import TESTNET_JSON_RPC, XrplAdapterError, bootstrap_treasury
     except ImportError:
-        print(
-            "the xrpl extra is not installed: pip install 'merkl-sdk[xrpl]'", file=sys.stderr
-        )
+        print("the xrpl extra is not installed: pip install 'merkl-sdk[xrpl]'", file=sys.stderr)
         return 2
 
     keystore = DevKeystore((home or DEFAULT_HOME) / "keystore")

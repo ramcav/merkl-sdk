@@ -102,14 +102,14 @@ def p256_key(scalar: int) -> ec.EllipticCurvePrivateKey:
 
 def p256_public_hex(key: ec.EllipticCurvePrivateKey) -> str:
     """The uncompressed SEC1 point in hex, which is how a policy stores a passkey."""
-    return key.public_key().public_bytes(
-        serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
-    ).hex()
+    return (
+        key.public_key()
+        .public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+        .hex()
+    )
 
 
-def sign_webauthn(
-    key: ec.EllipticCurvePrivateKey, auth_data: bytes, client_data: bytes
-) -> str:
+def sign_webauthn(key: ec.EllipticCurvePrivateKey, auth_data: bytes, client_data: bytes) -> str:
     """Sign a WebAuthn message. Randomized — use only where determinism is not needed."""
     return key.sign(webauthn_message(auth_data, client_data), ec.ECDSA(hashes.SHA256())).hex()
 
@@ -208,9 +208,7 @@ def admin_test_document(**overrides: Any) -> PolicyDocument:
                 agent_id="agent-admin-vector",
                 public_key=ed25519_public_hex(ed25519_key("admin-vector-agent")),
                 allowlist_destinations=(ADMIN_VECTOR_DESTINATION,),
-                allowlist_assets=(
-                    IssuedCurrency(code="RLUSD", issuer=ADMIN_VECTOR_ISSUER),
-                ),
+                allowlist_assets=(IssuedCurrency(code="RLUSD", issuer=ADMIN_VECTOR_ISSUER),),
                 per_tx_cap=(
                     AssetLimit(
                         asset=IssuedCurrency(code="RLUSD", issuer=ADMIN_VECTOR_ISSUER),

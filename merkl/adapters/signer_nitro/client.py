@@ -126,9 +126,7 @@ class NitroSignerClient(DevSignerClient):
         try:
             raw = base64.b64decode(str(document.get("document", "")), validate=True)
         except (ValueError, TypeError):
-            checks.append(
-                Check(CHECK_PRESENT, CheckStatus.FAIL, "the document is not base64")
-            )
+            checks.append(Check(CHECK_PRESENT, CheckStatus.FAIL, "the document is not base64"))
             return VerificationResult(tuple(checks))
 
         try:

@@ -48,9 +48,7 @@ class TestWritePages:
         assert "merkl verify" in readme
         assert "@merkl/verify" in readme
 
-    async def test_a_fake_rail_page_carries_pinnable_validator_keys(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_a_fake_rail_page_carries_pinnable_validator_keys(self, tmp_path: Path) -> None:
         env = FakeEnvironment(home=tmp_path / "rig")
         results = await run_all(env)
         write_pages(results, tmp_path / "out", rail="fake")

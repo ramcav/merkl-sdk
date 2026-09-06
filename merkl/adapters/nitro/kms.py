@@ -160,9 +160,7 @@ class KmstoolEnclaveKms:
             self._key_id,
         ]
         try:
-            completed = self._run(
-                command, input=payload_b64, capture_output=True, check=False
-            )
+            completed = self._run(command, input=payload_b64, capture_output=True, check=False)
         except OSError as exc:
             raise KmsError(f"cannot run {self._binary}: {exc}") from exc
         if completed.returncode != 0:

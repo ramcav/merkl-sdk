@@ -112,8 +112,10 @@ def test_map_keys_are_ordered_by_their_encoding() -> None:
         | st.integers(min_value=-(2**64), max_value=2**64 - 1)
         | st.binary(max_size=32)
         | st.text(max_size=32),
-        lambda children: st.lists(children, max_size=6)
-        | st.dictionaries(st.integers(-100, 100) | st.text(max_size=8), children, max_size=6),
+        lambda children: (
+            st.lists(children, max_size=6)
+            | st.dictionaries(st.integers(-100, 100) | st.text(max_size=8), children, max_size=6)
+        ),
         max_leaves=20,
     )
 )

@@ -173,9 +173,7 @@ class Decision:
     def to_content(self) -> JSONObject:
         return self.to_leaf().to_content()
 
-    def finalised(
-        self, *, outcome: str, rules: tuple[PolicyRule, ...] | None = None
-    ) -> Decision:
+    def finalised(self, *, outcome: str, rules: tuple[PolicyRule, ...] | None = None) -> Decision:
         """The same decision with a new verdict — an escalation that people resolved."""
         return dataclasses.replace(self, outcome=outcome, rules=rules or self.rules)
 
@@ -254,9 +252,7 @@ def evaluate(
     )
 
 
-def _deny(
-    policy_hash: str, rules: list[PolicyRule], risk_score: RiskScore
-) -> Decision:
+def _deny(policy_hash: str, rules: list[PolicyRule], risk_score: RiskScore) -> Decision:
     return Decision(
         policy_hash=policy_hash,
         rules=tuple(rules),

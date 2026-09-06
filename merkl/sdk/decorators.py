@@ -14,7 +14,8 @@ F = TypeVar("F", bound=Callable[..., Any])
 # ContextVar so concurrent asyncio tasks and sub-agents each see their own
 # active session instead of racing over a module-level global.
 _current_session_var: contextvars.ContextVar[Any] = contextvars.ContextVar(
-    "merkl_current_session", default=None,
+    "merkl_current_session",
+    default=None,
 )
 
 
@@ -107,9 +108,7 @@ def guardrail(
         @functools.wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             session = get_current_session()
-            reason = await _evaluate_guardrail(
-                fn.__name__, check, allowed_tools, args, kwargs
-            )
+            reason = await _evaluate_guardrail(fn.__name__, check, allowed_tools, args, kwargs)
             if reason is not None:
                 if session is not None:
                     await session.record_action(

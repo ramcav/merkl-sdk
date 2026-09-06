@@ -59,8 +59,11 @@ def _trust(count: int = 3, quorum: int = 2) -> ValidatorTrust:
 
 def _read(proof, **kw):
     return read_settlement_proof(
-        proof, rail=kw.pop("rail", "fake"), tx_hash=kw.pop("tx_hash", TX),
-        ledger_index=kw.pop("ledger_index", LEDGER), **kw
+        proof,
+        rail=kw.pop("rail", "fake"),
+        tx_hash=kw.pop("tx_hash", TX),
+        ledger_index=kw.pop("ledger_index", LEDGER),
+        **kw,
     )
 
 
@@ -208,9 +211,7 @@ class TestValidatorQuorum:
             "ledger_index": LEDGER,
             "ledger_hash": ledger_hash,
             "ledger_header": header,
-            "validations": [
-                {"validation_public_key": "validator-0", "ledger_hash": ledger_hash}
-            ],
+            "validations": [{"validation_public_key": "validator-0", "ledger_hash": ledger_hash}],
             "captured": ["ledger_header", "validator_validations"],
             "missing": ["shamap_path"],
         }
@@ -252,9 +253,7 @@ class TestOfflineInclusion:
         proof["ledger_header"]["transaction_hash"] = root
         proof["ledger_header"]["transaction_count"] = 4
         proof["ledger_hash"] = fake_ledger_hash(proof["ledger_header"])
-        proof["validations"] = [
-            v.sign(proof["ledger_hash"], LEDGER) for v in validator_set(3)
-        ]
+        proof["validations"] = [v.sign(proof["ledger_hash"], LEDGER) for v in validator_set(3)]
         proof["tx_path"] = {
             "leaf_index": 0,
             "siblings": [sib1.hex(), sib2.hex()],

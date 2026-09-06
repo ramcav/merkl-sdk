@@ -80,9 +80,7 @@ class TestWebAuthn:
 
     def test_a_freshly_signed_assertion_verifies(self) -> None:
         challenge = hashlib.sha256(b"a different escalation").digest()
-        check = verify_assertion(
-            self._fresh(challenge), challenge, fixtures.webauthn_credential()
-        )
+        check = verify_assertion(self._fresh(challenge), challenge, fixtures.webauthn_credential())
         assert check.valid, check.detail
 
     def test_a_reserialized_client_data_json_breaks_the_signature(self) -> None:

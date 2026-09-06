@@ -339,17 +339,17 @@ def render_index(reports: Sequence[PageReport], *, rail: str) -> str:
     for report in reports:
         readings = "<br>".join(_escape(r.line) for r in report.readings)
         items.append(
-            f"<li><a href=\"{_escape(report.page.name)}\">{_escape(report.result.title)}</a>"
-            f"<div class=\"q\">{_escape(report.result.question)}</div>"
-            f"<div class=\"v\">{readings}</div></li>"
+            f'<li><a href="{_escape(report.page.name)}">{_escape(report.result.title)}</a>'
+            f'<div class="q">{_escape(report.result.question)}</div>'
+            f'<div class="v">{readings}</div></li>'
         )
     return (
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>Merkl — five scenarios</title>"
         f"<style>{_INDEX_CSS}</style></head><body>"
         "<h1>Five things an agent tried to pay for</h1>"
-        f"<p class=\"lede\">Each page is one scenario, run end to end on the "
+        f'<p class="lede">Each page is one scenario, run end to end on the '
         f"<strong>{_escape(rail)}</strong> rail. Open one and check it yourself; "
         "it works offline.</p>"
         "<ol>" + "".join(items) + "</ol>"

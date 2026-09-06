@@ -126,9 +126,7 @@ def _case(
         "document_b64": base64.b64encode(raw).decode(),
         "now": now.isoformat().replace("+00:00", "Z"),
         "trust": {
-            "pcrs": dict[str, JSONValue](
-                {str(i): v for i, v in sorted(trust.pcrs.items())}
-            ),
+            "pcrs": dict[str, JSONValue]({str(i): v for i, v in sorted(trust.pcrs.items())}),
             "root_pem_file": root_file or "aws-nitro-root-g1.pem",
             "max_age_seconds": trust.max_age_seconds,
             "require_production_mode": trust.require_production_mode,
@@ -288,9 +286,7 @@ def build_cases() -> JSONObject:
             "public_key and user_data are exactly what the caller expected.",
             raw=bound_raw,
             now=_at(bound, offset_seconds=30),
-            trust=AttestationTrust(
-                pcrs={0: "00" * 48}, require_production_mode=False
-            ),
+            trust=AttestationTrust(pcrs={0: "00" * 48}, require_production_mode=False),
             expected_public_key=bound_key,
             expected_user_data=bound_user_data,
         ),
@@ -301,9 +297,7 @@ def build_cases() -> JSONObject:
             "receipt.",
             raw=bound_raw,
             now=_at(bound, offset_seconds=30),
-            trust=AttestationTrust(
-                pcrs={0: "00" * 48}, require_production_mode=False
-            ),
+            trust=AttestationTrust(pcrs={0: "00" * 48}, require_production_mode=False),
             expected_public_key=bytes(32),
             expected_user_data=bound_user_data,
         ),
@@ -312,9 +306,7 @@ def build_cases() -> JSONObject:
             "The enclave was running under a different policy than the receipt claims.",
             raw=bound_raw,
             now=_at(bound, offset_seconds=30),
-            trust=AttestationTrust(
-                pcrs={0: "00" * 48}, require_production_mode=False
-            ),
+            trust=AttestationTrust(pcrs={0: "00" * 48}, require_production_mode=False),
             expected_public_key=bound_key,
             expected_user_data=bytes(32),
         ),
@@ -324,9 +316,7 @@ def build_cases() -> JSONObject:
             "intermediates. It is here so a verifier cannot pass by hard-coding one chain.",
             raw=later_raw,
             now=_at(later, offset_seconds=30),
-            trust=AttestationTrust(
-                pcrs={0: "00" * 48}, require_production_mode=False
-            ),
+            trust=AttestationTrust(pcrs={0: "00" * 48}, require_production_mode=False),
         ),
     ]
 

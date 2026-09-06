@@ -39,9 +39,7 @@ POLICY_HASH = "22" * 32
 PINNED = {index: PRODUCTION_PCRS[index].hex() for index in (0, 1, 2, 8)}
 
 
-def leaf3(
-    *, public_key: str = SIGNER_KEY, user_data: str | None = POLICY_HASH
-) -> dict[str, str]:
+def leaf3(*, public_key: str = SIGNER_KEY, user_data: str | None = POLICY_HASH) -> dict[str, str]:
     document = fake_attestation(
         PKI,
         at=AT,
@@ -229,6 +227,4 @@ async def test_assert_attested_does_not_raise_on_an_unasked_check(proxy: str) ->
 async def test_a_stale_attestation_is_refused(proxy: str) -> None:
     async with NitroSignerClient(base_url=proxy) as client:
         with pytest.raises(UnattestedSignerError, match="attestation.timestamp"):
-            await client.assert_attested(
-                trust=trust(), now=AT + datetime.timedelta(hours=1)
-            )
+            await client.assert_attested(trust=trust(), now=AT + datetime.timedelta(hours=1))

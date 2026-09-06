@@ -29,9 +29,7 @@ from merkl.adapters.xrpl import history
 
 pytestmark = pytest.mark.asyncio
 
-FIXTURE = json.loads(
-    (Path(__file__).parent / "fixtures" / "xrpl_account_tx.json").read_text()
-)
+FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "xrpl_account_tx.json").read_text())
 TREASURY = FIXTURE["result"]["account"]
 
 # The two outgoing Payments in the fixture, oldest first by ledger_index.

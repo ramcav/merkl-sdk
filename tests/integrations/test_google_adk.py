@@ -51,6 +51,7 @@ def test_instrument_attaches_callback_when_none():
 def test_instrument_appends_after_existing_list():
     """Merkl records last, so an earlier callback that mutates the response
     is committed as the tool's final output."""
+
     def other_cb(tool, args, ctx, resp):  # noqa: ANN001
         return None
 
@@ -237,9 +238,7 @@ def test_instrument_noop_when_no_client_available(monkeypatch):
     # Lifecycle callbacks installed but no session opens.
     asyncio.run(agent.before_agent_callback(FakeCallbackContext()))
     # Tool recording is a safe no-op.
-    asyncio.run(
-        agent.after_tool_callback[0](FakeTool(name="t"), {}, None, "out")
-    )
+    asyncio.run(agent.after_tool_callback[0](FakeTool(name="t"), {}, None, "out"))
     asyncio.run(agent.after_agent_callback(FakeCallbackContext()))
 
 

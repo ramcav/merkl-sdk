@@ -65,9 +65,7 @@ class LocalSignerClient:
         assertions: Sequence[ApprovalAssertion],
         prepared_tx: JSONObject | None = None,
     ) -> JSONObject:
-        return self._engine.approve(
-            challenge, [a.to_content() for a in assertions], prepared_tx
-        )
+        return self._engine.approve(challenge, [a.to_content() for a in assertions], prepared_tx)
 
     async def reject(
         self,

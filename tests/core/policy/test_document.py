@@ -105,9 +105,7 @@ class TestSignature:
         signed = sign(rogue, key=OTHER)
         assert verify_policy_signature(signed) is True
         assert (
-            verify_policy_signature(
-                signed, admin_public_key=fixtures.ed25519_public_hex(ADMIN)
-            )
+            verify_policy_signature(signed, admin_public_key=fixtures.ed25519_public_hex(ADMIN))
             is False
         )
 
@@ -212,9 +210,7 @@ class TestValidation:
 
     def test_a_webauthn_approver_needs_a_relying_party(self) -> None:
         with pytest.raises(PolicyError, match="rp_id"):
-            ApproverCredential(
-                id="alice", credential_type="webauthn", public_key="04" + "ab" * 64
-            )
+            ApproverCredential(id="alice", credential_type="webauthn", public_key="04" + "ab" * 64)
 
 
 class TestAssetKeys:

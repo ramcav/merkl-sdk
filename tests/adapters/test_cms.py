@@ -124,9 +124,7 @@ def test_padding_is_handled_at_every_block_boundary(
     key, _ = recipient
     plaintext = bytes(range(256)) * 8
     plaintext = plaintext[:size]
-    opened = decrypt_enveloped_data(
-        envelope(recipient, tmp_path, plaintext=plaintext), key
-    )
+    opened = decrypt_enveloped_data(envelope(recipient, tmp_path, plaintext=plaintext), key)
     assert opened == plaintext
 
 
@@ -177,9 +175,19 @@ def test_two_recipients_are_refused(
     # count is checked before the key encryption algorithm is even looked at.
     subprocess.run(
         [
-            str(OPENSSL), "cms", "-encrypt", "-aes-256-cbc",
-            "-binary", "-outform", "DER", "-in", str(source), "-out", str(out),
-            str(first_path), str(second_path),
+            str(OPENSSL),
+            "cms",
+            "-encrypt",
+            "-aes-256-cbc",
+            "-binary",
+            "-outform",
+            "DER",
+            "-in",
+            str(source),
+            "-out",
+            str(out),
+            str(first_path),
+            str(second_path),
         ],
         check=True,
         capture_output=True,
@@ -219,10 +227,22 @@ def test_a_content_type_that_is_not_an_envelope_is_refused(
     source.write_bytes(PLAINTEXT)
     subprocess.run(
         [
-            str(OPENSSL), "cms", "-sign", "-nocerts", "-noattr", "-binary",
-            "-outform", "DER", "-in", str(source), "-out", str(signed),
-            "-signer", str(_certificate_file(recipient, tmp_path)),
-            "-inkey", str(_key_file(recipient, tmp_path)),
+            str(OPENSSL),
+            "cms",
+            "-sign",
+            "-nocerts",
+            "-noattr",
+            "-binary",
+            "-outform",
+            "DER",
+            "-in",
+            str(source),
+            "-out",
+            str(signed),
+            "-signer",
+            str(_certificate_file(recipient, tmp_path)),
+            "-inkey",
+            str(_key_file(recipient, tmp_path)),
         ],
         check=True,
         capture_output=True,

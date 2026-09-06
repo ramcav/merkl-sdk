@@ -49,9 +49,7 @@ async def _escalate(rig: Rig) -> str:
 
 
 class TestReject:
-    async def test_a_signed_rejection_denies_and_records_who_refused(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_a_signed_rejection_denies_and_records_who_refused(self, tmp_path: Path) -> None:
         rig = build_rig(tmp_path)
         challenge = await _escalate(rig)
         assertions = [a.to_content() for a in approvals_for(challenge, at=rig.clock.now())]

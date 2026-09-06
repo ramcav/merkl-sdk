@@ -61,9 +61,7 @@ class TestExitCodes:
         assert "nothing was contradicted" in capsys.readouterr().out
 
     def test_a_tampered_receipt_exits_one(self, tmp_path: Path, capsys: Any) -> None:
-        case = json.loads(
-            (VECTORS_DIR / "tampered.json").read_text()
-        )["cases"][0]
+        case = json.loads((VECTORS_DIR / "tampered.json").read_text())["cases"][0]
         path = tmp_path / "bad.json"
         path.write_text(json.dumps({"envelope": case["envelope"], "leaves": case["leaves"]}))
         assert verify_command(path) == 1

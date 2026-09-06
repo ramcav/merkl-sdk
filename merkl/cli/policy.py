@@ -36,9 +36,11 @@ __all__ = ["sign_command", "show_command"]
 
 
 def _public_hex(key: Ed25519PrivateKey) -> str:
-    return key.public_key().public_bytes(
-        serialization.Encoding.Raw, serialization.PublicFormat.Raw
-    ).hex()
+    return (
+        key.public_key()
+        .public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+        .hex()
+    )
 
 
 def sign_command(
@@ -169,8 +171,10 @@ def show_command(path: Path, *, as_json: bool = False) -> int:
     print()
 
     human = document.tiers.human
-    print(f"tiers: instant (below every threshold), human (quorum {human.quorum} of "
-          f"{len(document.approvers)}, expires {human.expires_seconds}s)")
+    print(
+        f"tiers: instant (below every threshold), human (quorum {human.quorum} of "
+        f"{len(document.approvers)}, expires {human.expires_seconds}s)"
+    )
     for threshold in human.thresholds:
         print(f"  escalates above {threshold.amount} {threshold.key}")
     print()

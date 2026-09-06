@@ -14,12 +14,24 @@ def _write_evidence(tmp_path: Path) -> Path:
     d = tmp_path / "evidence"
     d.mkdir()
     entries = [
-        {"action_id": "aaa-1", "session_id": "sess-1", "tool_name": "Bash",
-         "input": {"command": "ls"}, "output": "x",
-         "input_hash": "0" * 64, "output_hash": "1" * 64},
-        {"action_id": "bbb-2", "session_id": "sess-1", "tool_name": "Read",
-         "input": {"file": "f"}, "output": "y",
-         "input_hash": "2" * 64, "output_hash": "3" * 64},
+        {
+            "action_id": "aaa-1",
+            "session_id": "sess-1",
+            "tool_name": "Bash",
+            "input": {"command": "ls"},
+            "output": "x",
+            "input_hash": "0" * 64,
+            "output_hash": "1" * 64,
+        },
+        {
+            "action_id": "bbb-2",
+            "session_id": "sess-1",
+            "tool_name": "Read",
+            "input": {"file": "f"},
+            "output": "y",
+            "input_hash": "2" * 64,
+            "output_hash": "3" * 64,
+        },
     ]
     with open(d / "sess-1.jsonl", "w") as f:
         for e in entries:

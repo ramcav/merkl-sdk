@@ -25,17 +25,20 @@ def _settings(tmp_path: Path) -> dict:
 def test_install_uses_sys_executable(project_dir: Path) -> None:
     _install_claude_code(api_key="mk_test")
     cmd = _settings(project_dir)["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
-    assert sys.executable in cmd            # never bare "python"
-    assert "MERKL_API_KEY=mk_test" in cmd   # key baked in
-    assert "MERKL_ENDPOINT" not in cmd      # default endpoint stays hardcoded
+    assert sys.executable in cmd  # never bare "python"
+    assert "MERKL_API_KEY=mk_test" in cmd  # key baked in
+    assert "MERKL_ENDPOINT" not in cmd  # default endpoint stays hardcoded
 
 
 def test_install_registers_all_events(project_dir: Path) -> None:
     _install_claude_code(api_key="mk_test")
     events = set(_settings(project_dir)["hooks"].keys())
     assert events == {
-        "PostToolUse", "SessionEnd", "UserPromptSubmit",
-        "PermissionRequest", "PermissionDenied",
+        "PostToolUse",
+        "SessionEnd",
+        "UserPromptSubmit",
+        "PermissionRequest",
+        "PermissionDenied",
     }
 
 

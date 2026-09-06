@@ -138,14 +138,18 @@ def _uninstall_claude_code(global_: bool = False) -> None:
 
     removed_any = False
     for event in (
-        "PostToolUse", "SessionEnd", "UserPromptSubmit",
-        "PermissionRequest", "PermissionDenied",
+        "PostToolUse",
+        "SessionEnd",
+        "UserPromptSubmit",
+        "PermissionRequest",
+        "PermissionDenied",
     ):
         bucket = hooks.get(event, [])
         new_matchers = []
         for matcher in bucket:
             new_hooks = [
-                h for h in matcher.get("hooks", [])
+                h
+                for h in matcher.get("hooks", [])
                 if "merkl.hooks.claude_code" not in h.get("command", "")
             ]
             if len(new_hooks) < len(matcher.get("hooks", [])):
@@ -230,7 +234,7 @@ def main() -> None:
         p.add_argument(
             "--relay-token",
             help="Relay bearer token (default: $MERKL_RELAY_TOKEN). Only needed once the "
-            "signer has relay tokens configured (docs/SIGNER-RPC.md, \"Who may call what\")",
+            'signer has relay tokens configured (docs/SIGNER-RPC.md, "Who may call what")',
         )
 
     # reconcile
@@ -262,11 +266,13 @@ def main() -> None:
         help="Write to ~/.claude/settings.json instead of .claude/settings.json",
     )
     install_p.add_argument(
-        "--api-key", default=None,
+        "--api-key",
+        default=None,
         help="API key to bake into the hook (default: $MERKL_API_KEY, else prompt)",
     )
     install_p.add_argument(
-        "--endpoint", default=None,
+        "--endpoint",
+        default=None,
         help="Self-hosted API URL (default: api.merkl.ai, hardcoded in the hook)",
     )
 
@@ -290,15 +296,15 @@ def main() -> None:
     )
     disclose_p.add_argument("action_id", help="Action to disclose (from dashboard or API)")
     disclose_p.add_argument(
-        "--evidence-dir", type=Path, default=None,
+        "--evidence-dir",
+        type=Path,
+        default=None,
         help="Evidence directory (default: $MERKL_EVIDENCE_DIR or ~/.merkl/evidence)",
     )
     disclose_p.add_argument(
         "--endpoint", default=None, help="Merkl API base URL (default: $MERKL_ENDPOINT)"
     )
-    disclose_p.add_argument(
-        "--api-key", default=None, help="API key (default: $MERKL_API_KEY)"
-    )
+    disclose_p.add_argument("--api-key", default=None, help="API key (default: $MERKL_API_KEY)")
     disclose_p.add_argument(
         "--out", type=Path, default=None, help="Output folder (default: ./disclosure-<id>)"
     )
@@ -333,7 +339,7 @@ def main() -> None:
     )
 
     token_p = signer_sub.add_parser(
-        "token", help="Manage relay bearer tokens (docs/SIGNER-RPC.md, \"Who may call what\")"
+        "token", help='Manage relay bearer tokens (docs/SIGNER-RPC.md, "Who may call what")'
     )
     token_sub = token_p.add_subparsers(dest="token_command", metavar="<subcommand>")
     token_add_p = token_sub.add_parser("add", help="Register a new relay token; prints it once")
@@ -401,9 +407,7 @@ def main() -> None:
     policy_show_p = policy_sub.add_parser(
         "show", help="Render a policy document (signed or bare) in words"
     )
-    policy_show_p.add_argument(
-        "document", type=Path, help="A PolicyDocument or SignedPolicy JSON"
-    )
+    policy_show_p.add_argument("document", type=Path, help="A PolicyDocument or SignedPolicy JSON")
     policy_show_p.add_argument(
         "--json", dest="as_json", action="store_true", help="Structured output"
     )
@@ -420,9 +424,7 @@ def main() -> None:
         action="store_true",
         help="Also run against XRPL testnet (or set MERKL_XRPL_TESTNET=1)",
     )
-    demo_p.add_argument(
-        "--no-node", action="store_true", help="Skip the JavaScript verifier"
-    )
+    demo_p.add_argument("--no-node", action="store_true", help="Skip the JavaScript verifier")
 
     args = parser.parse_args()
 
@@ -519,9 +521,7 @@ def main() -> None:
         from merkl.cli.policy import show_command, sign_command
 
         if args.policy_command == "sign":
-            raise SystemExit(
-                sign_command(args.document, key_path=args.key_path, out=args.out)
-            )
+            raise SystemExit(sign_command(args.document, key_path=args.key_path, out=args.out))
         if args.policy_command == "show":
             raise SystemExit(show_command(args.document, as_json=args.as_json))
         policy_p.print_help()
@@ -549,9 +549,7 @@ def main() -> None:
     elif args.command == "demo":
         from merkl.cli.demo import demo_command
 
-        raise SystemExit(
-            demo_command(out=args.out, xrpl=args.xrpl_testnet, node=not args.no_node)
-        )
+        raise SystemExit(demo_command(out=args.out, xrpl=args.xrpl_testnet, node=not args.no_node))
     elif args.command == "disclose":
         from merkl.cli.disclose import disclose
 

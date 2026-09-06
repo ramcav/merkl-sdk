@@ -444,9 +444,7 @@ def verify_evidence(
     readings: list[EvidenceReading] = []
     for record in records:
         if not isinstance(record, Mapping):
-            readings.append(
-                EvidenceReading("", "(unparseable line)", "bad", "not valid JSON")
-            )
+            readings.append(EvidenceReading("", "(unparseable line)", "bad", "not valid JSON"))
             continue
         action_id = str(record.get("action_id", ""))
         hit = by_id.get(action_id)
@@ -527,9 +525,9 @@ def verify_log_bundle(
     session = bundle.get("session") if isinstance(bundle.get("session"), Mapping) else {}
     root = str(session.get("root_hash", "")) if session else ""
     raw_actions = bundle.get("actions")
-    actions = [a for a in raw_actions if isinstance(a, Mapping)] if isinstance(
-        raw_actions, list
-    ) else []
+    actions = (
+        [a for a in raw_actions if isinstance(a, Mapping)] if isinstance(raw_actions, list) else []
+    )
 
     readings = tuple(_read_action(i, a, root) for i, a in enumerate(actions))
     checks: list[Check] = []
@@ -563,9 +561,7 @@ def verify_log_bundle(
     if isinstance(continuation, Mapping):
         checks.append(continuation_reading(continuation))
     else:
-        checks.append(
-            no_data(CHECK_CONTINUATION, "this session did not continue another one")
-        )
+        checks.append(no_data(CHECK_CONTINUATION, "this session did not continue another one"))
 
     audit = bundle.get("audit_log")
     if isinstance(audit, Mapping):
@@ -580,9 +576,7 @@ def verify_log_bundle(
         ok, detail = verify_log_inclusion(inclusion)
         checks.append(outcome(CHECK_LOG_INCLUSION, ok, detail))
     else:
-        checks.append(
-            no_data(CHECK_LOG_INCLUSION, "this bundle carries no log inclusion proof")
-        )
+        checks.append(no_data(CHECK_LOG_INCLUSION, "this bundle carries no log inclusion proof"))
 
     checkpoint = transparency.get("checkpoint")
     if isinstance(checkpoint, Mapping):

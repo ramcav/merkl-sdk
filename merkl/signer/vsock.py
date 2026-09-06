@@ -205,9 +205,7 @@ class VsockRpcClient:
     to see a restart.
     """
 
-    def __init__(
-        self, *, cid: int = 0, port: int = DEFAULT_PORT, timeout: float = 30.0
-    ) -> None:
+    def __init__(self, *, cid: int = 0, port: int = DEFAULT_PORT, timeout: float = 30.0) -> None:
         self._cid = cid
         self._port = port
         self._timeout = timeout

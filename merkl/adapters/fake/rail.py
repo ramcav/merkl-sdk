@@ -245,9 +245,7 @@ class FakeSettlementAdapter:
         if parse_decimal(self._ledger.balance(account, asset), "balance") < parse_decimal(
             value, "value"
         ):
-            raise FakeRailError(
-                f"{account} does not hold {value} {asset}", "tecUNFUNDED_PAYMENT"
-            )
+            raise FakeRailError(f"{account} does not hold {value} {asset}", "tecUNFUNDED_PAYMENT")
 
         self._ledger.ledger_index += 1
         close_time = self._clock.now()  # type: ignore[attr-defined]

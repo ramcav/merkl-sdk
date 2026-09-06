@@ -276,9 +276,7 @@ def test_a_stale_document_fails_freshness_and_nothing_else() -> None:
 def test_a_debug_enclave_is_refused_by_default() -> None:
     entry = DOCUMENTS["debug-with-bindings"]
     raw = base64.b64decode(entry["document_b64"])
-    at = datetime.datetime.fromtimestamp(
-        entry["observed"]["timestamp_ms"] / 1000, datetime.UTC
-    )
+    at = datetime.datetime.fromtimestamp(entry["observed"]["timestamp_ms"] / 1000, datetime.UTC)
     result = verify_attestation(
         raw, trust=AttestationTrust(pcrs={0: "00" * 48}), now=at + datetime.timedelta(seconds=5)
     )
@@ -291,9 +289,7 @@ def test_a_debug_enclave_is_refused_by_default() -> None:
 def test_the_receipt_bindings_hold_against_real_attested_values() -> None:
     entry = DOCUMENTS["debug-with-bindings"]
     raw = base64.b64decode(entry["document_b64"])
-    at = datetime.datetime.fromtimestamp(
-        entry["observed"]["timestamp_ms"] / 1000, datetime.UTC
-    )
+    at = datetime.datetime.fromtimestamp(entry["observed"]["timestamp_ms"] / 1000, datetime.UTC)
     trust = AttestationTrust(pcrs={0: "00" * 48}, require_production_mode=False)
     key = bytes.fromhex(entry["observed"]["public_key_hex"])
     user_data = bytes.fromhex(entry["observed"]["user_data_hex"])

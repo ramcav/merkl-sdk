@@ -83,9 +83,7 @@ class FakeRunner:
     def __call__(self, command: list[str], **kwargs: Any) -> Any:
         self.command = command
         self.stdin = kwargs.get("input")
-        return subprocess.CompletedProcess(
-            command, self.returncode, self.stdout, self.stderr
-        )
+        return subprocess.CompletedProcess(command, self.returncode, self.stdout, self.stderr)
 
 
 def kmstool(runner: FakeRunner) -> KmstoolEnclaveKms:

@@ -99,9 +99,7 @@ class SignerPort(Protocol):
         """Evaluate a signed agent request (D15) and return a decision result."""
         ...
 
-    async def approve(
-        self, challenge: str, assertions: Sequence[ApprovalAssertion]
-    ) -> JSONValue:
+    async def approve(self, challenge: str, assertions: Sequence[ApprovalAssertion]) -> JSONValue:
         """Resolve an escalation with collected approvals (plan D11)."""
         ...
 

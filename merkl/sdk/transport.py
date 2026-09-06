@@ -74,9 +74,7 @@ class AsyncTransport:
         """Send a GET request with retry logic."""
         return await self._request("GET", path, {})
 
-    async def _request(
-        self, method: str, path: str, json: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _request(self, method: str, path: str, json: dict[str, Any]) -> dict[str, Any]:
         client = await self._get_client()
         last_exc: Exception | None = None
 
@@ -108,7 +106,11 @@ class AsyncTransport:
                     wait = self._backoff_factor * (2**attempt)
                     logger.warning(
                         "Request to %s failed (attempt %d/%d), retrying in %.1fs: %s",
-                        path, attempt + 1, self._max_retries + 1, wait, e,
+                        path,
+                        attempt + 1,
+                        self._max_retries + 1,
+                        wait,
+                        e,
                     )
                     await asyncio.sleep(wait)
 

@@ -54,6 +54,7 @@ from merkl.shared.hashing import canonical_hash
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _sha256(data: object) -> str:
     return canonical_hash(data).hex()
 
@@ -114,6 +115,7 @@ _MAX_DATAFLOW_ENTRIES = 50
 # HookState — single JSON file per Claude Code session
 # ---------------------------------------------------------------------------
 
+
 @dataclasses.dataclass
 class HookState:
     """All per-Claude-session scratch state the hook needs.
@@ -166,18 +168,18 @@ class HookState:
         to a blank state, and opens a duplicate session.
         """
         path = self._path(self.claude_session_id)
-        payload = json.dumps({
-            "session_id": self.session_id,
-            "turn_id": self.turn_id,
-            "current_actions": self.current_actions,
-            "prev_actions": self.prev_actions,
-            "dataflow": self.dataflow,
-            "last_task_action_id": self.last_task_action_id,
-        })
+        payload = json.dumps(
+            {
+                "session_id": self.session_id,
+                "turn_id": self.turn_id,
+                "current_actions": self.current_actions,
+                "prev_actions": self.prev_actions,
+                "dataflow": self.dataflow,
+                "last_task_action_id": self.last_task_action_id,
+            }
+        )
         try:
-            fd, tmp = tempfile.mkstemp(
-                dir=str(path.parent), prefix=path.name, suffix=".tmp"
-            )
+            fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name, suffix=".tmp")
         except OSError:
             return
         try:
@@ -608,11 +610,7 @@ def _current_turn_id(transcript_path: str | None) -> str | None:
             content = msg.get("content") or msg.get("message", {}).get("content")
             role = msg.get("role") or msg.get("message", {}).get("role")
             if role == "assistant" and isinstance(content, list):
-                ids = [
-                    blk.get("id", "")
-                    for blk in content
-                    if blk.get("type") == "tool_use"
-                ]
+                ids = [blk.get("id", "") for blk in content if blk.get("type") == "tool_use"]
                 if ids:
                     return "|".join(ids)
     except Exception:
@@ -623,6 +621,7 @@ def _current_turn_id(transcript_path: str | None) -> str | None:
 # ---------------------------------------------------------------------------
 # Session management
 # ---------------------------------------------------------------------------
+
 
 def _resolve_parent_task_action_id(parent_claude_session_id: str | None) -> str | None:
     """Look up the parent's last Task action_id from their HookState."""
@@ -714,7 +713,9 @@ def _post_action(
     try:
         resp = httpx.post(
             f"{endpoint}/v1/sessions/{session_id}/actions",
-            json=body, headers=headers, timeout=5.0,
+            json=body,
+            headers=headers,
+            timeout=5.0,
         )
     except Exception as exc:
         _debug(f"action POST to {endpoint} failed: {exc}")
@@ -729,8 +730,13 @@ def _post_action(
         state.dataflow = {}
         state.last_task_action_id = None
         fresh = _ensure_session(
-            endpoint, api_key, body.get("agent_id", "claude-code"), state,
-            transcript_path, parent_claude_session_id, goal_hint=goal_hint,
+            endpoint,
+            api_key,
+            body.get("agent_id", "claude-code"),
+            state,
+            transcript_path,
+            parent_claude_session_id,
+            goal_hint=goal_hint,
         )
         if not fresh:
             return None, None
@@ -739,16 +745,16 @@ def _post_action(
         try:
             resp = httpx.post(
                 f"{endpoint}/v1/sessions/{session_id}/actions",
-                json=body, headers=headers, timeout=5.0,
+                json=body,
+                headers=headers,
+                timeout=5.0,
             )
         except Exception as exc:
             _debug(f"action POST retry to {endpoint} failed: {exc}")
             return session_id, None
 
     if not resp.is_success:
-        _debug(
-            f"action rejected by {endpoint}: HTTP {resp.status_code} {resp.text[:200]}"
-        )
+        _debug(f"action rejected by {endpoint}: HTTP {resp.status_code} {resp.text[:200]}")
         return session_id, None
     return session_id, resp.json().get("action_id") or None
 
@@ -756,6 +762,7 @@ def _post_action(
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def _record_event_action(
     *,
@@ -824,7 +831,10 @@ def _record_event_action(
 
 
 def _record_user_prompt(
-    endpoint: str, api_key: str, agent_id: str, payload: dict,
+    endpoint: str,
+    api_key: str,
+    agent_id: str,
+    payload: dict,
 ) -> None:
     """UserPromptSubmit → human_input leaf. The instruction becomes part of
     the committed record, so 'the agent did this unprompted' vs 'the user
@@ -835,16 +845,23 @@ def _record_user_prompt(
     claude_session_id: str = payload.get("session_id", "unknown")
     state = HookState.load(claude_session_id)
     session_id = _ensure_session(
-        endpoint, api_key, agent_id, state,
-        payload.get("transcript_path"), payload.get("parent_session_id"),
+        endpoint,
+        api_key,
+        agent_id,
+        state,
+        payload.get("transcript_path"),
+        payload.get("parent_session_id"),
         goal_hint=prompt,
     )
     if not session_id:
         return
     verbose = _previews_enabled()
     _record_event_action(
-        endpoint=endpoint, api_key=api_key, agent_id=agent_id,
-        state=state, session_id=session_id,
+        endpoint=endpoint,
+        api_key=api_key,
+        agent_id=agent_id,
+        state=state,
+        session_id=session_id,
         action_type="human_input",
         tool_name="user_prompt",
         display_name=prompt.split("\n")[0][:72] if verbose else "User prompt",
@@ -860,7 +877,11 @@ def _record_user_prompt(
 
 
 def _record_permission_event(
-    endpoint: str, api_key: str, agent_id: str, event: str, payload: dict,
+    endpoint: str,
+    api_key: str,
+    agent_id: str,
+    event: str,
+    payload: dict,
 ) -> None:
     """PermissionRequest / PermissionDenied → approval_request leaf.
 
@@ -876,13 +897,14 @@ def _record_permission_event(
     tool = str(payload.get("tool_name", "unknown"))
     denied = event == "PermissionDenied"
     _record_event_action(
-        endpoint=endpoint, api_key=api_key, agent_id=agent_id,
-        state=state, session_id=state.session_id,
+        endpoint=endpoint,
+        api_key=api_key,
+        agent_id=agent_id,
+        state=state,
+        session_id=state.session_id,
         action_type="approval_request",
         tool_name=tool,
-        display_name=(
-            f"Permission denied: {tool}" if denied else f"Permission requested: {tool}"
-        ),
+        display_name=(f"Permission denied: {tool}" if denied else f"Permission requested: {tool}"),
         input_data={"tool_name": tool, "tool_input": payload.get("tool_input", {})},
         output_data={"decision": "denied" if denied else "requested"},
         guardrail_result="blocked" if denied else "pending_approval",
@@ -895,7 +917,9 @@ def _record_permission_event(
 
 
 def _seal_session_on_exit(
-    endpoint: str, api_key: str, claude_session_id: str,
+    endpoint: str,
+    api_key: str,
+    claude_session_id: str,
     transcript_path: str | None = None,
 ) -> None:
     """On SessionEnd, commit the full transcript and seal the session.
@@ -913,8 +937,11 @@ def _seal_session_on_exit(
         if transcript_path and Path(transcript_path).exists():
             digest = _sha256_file(Path(transcript_path))
             _record_event_action(
-                endpoint=endpoint, api_key=api_key, agent_id=agent_id,
-                state=state, session_id=state.session_id,
+                endpoint=endpoint,
+                api_key=api_key,
+                agent_id=agent_id,
+                state=state,
+                session_id=state.session_id,
                 action_type="transcript",
                 tool_name="session_transcript",
                 display_name="Session transcript",
@@ -965,9 +992,7 @@ def main() -> None:
     claude_session_id: str = payload.get("session_id", "unknown")
 
     if event == "SessionEnd":
-        _seal_session_on_exit(
-            endpoint, api_key, claude_session_id, payload.get("transcript_path")
-        )
+        _seal_session_on_exit(endpoint, api_key, claude_session_id, payload.get("transcript_path"))
         _gc_state_files()
         return
 
@@ -989,7 +1014,12 @@ def main() -> None:
     state = HookState.load(claude_session_id)
 
     session_id = _ensure_session(
-        endpoint, api_key, agent_id, state, transcript_path, parent_claude_session_id,
+        endpoint,
+        api_key,
+        agent_id,
+        state,
+        transcript_path,
+        parent_claude_session_id,
     )
     if not session_id:
         return

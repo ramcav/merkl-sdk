@@ -327,9 +327,7 @@ class TestCodecResolution:
         with pytest.raises(CodecUnavailable, match="no payload codec"):
             codec_for("solana")
 
-    async def test_the_signer_refuses_to_serve_a_rail_it_cannot_read(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_the_signer_refuses_to_serve_a_rail_it_cannot_read(self, tmp_path: Path) -> None:
         from merkl.signer.engine import SignerEngine
         from merkl.signer.keystore import DevKeystore
         from merkl.signer.state import SealedStateStore
@@ -341,14 +339,10 @@ class TestCodecResolution:
         with pytest.raises(CodecUnavailable):
             SignerEngine(policy=sign_policy(policy), keystore=keystore, state=state)
 
-    async def test_a_policy_for_another_rail_is_refused_at_propose(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_a_policy_for_another_rail_is_refused_at_propose(self, tmp_path: Path) -> None:
         rig = build_rig(tmp_path)
         intent = rig.intent()
-        unsigned = dataclasses.replace(
-            lying_tx(intent), rail="xrpl", fields=honest_fields(intent)
-        )
+        unsigned = dataclasses.replace(lying_tx(intent), rail="xrpl", fields=honest_fields(intent))
         from merkl.signer.engine import SignerError
 
         with pytest.raises(SignerError, match="not the intent's"):

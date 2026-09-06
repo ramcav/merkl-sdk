@@ -101,19 +101,26 @@ class TestSessionContext:
         transport = _ServerDrivenSuccessor()
         ctx = SessionContext(
             transport=transport,  # type: ignore[arg-type]
-            agent_id="agent-1", goal="T", allowed_tools=[],
-            data_scope=[], policy_reference="p1",
+            agent_id="agent-1",
+            goal="T",
+            allowed_tools=[],
+            data_scope=[],
+            policy_reference="p1",
         )
         async with ctx:
             assert ctx.session_id == "sess-1"
             r1 = await ctx.record_action(
-                tool_name="t", input_data="i1", output_data="o1",
+                tool_name="t",
+                input_data="i1",
+                output_data="o1",
             )
             assert r1["session_id"] == "sess-1"
             assert ctx.session_id == "sess-1"
 
             r2 = await ctx.record_action(
-                tool_name="t", input_data="i2", output_data="o2",
+                tool_name="t",
+                input_data="i2",
+                output_data="o2",
             )
             assert r2["session_id"] == "sess-2"
             # SDK followed the server's route
@@ -147,9 +154,7 @@ class TestSessionContext:
         )
         async with ctx:
             for _ in range(5):
-                await ctx.record_action(
-                    tool_name="t", input_data="", output_data=""
-                )
+                await ctx.record_action(tool_name="t", input_data="", output_data="")
         assert ctx.action_count == 5
 
     @pytest.mark.asyncio
@@ -226,7 +231,6 @@ class TestSessionContextV2:
         assert payload["category"] == "data_access"
 
 
-
 class TestWorkspaceExternalId:
     @pytest.mark.asyncio
     async def test_workspace_external_id_sent_when_provided(self) -> None:
@@ -268,13 +272,20 @@ class TestPrivacyKnobs:
         transport = MockTransport()
         ctx = SessionContext(
             transport=transport,  # type: ignore[arg-type]
-            agent_id="a", goal="g", allowed_tools=[], data_scope=[], policy_reference="p",
+            agent_id="a",
+            goal="g",
+            allowed_tools=[],
+            data_scope=[],
+            policy_reference="p",
             include_previews=False,
         )
         async with ctx:
             await ctx.record_action(
-                tool_name="t", input_data="secret", output_data="reply",
-                input_preview="secret", output_preview="reply",
+                tool_name="t",
+                input_data="secret",
+                output_data="reply",
+                input_preview="secret",
+                output_preview="reply",
             )
         action_req = [r for r in transport.requests if "actions" in r[0]][0]
         assert action_req[1]["input_preview"] == ""
@@ -285,13 +296,20 @@ class TestPrivacyKnobs:
         transport = MockTransport()
         ctx = SessionContext(
             transport=transport,  # type: ignore[arg-type]
-            agent_id="a", goal="g", allowed_tools=[], data_scope=[], policy_reference="p",
+            agent_id="a",
+            goal="g",
+            allowed_tools=[],
+            data_scope=[],
+            policy_reference="p",
             include_previews=True,
         )
         async with ctx:
             await ctx.record_action(
-                tool_name="t", input_data="x", output_data="y",
-                input_preview="in", output_preview="out",
+                tool_name="t",
+                input_data="x",
+                output_data="y",
+                input_preview="in",
+                output_preview="out",
             )
         action_req = [r for r in transport.requests if "actions" in r[0]][0]
         assert action_req[1]["input_preview"] == "in"

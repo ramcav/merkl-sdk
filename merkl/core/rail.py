@@ -180,9 +180,7 @@ class UnsignedTx:
         raw = bytearray(self.payload_bytes)
         digest = bytes.fromhex(hex_digest(commitment, "commitment"))
         raw[self.anchor_offset : self.anchor_offset + ANCHOR_BYTES] = digest
-        return dataclasses.replace(
-            self, signing_payload=bytes(raw).hex(), commitment=commitment
-        )
+        return dataclasses.replace(self, signing_payload=bytes(raw).hex(), commitment=commitment)
 
     def to_content(self) -> JSONObject:
         """The wire form. ``handle`` is deliberately absent."""

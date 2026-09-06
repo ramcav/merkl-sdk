@@ -62,9 +62,7 @@ class SessionContext:
         return payload
 
     async def __aenter__(self) -> SessionContext:
-        resp = await self._transport.post(
-            "/v1/sessions", json=self._create_session_payload()
-        )
+        resp = await self._transport.post("/v1/sessions", json=self._create_session_payload())
         self._session_id = resp["session_id"]
         # Bind this session to the contextvar so @trace/@guardrail inside
         # the `async with` block see it automatically. Inner contexts

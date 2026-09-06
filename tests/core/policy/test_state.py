@@ -88,8 +88,8 @@ class TestWindow:
 
     def test_a_settled_reservation_cannot_be_released(self) -> None:
         """Money that moved cannot be un-counted; that is the whole limit."""
-        state = LedgerState(treasury=TREASURY).with_reservation(entry()).with_settlement(
-            "r1", "TX1"
+        state = (
+            LedgerState(treasury=TREASURY).with_reservation(entry()).with_settlement("r1", "TX1")
         )
         with pytest.raises(StateError, match="settled"):
             state.with_release("r1")
@@ -141,8 +141,8 @@ class TestReconciliation:
         )
 
     def test_a_settled_reservation_matches_its_transaction(self) -> None:
-        state = LedgerState(treasury=TREASURY).with_reservation(entry()).with_settlement(
-            "r1", "TX1"
+        state = (
+            LedgerState(treasury=TREASURY).with_reservation(entry()).with_settlement("r1", "TX1")
         )
         report = reconcile(state, [self.outflow("TX1")])
         assert report.clean

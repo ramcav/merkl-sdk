@@ -30,12 +30,17 @@ class TestActionStatus:
             ActionStatus("bogus")
 
 
-
 class TestActionType:
     def test_action_type_members(self) -> None:
         expected = {
-            "TOOL_CALL", "DATA_ACCESS", "API_REQUEST", "TRANSACTION",
-            "APPROVAL_REQUEST", "REASONING", "SUB_AGENT", "HUMAN_INPUT",
+            "TOOL_CALL",
+            "DATA_ACCESS",
+            "API_REQUEST",
+            "TRANSACTION",
+            "APPROVAL_REQUEST",
+            "REASONING",
+            "SUB_AGENT",
+            "HUMAN_INPUT",
             "TRANSCRIPT",
         }
         actual = {m.name for m in ActionType}

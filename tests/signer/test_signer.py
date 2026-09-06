@@ -512,15 +512,16 @@ class TestRelayAuthOverHttp:
                 base, json={"method": "health"}, headers={"Authorization": f"Bearer {bearer}"}
             )
             assert response.status_code == 200
-            assert httpx.get(
-                f"{base}/health", headers={"Authorization": f"Bearer {bearer}"}
-            ).json()["result"]["status"] == "ok"
+            assert (
+                httpx.get(f"{base}/health", headers={"Authorization": f"Bearer {bearer}"}).json()[
+                    "result"
+                ]["status"]
+                == "ok"
+            )
         finally:
             server.shutdown()
 
-    def test_propose_needs_no_bearer_even_when_tokens_are_configured(
-        self, tmp_path: Path
-    ) -> None:
+    def test_propose_needs_no_bearer_even_when_tokens_are_configured(self, tmp_path: Path) -> None:
         server, base, clock, _ = self._serve_with_token(tmp_path)
         try:
             request = request_for(clock, {"instruction": {}, "intent": {}}).to_content()
@@ -559,6 +560,11 @@ class TestUnixSocket:
 
 def test_the_fake_rail_is_available_for_the_engine_tests() -> None:
     ledger = FakeLedger()
-    assert FakeSettlementAdapter(
-        ledger, agent_key=AGENT.raw(), agent_public_key=AGENT.public_key, clock=FrozenClock()
-    ).anchor_capability().value == "immutable"
+    assert (
+        FakeSettlementAdapter(
+            ledger, agent_key=AGENT.raw(), agent_public_key=AGENT.public_key, clock=FrozenClock()
+        )
+        .anchor_capability()
+        .value
+        == "immutable"
+    )

@@ -30,9 +30,7 @@ class RecordingSession:
 
 
 class TestSessionJoin:
-    async def test_a_settled_payment_becomes_one_transaction_action(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_a_settled_payment_becomes_one_transaction_action(self, tmp_path: Path) -> None:
         rig = build_rig(tmp_path)
         session = RecordingSession()
         token = set_current_session(session)
@@ -61,9 +59,7 @@ class TestSessionJoin:
         session = RecordingSession()
         token = set_current_session(session)
         try:
-            outcome = await rig.builder.execute(
-                instruction=rig.instruction(), intent=rig.intent()
-            )
+            outcome = await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
         finally:
             reset_current_session(token)
         recorded = canonical_hash(session.actions[0]["input_data"])
@@ -90,9 +86,7 @@ class TestSessionJoin:
     async def test_no_session_means_no_join_and_no_error(self, tmp_path: Path) -> None:
         """The join is optional and one-way: a notary that is down cannot stop a payment."""
         rig = build_rig(tmp_path)
-        outcome = await rig.builder.execute(
-            instruction=rig.instruction(), intent=rig.intent()
-        )
+        outcome = await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
         assert outcome.action_id is None
         assert outcome.settled
 

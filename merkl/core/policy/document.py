@@ -645,9 +645,7 @@ class PolicyDocument:
         if self.admin_public_key is not None:
             token(self.admin_public_key, "policy.admin_public_key", max_length=256)
         if self.format != POLICY_VERSION_TAG:
-            raise PolicyError(
-                f"policy.format must be {POLICY_VERSION_TAG!r}, got {self.format!r}"
-            )
+            raise PolicyError(f"policy.format must be {POLICY_VERSION_TAG!r}, got {self.format!r}")
         if not self.agents:
             raise PolicyError("a policy document names at least one agent")
         ids = [a.agent_id for a in self.agents]

@@ -79,9 +79,7 @@ class TestBenignPayment:
         rig = build_rig(tmp_path)
         asset = f"RLUSD.{RLUSD.issuer}"
         before = Decimal(rig.ledger.balance(rig.policy.treasury, asset))
-        await rig.builder.execute(
-            instruction=rig.instruction(), intent=rig.intent(value="250.00")
-        )
+        await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent(value="250.00"))
         after = Decimal(rig.ledger.balance(rig.policy.treasury, asset))
         assert before - after == Decimal("250.00")
 
@@ -115,9 +113,7 @@ class TestPromptInjectionDrain:
         )
         assert rig.ledger.outflows == []
 
-    async def test_the_rail_refuses_a_single_signature_submission(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_the_rail_refuses_a_single_signature_submission(self, tmp_path: Path) -> None:
         """Even with the agent key, one signature is not a quorum.
 
         This is the second lock. The policy is the first: it denied. But an agent

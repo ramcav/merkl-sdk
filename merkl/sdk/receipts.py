@@ -170,9 +170,7 @@ class ReceiptBuilder:
             return await self._refused(
                 receipt_id, instruction, intent, response, reasoning, depends_on
             )
-        return await self._settle(
-            receipt_id, instruction, intent, response, reasoning, depends_on
-        )
+        return await self._settle(receipt_id, instruction, intent, response, reasoning, depends_on)
 
     # -- steps ------------------------------------------------------------- #
 
@@ -442,9 +440,7 @@ def _deltas(intent: Intent) -> tuple[BalanceDelta, ...]:
     """The money that moved, as signed decimal strings. Never a float."""
     amount: Decimal = parse_decimal(intent.amount.value, "amount")
     return (
-        BalanceDelta(
-            account=intent.treasury, currency=intent.amount.currency, value=f"-{amount}"
-        ),
+        BalanceDelta(account=intent.treasury, currency=intent.amount.currency, value=f"-{amount}"),
         BalanceDelta(
             account=intent.destination, currency=intent.amount.currency, value=str(amount)
         ),

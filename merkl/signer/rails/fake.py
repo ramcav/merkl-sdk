@@ -54,8 +54,7 @@ class FakePayloadCodec:
             found.append(f"the transaction carries unexpected fields: {unknown}")
         if fields.get("account") != intent.treasury:
             found.append(
-                f"account is {fields.get('account')!r}, the intent pays from "
-                f"{intent.treasury!r}"
+                f"account is {fields.get('account')!r}, the intent pays from {intent.treasury!r}"
             )
         if fields.get("destination") != intent.destination:
             found.append(

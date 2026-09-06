@@ -79,8 +79,7 @@ def codec_for(rail: str) -> RailCodec:
             from merkl.signer.rails.xrpl import XrplPayloadCodec
         except ImportError as exc:  # pragma: no cover - depends on how it was installed
             raise CodecUnavailable(
-                f"the {rail} payload codec needs xrpl-py: "
-                f"pip install 'merkl-sdk[{_EXTRAS[rail]}]'"
+                f"the {rail} payload codec needs xrpl-py: pip install 'merkl-sdk[{_EXTRAS[rail]}]'"
             ) from exc
         return XrplPayloadCodec()
     if rail == RAIL_FAKE:

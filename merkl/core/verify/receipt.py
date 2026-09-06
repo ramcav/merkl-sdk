@@ -213,9 +213,8 @@ def _summarize(
                 f"{len(names)} rules ran and all of them passed."
             )
         elif outcome_word == "deny":
-            rule = (
-                f"The policy refused it at the {tier} tier"
-                + (f" — {', '.join(blocked)} blocked it." if blocked else ".")
+            rule = f"The policy refused it at the {tier} tier" + (
+                f" — {', '.join(blocked)} blocked it." if blocked else "."
             )
         else:
             rule = f"The policy escalated it at the {tier} tier: it needed a person."
@@ -337,9 +336,7 @@ def _log_join_check(envelope: Envelope, join: SessionJoin | None) -> Check:
             CheckStatus.FAIL,
             f"the envelope hashes to {derived}, action {locator.leaf_index} committed {committed}",
         )
-    action_ok = any(
-        r.index == locator.leaf_index and r.ok for r in join.log.actions
-    )
+    action_ok = any(r.index == locator.leaf_index and r.ok for r in join.log.actions)
     return outcome(
         CHECK_LOG_JOIN,
         action_ok,
@@ -663,9 +660,7 @@ def verify_receipt(
     quorum_check, approved_ids = _approval_quorum_check(
         escalation, challenge_check.status is CheckStatus.PASS, policy
     )
-    _insert_before(
-        checks, CHECK_POLICY_SIGNATURE, (document_check, challenge_check, quorum_check)
-    )
+    _insert_before(checks, CHECK_POLICY_SIGNATURE, (document_check, challenge_check, quorum_check))
 
     reading_checks: tuple[Check, ...]
     if settlement is None:

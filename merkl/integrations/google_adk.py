@@ -59,6 +59,7 @@ def _debug(msg: str) -> None:
         print(f"[merkl] {msg}", file=sys.stderr, flush=True)
     logger.info(msg)
 
+
 _INSTRUMENTED_ATTR = "_merkl_instrumented"
 
 # Module-level registry: invocation_id → (session_cm, contextvar_token). ADK's

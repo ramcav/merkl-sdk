@@ -64,9 +64,7 @@ class TestFakeRail:
         stranger = AGENT  # a real key, but we will present it under an unlisted identity
         unsigned = await rig.rail.prepare(rig.intent(), digest("c"))
         partial = await rig.rail.agent_sign(unsigned)
-        outsider = Signature(
-            public_key="ff" * 32, signature=stranger.sign(unsigned.payload_bytes)
-        )
+        outsider = Signature(public_key="ff" * 32, signature=stranger.sign(unsigned.payload_bytes))
         signed = await rig.rail.attach_policy_signature(partial, outsider)
         with pytest.raises(FakeRailError, match="quorum"):
             await rig.rail.submit(signed)
@@ -82,16 +80,12 @@ class TestFakeRail:
     async def test_a_failed_submission_releases_the_reservation(self, tmp_path: Path) -> None:
         """A rail that refused must not permanently consume the agent's window."""
         rig = build_rig(tmp_path, starting_balance="10.00")
-        await rig.builder.execute(
-            instruction=rig.instruction(), intent=rig.intent(value="250.00")
-        )
+        await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent(value="250.00"))
         assert rig.engine._state.snapshot().entries == ()
 
     async def test_history_and_reconciliation_agree(self, tmp_path: Path) -> None:
         rig = build_rig(tmp_path)
-        outcome = await rig.builder.execute(
-            instruction=rig.instruction(), intent=rig.intent()
-        )
+        outcome = await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
         outflows = await rig.rail.history(rig.policy.treasury, "2020-01-01T00:00:00Z")
         assert [o.tx_hash for o in outflows] == [outcome.settlement.tx_hash]
         report = rig.engine.reconcile(outflows)
@@ -100,9 +94,7 @@ class TestFakeRail:
 
     async def test_the_transaction_id_re_derives_from_the_blob(self, tmp_path: Path) -> None:
         rig = build_rig(tmp_path)
-        outcome = await rig.builder.execute(
-            instruction=rig.instruction(), intent=rig.intent()
-        )
+        outcome = await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
         blob = outcome.receipt.leaves.settlement.signed_tx_blob
         assert fake_tx_id(bytes.fromhex(blob)) == outcome.settlement.tx_hash
 
@@ -114,9 +106,7 @@ class TestFakeRail:
         state the suite actually reaches. XRPL still names ``shamap_path``.
         """
         rig = build_rig(tmp_path)
-        outcome = await rig.builder.execute(
-            instruction=rig.instruction(), intent=rig.intent()
-        )
+        outcome = await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
         assert outcome.proof.missing == ()
         assert "shamap_path" in outcome.proof.captured
         assert outcome.proof.tx_path is not None
