@@ -74,6 +74,7 @@ established:
 | `verifyDisclosure(disclosure, root)` | a partial receipt against a root you pinned |
 | `verifyAttestation(bytes, opts)` | one AWS Nitro attestation document |
 | `verifyAssertion` / `verifyQuorum` | WebAuthn and Ed25519 approvals |
+| `verifyPolicySignature(signedPolicy, opts)` | a policy document's admin signature — Ed25519 or WebAuthn |
 | `readSettlementProof(proof, opts)` | what a settlement capture proves |
 | `canonicalJson` / `canonicalHashHex` | the one canonicalization, ported byte for byte |
 | `actionLeafHash` / `receiptLeafHash` | the frozen leaf encodings |

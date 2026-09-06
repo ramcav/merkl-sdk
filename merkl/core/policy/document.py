@@ -37,7 +37,7 @@ from merkl.core.canonical import (
     parse_decimal,
     token,
 )
-from merkl.core.crypto import ed25519_verify, tagged
+from merkl.core.crypto import tagged
 from merkl.core.intent import CurrencyRef, currency_content, currency_from_content
 from merkl.shared.hashing import SHA256Hash, canonical_bytes
 
@@ -401,6 +401,45 @@ class Tiers:
         return cls(human=HumanTier.from_content(obj.get("human", {})))
 
 
+def _effective_rp_id(rp_id: str | None, origins: Iterable[str]) -> str | None:
+    """The relying-party id an authenticator hashed, explicit or derived from an origin.
+
+    Shared by :class:`ApproverCredential` and :class:`AdminCredential` — same
+    WebAuthn binding, same derivation, one function.
+    """
+    if rp_id is not None:
+        return rp_id
+    for origin in origins:
+        host = origin.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
+        if host:
+            return host
+    return None
+
+
+def _validate_credential_shape(
+    *,
+    credential_type: str,
+    public_key: str,
+    origins: tuple[str, ...],
+    rp_id: str | None,
+    user_verification: bool,
+    owner: str,
+) -> None:
+    """The validation an approver and an admin credential share."""
+    if credential_type not in CREDENTIAL_TYPES:
+        raise PolicyError(
+            f"{owner}.credential_type must be one of {list(CREDENTIAL_TYPES)}, "
+            f"got {credential_type!r}"
+        )
+    token(public_key, f"{owner}.public_key", max_length=256)
+    for origin in origins:
+        token(origin, f"{owner}.origins[]", max_length=256)
+    if rp_id is not None:
+        token(rp_id, f"{owner}.rp_id", max_length=256)
+    if not isinstance(user_verification, bool):
+        raise PolicyError(f"{owner}.user_verification must be a boolean")
+
+
 @dataclasses.dataclass(frozen=True)
 class ApproverCredential:
     """One person who may approve an escalation, and the key they approve with.
@@ -421,18 +460,14 @@ class ApproverCredential:
 
     def __post_init__(self) -> None:
         token(self.id, "approver.id", max_length=128)
-        if self.credential_type not in CREDENTIAL_TYPES:
-            raise PolicyError(
-                f"approver.credential_type must be one of {list(CREDENTIAL_TYPES)}, "
-                f"got {self.credential_type!r}"
-            )
-        token(self.public_key, "approver.public_key", max_length=256)
-        for origin in self.origins:
-            token(origin, "approver.origins[]", max_length=256)
-        if self.rp_id is not None:
-            token(self.rp_id, "approver.rp_id", max_length=256)
-        if not isinstance(self.user_verification, bool):
-            raise PolicyError("approver.user_verification must be a boolean")
+        _validate_credential_shape(
+            credential_type=self.credential_type,
+            public_key=self.public_key,
+            origins=self.origins,
+            rp_id=self.rp_id,
+            user_verification=self.user_verification,
+            owner="approver",
+        )
         if self.credential_type == CREDENTIAL_WEBAUTHN and not self.effective_rp_id:
             raise PolicyError(
                 "a webauthn approver needs rp_id or at least one origin to derive it from"
@@ -441,13 +476,7 @@ class ApproverCredential:
     @property
     def effective_rp_id(self) -> str | None:
         """The relying-party id the authenticator hashed, explicit or from the origin."""
-        if self.rp_id is not None:
-            return self.rp_id
-        for origin in self.origins:
-            host = origin.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
-            if host:
-                return host
-        return None
+        return _effective_rp_id(self.rp_id, self.origins)
 
     def to_content(self) -> JSONObject:
         return drop_none(
@@ -473,6 +502,75 @@ class ApproverCredential:
             credential_type=_required(obj, "credential_type", "approver"),
             public_key=_required(obj, "public_key", "approver"),
             origins=_strings(obj.get("origins", []), "approver.origins"),
+            rp_id=obj.get("rp_id"),
+            user_verification=bool(obj.get("user_verification", False)),
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class AdminCredential:
+    """The admin's signing credential (plan D16, extended): Ed25519 or WebAuthn.
+
+    Same shape as :class:`ApproverCredential`, minus ``id`` — there is one admin,
+    not a roster. Deliberately: verifying an admin's signature over a policy and
+    verifying an approver's assertion over an escalation are the same function,
+    ``merkl.core.policy.approvals.verify_policy_signature`` reusing
+    ``verify_assertion`` — no second WebAuthn parser for the admin role. The
+    challenge an admin signs is the 32-byte ``policy_hash``, not the legacy
+    pre-image and not an escalation's ``LEFT_pre``.
+
+    ``PolicyDocument.admin_public_key`` is the older, narrower shape: an Ed25519
+    key with no origin binding, signed the legacy way (see
+    :meth:`PolicyDocument.pre_image`). A document carries exactly one of
+    ``admin_public_key`` or ``admin`` — see :attr:`PolicyDocument.effective_admin`.
+    """
+
+    credential_type: str
+    public_key: str
+    origins: tuple[str, ...] = ()
+    rp_id: str | None = None
+    user_verification: bool = False
+
+    def __post_init__(self) -> None:
+        _validate_credential_shape(
+            credential_type=self.credential_type,
+            public_key=self.public_key,
+            origins=self.origins,
+            rp_id=self.rp_id,
+            user_verification=self.user_verification,
+            owner="admin",
+        )
+        if self.credential_type == CREDENTIAL_WEBAUTHN and not self.effective_rp_id:
+            raise PolicyError(
+                "a webauthn admin needs rp_id or at least one origin to derive it from"
+            )
+
+    @property
+    def effective_rp_id(self) -> str | None:
+        return _effective_rp_id(self.rp_id, self.origins)
+
+    def to_content(self) -> JSONObject:
+        return drop_none(
+            {
+                "credential_type": self.credential_type,
+                "public_key": self.public_key,
+                "origins": list(self.origins),
+                "rp_id": self.rp_id,
+                "user_verification": self.user_verification,
+            }
+        )
+
+    @classmethod
+    def from_content(cls, data: Any) -> AdminCredential:
+        obj = _members(
+            data,
+            {"credential_type", "public_key", "origins", "rp_id", "user_verification"},
+            "admin",
+        )
+        return cls(
+            credential_type=_required(obj, "credential_type", "admin"),
+            public_key=_required(obj, "public_key", "admin"),
+            origins=_strings(obj.get("origins", []), "admin.origins"),
             rp_id=obj.get("rp_id"),
             user_verification=bool(obj.get("user_verification", False)),
         )
@@ -524,7 +622,8 @@ class PolicyDocument:
     treasury: str
     rail: str
     agents: tuple[AgentSection, ...]
-    admin_public_key: str
+    admin_public_key: str | None = None
+    admin: AdminCredential | None = None
     tiers: Tiers = dataclasses.field(default_factory=Tiers)
     approvers: tuple[ApproverCredential, ...] = ()
     risk: RiskRule = dataclasses.field(default_factory=RiskRule)
@@ -534,7 +633,17 @@ class PolicyDocument:
         token(self.version, "policy.version", max_length=64)
         token(self.treasury, "policy.treasury", max_length=128)
         token(self.rail, "policy.rail", max_length=64)
-        token(self.admin_public_key, "policy.admin_public_key", max_length=256)
+        if self.admin_public_key is not None and self.admin is not None:
+            raise PolicyError(
+                "policy.admin_public_key and policy.admin are mutually exclusive; a document "
+                "names exactly one admin credential"
+            )
+        if self.admin_public_key is None and self.admin is None:
+            raise PolicyError(
+                "a policy document needs an admin: admin_public_key (legacy ed25519) or admin"
+            )
+        if self.admin_public_key is not None:
+            token(self.admin_public_key, "policy.admin_public_key", max_length=256)
         if self.format != POLICY_VERSION_TAG:
             raise PolicyError(
                 f"policy.format must be {POLICY_VERSION_TAG!r}, got {self.format!r}"
@@ -566,6 +675,22 @@ class PolicyDocument:
                 return credential
         return None
 
+    @property
+    def effective_admin(self) -> AdminCredential:
+        """The admin credential, normalized to one shape regardless of which field is set.
+
+        The legacy ``admin_public_key`` synthesizes an Ed25519 :class:`AdminCredential`
+        with no origin binding — exactly what it always meant, just expressed in
+        the newer shape so verification has one code path (D16).
+        """
+        if self.admin is not None:
+            return self.admin
+        if self.admin_public_key is None:  # pragma: no cover - __post_init__ guarantees one
+            raise PolicyError("policy document has neither admin_public_key nor admin")
+        return AdminCredential(
+            credential_type=CREDENTIAL_ED25519, public_key=self.admin_public_key
+        )
+
     def to_content(self) -> JSONObject:
         content: JSONObject = {
             "format": self.format,
@@ -575,9 +700,18 @@ class PolicyDocument:
             "agents": [agent.to_content() for agent in self.agents],
             "tiers": self.tiers.to_content(),
             "approvers": [approver.to_content() for approver in self.approvers],
-            "admin_public_key": self.admin_public_key,
             "risk": self.risk.to_content(),
         }
+        # The legacy field, when set, is emitted exactly as it always was — no
+        # "admin" member alongside it — so `policy_hash()` over a legacy
+        # document is byte-identical to every document signed before this
+        # phase (the committed vectors prove it). A document using the newer
+        # `admin` credential carries that member instead, never both.
+        if self.admin_public_key is not None:
+            content["admin_public_key"] = self.admin_public_key
+        else:
+            assert self.admin is not None  # __post_init__ guarantees exactly one is set
+            content["admin"] = self.admin.to_content()
         ensure_canonical_content(content, path="policy")
         return content
 
@@ -594,6 +728,7 @@ class PolicyDocument:
                 "tiers",
                 "approvers",
                 "admin_public_key",
+                "admin",
                 "risk",
             },
             "policy",
@@ -602,6 +737,7 @@ class PolicyDocument:
         approvers = obj.get("approvers", [])
         if not isinstance(agents, list) or not isinstance(approvers, list):
             raise PolicyError("policy.agents and policy.approvers must be arrays")
+        admin_content = obj.get("admin")
         return cls(
             format=obj.get("format", POLICY_VERSION_TAG),
             version=_required(obj, "version", "policy"),
@@ -610,7 +746,10 @@ class PolicyDocument:
             agents=tuple(AgentSection.from_content(a) for a in agents),
             tiers=Tiers.from_content(obj.get("tiers", {})),
             approvers=tuple(ApproverCredential.from_content(a) for a in approvers),
-            admin_public_key=_required(obj, "admin_public_key", "policy"),
+            admin_public_key=obj.get("admin_public_key"),
+            admin=(
+                AdminCredential.from_content(admin_content) if admin_content is not None else None
+            ),
             risk=RiskRule.from_content(obj.get("risk", {})),
         )
 
@@ -625,14 +764,31 @@ class PolicyDocument:
 
 @dataclasses.dataclass(frozen=True)
 class SignedPolicy:
-    """A policy document and the admin signature that put it into force (D16)."""
+    """A policy document and the admin signature that put it into force (D16).
+
+    ``signature`` is either the legacy raw Ed25519 hex over
+    :meth:`PolicyDocument.pre_image`, or an ``ApprovalAssertion``-shaped object
+    (Ed25519 or WebAuthn) over the 32-byte :meth:`PolicyDocument.policy_hash`.
+    It stays unparsed here — ``ApprovalAssertion`` lives in
+    ``merkl.core.policy.approvals``, which imports *this* module, and parsing it
+    here would be a cycle. ``merkl.core.policy.approvals.verify_policy_signature``
+    is where both shapes are actually checked.
+    """
 
     document: PolicyDocument
-    signature: str
+    signature: str | JSONObject
     signer_public_key: str
 
     def __post_init__(self) -> None:
-        token(self.signature, "signed_policy.signature", max_length=256)
+        if isinstance(self.signature, str):
+            token(self.signature, "signed_policy.signature", max_length=256)
+        elif isinstance(self.signature, dict):
+            ensure_canonical_content(self.signature, path="signed_policy.signature")
+        else:
+            raise PolicyError(
+                "signed_policy.signature must be a hex string or an assertion object, got "
+                f"{type(self.signature).__name__}"
+            )
         token(self.signer_public_key, "signed_policy.signer_public_key", max_length=256)
 
     @property
@@ -654,22 +810,6 @@ class SignedPolicy:
             signature=_required(obj, "signature", "signed_policy"),
             signer_public_key=_required(obj, "signer_public_key", "signed_policy"),
         )
-
-
-def verify_policy_signature(signed: SignedPolicy, *, admin_public_key: str | None = None) -> bool:
-    """True when the signature is valid *and* made by the key the document trusts.
-
-    ``admin_public_key`` is the key the signer has pinned. Passing it is how a
-    policy update is checked against the *current* admin key rather than against
-    the key the new document nominates — otherwise a forged document could simply
-    name its own admin.
-    """
-    expected = (
-        admin_public_key if admin_public_key is not None else signed.document.admin_public_key
-    )
-    if signed.signer_public_key != expected:
-        return False
-    return ed25519_verify(signed.signer_public_key, signed.signature, signed.document.pre_image())
 
 
 @dataclasses.dataclass(frozen=True)

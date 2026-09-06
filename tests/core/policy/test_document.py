@@ -8,6 +8,7 @@ import pytest
 
 from merkl.core.canonical import ContentError
 from merkl.core.intent import IssuedCurrency
+from merkl.core.policy.approvals import verify_policy_signature
 from merkl.core.policy.document import (
     POLICY_TAG,
     AgentSection,
@@ -19,7 +20,6 @@ from merkl.core.policy.document import (
     ReferenceBinding,
     SignedPolicy,
     asset_key,
-    verify_policy_signature,
 )
 from merkl.core.vectors import fixtures
 from merkl.shared.hashing import SHA256Hash, canonical_bytes

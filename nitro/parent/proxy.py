@@ -53,6 +53,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Final
 
+from merkl.core.canonical import JSONObject
+from merkl.signer.relay_auth import bearer_from_authorization
 from merkl.signer.vsock import (
     DEFAULT_PORT,
     VsockError,
@@ -288,8 +290,10 @@ def build_handler(client: VsockRpcClient) -> type[BaseHTTPRequestHandler]:
                 self._send(HTTPStatus.BAD_REQUEST, _error("request must be an object"))
                 return
             method = str(body.get("method", ""))
+            bearer = bearer_from_authorization(self.headers.get("Authorization"))
+            auth: JSONObject | None = {"bearer": bearer} if bearer is not None else None
             try:
-                answer = client.call(method, body.get("params") or {})
+                answer = client.call(method, body.get("params") or {}, auth=auth)
             except VsockError as exc:
                 # The enclave is not there. That is availability, and it is loud.
                 log.warning("enclave unreachable for %s: %s", method, exc)
@@ -302,10 +306,14 @@ def build_handler(client: VsockRpcClient) -> type[BaseHTTPRequestHandler]:
             if self.path.rstrip("/") not in ("", "/health"):
                 self._send(HTTPStatus.NOT_FOUND, _error("POST a JSON-RPC body to /"))
                 return
+            bearer = bearer_from_authorization(self.headers.get("Authorization"))
+            auth: JSONObject | None = {"bearer": bearer} if bearer is not None else None
             try:
-                self._send(HTTPStatus.OK, client.call("health"))
+                answer = client.call("health", auth=auth)
             except VsockError as exc:
                 self._send(HTTPStatus.SERVICE_UNAVAILABLE, _error(str(exc)))
+                return
+            self._send(HTTPStatus.OK if "result" in answer else HTTPStatus.BAD_REQUEST, answer)
 
         def _send(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
             encoded = json.dumps({"protocol": PROTOCOL, **payload}).encode()

@@ -34,8 +34,13 @@ from typing import Any, Final
 
 from merkl.core.canonical import JSONObject, JSONValue
 from merkl.core.checks import Check, CheckStatus, VerificationResult, no_data, outcome
-from merkl.core.crypto import CryptoError, ed25519_verify
-from merkl.core.policy.approvals import ApprovalError, assertions_from_content, verify_quorum
+from merkl.core.crypto import CryptoError
+from merkl.core.policy.approvals import (
+    ApprovalError,
+    assertions_from_content,
+    verify_policy_signature,
+    verify_quorum,
+)
 from merkl.core.policy.document import PolicyDocument, PolicyError, SignedPolicy
 from merkl.core.receipt import (
     CHECK_LEDGER_INCLUSION,
@@ -387,9 +392,10 @@ def _policy_document_check(
                         ),
                         parsed,
                     )
-                if not ed25519_verify(
-                    signed.signer_public_key, signed.signature, signed.document.pre_image()
-                ):
+                # Covers both signature shapes (legacy Ed25519 over the pre-image,
+                # or an ApprovalAssertion — Ed25519 or WebAuthn — over
+                # policy_hash): one verification path for either kind of admin.
+                if not verify_policy_signature(signed, admin_public_key=admin_public_key):
                     return (
                         Check(
                             CHECK_POLICY_DOCUMENT,

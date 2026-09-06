@@ -1657,6 +1657,94 @@ export async function policyHash(document) {
   return toHex(await sha256(concatBytes([POLICY_TAG, NUL_BYTE, utf8(canonicalJson(document))])));
 }
 
+const ADMIN_APPROVER_ID = 'admin';
+
+function effectiveAdmin(document) {
+  if (document && document.admin) return document.admin;
+  return { credential_type: 'ed25519', public_key: document ? document.admin_public_key : null };
+}
+
+/**
+ * `true`, `false`, or `null` when this runtime cannot check the algorithm
+ * involved (no Ed25519 in Web Crypto). Shared by `verifyPolicySignature` and
+ * `policyDocumentCheck`, which need the same verification but disagree on
+ * what to do with `null` — a public boolean utility collapses it to `false`,
+ * a receipt check reports it as `not_implemented` rather than a quiet fail.
+ */
+async function policySignatureOutcome(signed, pinned) {
+  const document = signed.document;
+  if (signed.signer_public_key !== pinned.public_key) return false;
+
+  if (typeof signed.signature === 'string') {
+    if (pinned.credential_type !== 'ed25519') return false;
+    const preImage = concatBytes([POLICY_TAG, NUL_BYTE, utf8(canonicalJson(document))]);
+    return await ed25519Verify(signed.signer_public_key, signed.signature, preImage);
+  }
+
+  const assertion = signed.signature;
+  if (!assertion || typeof assertion !== 'object' || assertion.approver_id !== ADMIN_APPROVER_ID) {
+    return false;
+  }
+  const credential = {
+    id: ADMIN_APPROVER_ID,
+    credential_type: pinned.credential_type,
+    public_key: pinned.public_key,
+    origins: pinned.origins ?? [],
+    rp_id: pinned.rp_id ?? null,
+    user_verification: pinned.user_verification ?? false,
+  };
+  const digest = fromHex(await policyHash(document));
+  const result = await verifyAssertion(assertion, digest, credential);
+  if (result.unsupported) return null;
+  return result.valid;
+}
+
+/**
+ * Verify a `SignedPolicy`'s admin signature (plan D16, extended).
+ *
+ * Mirrors `merkl.core.policy.approvals.verify_policy_signature` exactly.
+ * `signed.signature` is either the legacy raw Ed25519 hex over the tagged
+ * pre-image, or an `ApprovalAssertion`-shaped object (Ed25519 or WebAuthn) over
+ * the 32-byte `policy_hash` — the exact challenge a WebAuthn admin credential
+ * signs, checked with the same `verifyAssertion` an approver's assertion is
+ * checked with. No second WebAuthn parser for the admin role.
+ *
+ * `admin` pins a full credential, a WebAuthn admin's `origins` included;
+ * `adminPublicKey` pins a legacy Ed25519 key only. Passing neither trusts the
+ * document's own `admin` / `admin_public_key` member — exactly what a forged
+ * document exploits by nominating itself, so a real policy update should
+ * always pin one.
+ *
+ * Returns `{valid, detail}`, like `verifyAssertion` — nothing in this package
+ * returns a single boolean. A runtime with no Ed25519 in Web Crypto comes back
+ * `valid: false` with `unsupported: true`, the same convention `verifyAssertion`
+ * uses, rather than a quiet failure.
+ */
+export async function verifyPolicySignature(signed, { adminPublicKey = null, admin = null } = {}) {
+  if (admin && adminPublicKey) {
+    throw new Error('pass admin or adminPublicKey to verifyPolicySignature, not both');
+  }
+  const pinned =
+    admin ??
+    (adminPublicKey
+      ? { credential_type: 'ed25519', public_key: adminPublicKey }
+      : effectiveAdmin(signed.document));
+  const outcome = await policySignatureOutcome(signed, pinned);
+  if (outcome === null) {
+    return {
+      valid: false,
+      detail: 'this runtime has no Ed25519 in Web Crypto, so the policy signature is unchecked',
+      unsupported: true,
+    };
+  }
+  return {
+    valid: outcome === true,
+    detail: outcome
+      ? 'the admin credential signed this policy'
+      : "the policy document's admin signature does not verify",
+  };
+}
+
 function member(content, key) {
   return content && typeof content === 'object' && !Array.isArray(content) ? content[key] : null;
 }
@@ -1927,9 +2015,14 @@ async function policyDocumentCheck(envelope, supplied, adminPublicKey) {
       if (signed.signer_public_key !== adminPublicKey) {
         return [check(CHECK_POLICY_DOCUMENT, FAIL, 'the policy is signed by another key'), document];
       }
-      const preImage = concatBytes([POLICY_TAG, NUL_BYTE, utf8(canonicalJson(document))]);
-      const ok = await ed25519Verify(signed.signer_public_key, signed.signature, preImage);
-      if (ok === null) {
+      // Covers both signature shapes (legacy Ed25519 over the pre-image, or an
+      // ApprovalAssertion — Ed25519 or WebAuthn — over policy_hash): one
+      // verification path for either kind of admin.
+      const outcome = await policySignatureOutcome(signed, {
+        credential_type: 'ed25519',
+        public_key: adminPublicKey,
+      });
+      if (outcome === null) {
         return [
           noData(
             CHECK_POLICY_DOCUMENT,
@@ -1938,7 +2031,7 @@ async function policyDocumentCheck(envelope, supplied, adminPublicKey) {
           document,
         ];
       }
-      if (!ok) {
+      if (!outcome) {
         return [
           check(CHECK_POLICY_DOCUMENT, FAIL, "the policy document's admin signature does not verify"),
           document,

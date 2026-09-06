@@ -42,15 +42,28 @@ from merkl.core.canonical import (
     instant,
     token,
 )
-from merkl.core.crypto import b64url_decode, ed25519_verify, hex_bytes, p256_verify
+from merkl.core.crypto import CryptoError, b64url_decode, ed25519_verify, hex_bytes, p256_verify
 from merkl.core.policy.document import (
     CREDENTIAL_ED25519,
     CREDENTIAL_TYPES,
     CREDENTIAL_WEBAUTHN,
+    AdminCredential,
     ApproverCredential,
+    PolicyError,
+    SignedPolicy,
 )
 
 WEBAUTHN_GET: Final = "webauthn.get"
+
+ADMIN_APPROVER_ID: Final = "admin"
+"""The fixed ``approver_id`` an admin's assertion-shaped signature carries.
+
+There is one admin, not a roster, so nothing needs to select *which* credential
+signed the way ``verify_quorum`` selects among approvers — but reusing
+:class:`ApprovalAssertion` and :func:`verify_assertion` means the shape still
+carries the field. Any other value is a signature that does not name the admin
+role and is rejected before a key is even considered.
+"""
 
 FLAG_USER_PRESENT: Final = 0x01
 FLAG_USER_VERIFIED: Final = 0x04
@@ -318,3 +331,80 @@ def verify_quorum(
 def assertions_from_content(values: Sequence[Any]) -> tuple[ApprovalAssertion, ...]:
     """Parse the ``approvals[]`` array of a decision leaf back into assertions."""
     return tuple(ApprovalAssertion.from_content(v) for v in values)
+
+
+# --------------------------------------------------------------------------- #
+# Policy signatures (plan D16, extended) — the admin role reuses this module
+# --------------------------------------------------------------------------- #
+
+
+def verify_policy_signature(
+    signed: SignedPolicy,
+    *,
+    admin_public_key: str | None = None,
+    admin: AdminCredential | None = None,
+) -> bool:
+    """True when ``signed.signature`` is valid *and* made by the credential pinned.
+
+    Two independent things vary, and this function is the one place both are
+    decided:
+
+    * **which credential is trusted.** ``admin`` pins a full credential,
+      including a WebAuthn admin's ``origins`` — pass this when you hold the
+      admin the signer last pinned (:class:`~merkl.signer.engine.SignerEngine`
+      does). ``admin_public_key`` pins a legacy Ed25519 key only, the one shape
+      this parameter has ever accepted. Passing neither trusts the document's
+      own ``admin`` / ``admin_public_key`` member — the same thing an unpinned
+      check has always done, and exactly what a forged document exploits by
+      nominating itself, so a real ``policy_update`` should always pin one.
+    * **which wire shape the signature is.** A ``str`` is the legacy scheme:
+      Ed25519 over :meth:`PolicyDocument.pre_image`. A ``dict`` is an
+      ``ApprovalAssertion``-shaped object — Ed25519 or WebAuthn — over the
+      32-byte :meth:`PolicyDocument.policy_hash`, checked with the exact
+      function an approver's assertion is checked with
+      (:func:`verify_assertion`). One verification path for both roles: no
+      second WebAuthn parser for the admin.
+    """
+    if admin is not None and admin_public_key is not None:
+        raise PolicyError("pass admin or admin_public_key to verify_policy_signature, not both")
+    if admin is not None:
+        pinned = admin
+    elif admin_public_key is not None:
+        pinned = AdminCredential(credential_type=CREDENTIAL_ED25519, public_key=admin_public_key)
+    else:
+        pinned = signed.document.effective_admin
+
+    if signed.signer_public_key != pinned.public_key:
+        return False
+
+    if isinstance(signed.signature, str):
+        if pinned.credential_type != CREDENTIAL_ED25519:
+            return False
+        try:
+            return ed25519_verify(
+                signed.signer_public_key, signed.signature, signed.document.pre_image()
+            )
+        except CryptoError:
+            return False
+
+    try:
+        assertion = ApprovalAssertion.from_content(signed.signature)
+    except ApprovalError:
+        return False
+    if assertion.approver_id != ADMIN_APPROVER_ID:
+        return False
+    credential = ApproverCredential(
+        id=ADMIN_APPROVER_ID,
+        credential_type=pinned.credential_type,
+        public_key=pinned.public_key,
+        origins=pinned.origins,
+        rp_id=pinned.rp_id,
+        user_verification=pinned.user_verification,
+    )
+    try:
+        check = verify_assertion(
+            assertion, bytes.fromhex(signed.document.policy_hash()), credential
+        )
+    except (ApprovalError, ValueError):
+        return False
+    return check.valid

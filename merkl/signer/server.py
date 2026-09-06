@@ -32,6 +32,7 @@ from merkl.core.canonical import ContentError, JSONObject
 from merkl.shared.errors import MerklError
 from merkl.signer.auth import AuthError
 from merkl.signer.engine import SignerEngine, SignerError
+from merkl.signer.relay_auth import RelayToken, bearer_from_authorization, require_relay_bearer
 
 MAX_BODY_BYTES: Final = 4 * 1024 * 1024
 PROTOCOL: Final = "merkl-signer-rpc-v1"
@@ -48,14 +49,23 @@ ERROR_CODES: Final[dict[str, int]] = {
 
 
 class RpcRouter:
-    """The method table, and the lock that makes it safe to serve concurrently."""
+    """The method table, and the lock that makes it safe to serve concurrently.
 
-    def __init__(self, engine: SignerEngine) -> None:
+    ``relay_tokens`` is the relay credential list (docs/SIGNER-RPC.md, "Who may
+    call what"). Empty by default, which leaves every method exactly as
+    reachable as it was before this phase — the moment an operator configures
+    one token, every method but ``propose`` requires it.
+    """
+
+    def __init__(self, engine: SignerEngine, relay_tokens: tuple[RelayToken, ...] = ()) -> None:
         self._engine = engine
+        self._relay_tokens = relay_tokens
         self._lock = threading.Lock()
 
-    def dispatch(self, method: str, params: JSONObject) -> JSONObject:
+    def dispatch(self, method: str, params: JSONObject, bearer: str | None = None) -> JSONObject:
         engine = self._engine
+        if method != "propose":
+            require_relay_bearer(self._relay_tokens, bearer, method)
         if method == "health":
             return engine.health()
         if method == "public_key":
@@ -102,7 +112,12 @@ def _array(params: JSONObject, key: str) -> list[Any]:
 
 
 def handle_request(
-    router: RpcRouter, method: str, params: JSONObject, request_id: Any = None
+    router: RpcRouter,
+    method: str,
+    params: JSONObject,
+    request_id: Any = None,
+    *,
+    bearer: str | None = None,
 ) -> tuple[int, JSONObject]:
     """Dispatch one call and shape the answer, transport-independent.
 
@@ -110,14 +125,18 @@ def handle_request(
     transports cannot drift into reporting the same failure differently — which
     matters because ``docs/SIGNER-RPC.md`` promises one contract, and a caller
     that has to know whether it is talking to a dev signer or an enclave has
-    already lost the property phase 3 exists to add.
+    already lost the property phase 3 exists to add. ``bearer`` is the relay
+    token the caller presented, if any — extracted from an HTTP ``Authorization``
+    header or a vsock frame's ``auth`` member by the caller of this function,
+    never parsed here, so this stays the one place that does not care which
+    transport it is.
 
     **An error is never a decision.** A refused payment comes back ``200`` with a
     full ``deny`` decision; the errors mapped here mean no decision was reached
     and no receipt exists.
     """
     try:
-        result = router.dispatch(method, params)
+        result = router.dispatch(method, params, bearer)
     except (AuthError, SignerError, ContentError, MerklError) as exc:
         return ERROR_CODES.get(getattr(exc, "error_code", ""), 400), {
             "error": {
@@ -163,13 +182,23 @@ class _Handler(BaseHTTPRequestHandler):
                 {"error": {"message": "request needs a string method and an object params"}},
             )
             return
-        status, payload = handle_request(self.router, method, params, body.get("id"))
+        bearer = bearer_from_authorization(self.headers.get("Authorization"))
+        status, payload = handle_request(
+            self.router, method, params, body.get("id"), bearer=bearer
+        )
         self._send(status, payload)
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler's naming
-        """``GET /health`` so a supervisor can check liveness without a body."""
+        """``GET /health`` so a supervisor can check liveness without a body.
+
+        Subject to the same relay credential as every other non-``propose``
+        method once one is configured — a bare GET is not a special case, it is
+        just another way to reach ``dispatch``.
+        """
         if self.path.rstrip("/") in ("", "/health"):
-            self._send(HTTPStatus.OK, {"result": self.router.dispatch("health", {})})
+            bearer = bearer_from_authorization(self.headers.get("Authorization"))
+            status, payload = handle_request(self.router, "health", {}, bearer=bearer)
+            self._send(status, payload)
             return
         self._send(HTTPStatus.NOT_FOUND, {"error": {"message": "POST a JSON-RPC body to /"}})
 
@@ -220,13 +249,16 @@ def build_server(
     socket_path: str | Path | None = None,
     host: str = "127.0.0.1",
     port: int = 0,
+    relay_tokens: tuple[RelayToken, ...] = (),
 ) -> ThreadingHTTPServer:
     """Bind a signer server. ``socket_path`` wins; otherwise localhost only.
 
     Never binds anything but the loopback address by default. A signer reachable
-    from the network is a signer whose only protection is the agent key.
+    from the network is a signer whose only protection is the agent key — and,
+    once configured, the relay credential (docs/SIGNER-RPC.md, "Who may call
+    what").
     """
-    router = RpcRouter(engine)
+    router = RpcRouter(engine, relay_tokens)
     handler = type("MerklSignerHandler", (_Handler,), {"router": router})
     if socket_path is not None:
         return _UnixHTTPServer(str(socket_path), handler)  # type: ignore[arg-type]
@@ -244,9 +276,12 @@ def serve(
     socket_path: str | Path | None = None,
     host: str = "127.0.0.1",
     port: int = 8787,
+    relay_tokens: tuple[RelayToken, ...] = (),
 ) -> None:  # pragma: no cover - the blocking entry point
     """Serve until interrupted. Used by ``merkl signer serve``."""
-    server = build_server(engine, socket_path=socket_path, host=host, port=port)
+    server = build_server(
+        engine, socket_path=socket_path, host=host, port=port, relay_tokens=relay_tokens
+    )
     try:
         server.serve_forever()
     finally:

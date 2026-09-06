@@ -132,8 +132,10 @@ def _answer(router: RpcRouter, frame: bytes) -> JSONObject:
     params = body.get("params", {})
     if not isinstance(method, str) or not isinstance(params, dict):
         return _error("signer_error", "request needs a string method and an object params")
+    auth = body.get("auth")
+    bearer = auth.get("bearer") if isinstance(auth, dict) else None
     try:
-        _, payload = handle_request(router, method, params, body.get("id"))
+        _, payload = handle_request(router, method, params, body.get("id"), bearer=bearer)
     except MerklError as exc:  # pragma: no cover - handle_request maps these
         return _error(getattr(exc, "error_code", "signer_error"), str(exc))
     return {"protocol": PROTOCOL, **payload}
@@ -224,15 +226,26 @@ class VsockRpcClient:
             ) from exc
         return connection
 
-    def call(self, method: str, params: JSONObject | None = None) -> JSONObject:
-        """One request, one response. Reconnects once if the link went away."""
-        body = json.dumps({"method": method, "params": params or {}}).encode()
+    def call(
+        self, method: str, params: JSONObject | None = None, *, auth: JSONObject | None = None
+    ) -> JSONObject:
+        """One request, one response. Reconnects once if the link went away.
+
+        ``auth`` carries the relay credential across vsock, which has no
+        headers of its own — ``{"bearer": "<token>"}``, the same shape the
+        parent proxy lifts out of the HTTP ``Authorization`` header it received
+        and forwards unchanged (``nitro/parent/proxy.py``).
+        """
+        body: dict[str, Any] = {"method": method, "params": params or {}}
+        if auth is not None:
+            body["auth"] = auth
+        encoded = json.dumps(body).encode()
         with self._lock:
             for attempt in (1, 2):
                 if self._connection is None:
                     self._connection = self._connect()
                 try:
-                    send_frame(self._connection, body)
+                    send_frame(self._connection, encoded)
                     frame = recv_frame(self._connection)
                 except (OSError, VsockError):
                     self._drop()

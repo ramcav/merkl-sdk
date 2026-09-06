@@ -100,7 +100,14 @@ class DevSignerClient:
         socket_path: str | Path | None = None,
         base_url: str | None = None,
         timeout: float = DEFAULT_TIMEOUT,
+        bearer_token: str | None = None,
     ) -> None:
+        """``bearer_token`` is the relay credential (docs/SIGNER-RPC.md, "Who may
+        call what"). Sent as ``Authorization: Bearer <token>`` on every call but
+        ``propose``, which needs none — a signer with no relay tokens configured
+        ignores it, so passing one against an unconfigured dev signer is harmless.
+        """
+        self._bearer_token = bearer_token
         if socket_path is not None:
             transport = httpx.AsyncHTTPTransport(uds=str(socket_path))
             self._client = httpx.AsyncClient(
@@ -121,9 +128,10 @@ class DevSignerClient:
         await self.aclose()
 
     async def _call(self, method: str, params: JSONObject | None = None) -> JSONObject:
+        headers = {"Authorization": f"Bearer {self._bearer_token}"} if self._bearer_token else None
         try:
             response = await self._client.post(
-                "/", json={"method": method, "params": params or {}}
+                "/", json={"method": method, "params": params or {}}, headers=headers
             )
         except httpx.HTTPError as exc:
             raise TransportError(f"cannot reach the signer: {exc}") from exc

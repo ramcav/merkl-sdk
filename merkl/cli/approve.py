@@ -75,10 +75,13 @@ async def _call(
     *,
     socket_path: Path | None,
     base_url: str | None,
+    bearer_token: str | None,
 ) -> dict[str, Any]:
     from merkl.adapters.signer_dev.client import DevSignerClient
 
-    async with DevSignerClient(socket_path=socket_path, base_url=base_url) as client:
+    async with DevSignerClient(
+        socket_path=socket_path, base_url=base_url, bearer_token=bearer_token
+    ) as client:
         if action == "approve":
             return dict(await client.approve(challenge, [assertion]))
         return dict(await client.reject(challenge, [assertion]))
@@ -95,6 +98,7 @@ def approve_command(
     port: int = 8787,
     now: str | None = None,
     as_json: bool = False,
+    bearer_token: str | None = None,
 ) -> int:
     """Sign a challenge and send it to the signer. Returns the process exit code."""
     from datetime import UTC, datetime
@@ -123,10 +127,18 @@ def approve_command(
             os.environ.get("MERKL_SIGNER_SOCKET") or Path.home() / ".merkl" / "signer" / "rpc.sock"
         )
     base_url = f"http://{host}:{port}" if host else None
+    bearer_token = bearer_token or os.environ.get("MERKL_RELAY_TOKEN")
 
     try:
         decision = asyncio.run(
-            _call(action, challenge, assertion, socket_path=socket_path, base_url=base_url)
+            _call(
+                action,
+                challenge,
+                assertion,
+                socket_path=socket_path,
+                base_url=base_url,
+                bearer_token=bearer_token,
+            )
         )
     except Exception as exc:  # noqa: BLE001 - every signer failure is one message here
         print(f"the signer refused or could not be reached: {exc}", file=sys.stderr)

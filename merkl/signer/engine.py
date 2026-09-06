@@ -33,13 +33,19 @@ from typing import Any, Final
 
 from merkl.core.canonical import JSONObject, JSONValue, parse_instant
 from merkl.core.intent import Intent
-from merkl.core.policy.approvals import ApprovalAssertion, QuorumResult, verify_quorum
+from merkl.core.policy.approvals import (
+    ApprovalAssertion,
+    QuorumResult,
+    verify_policy_signature,
+    verify_quorum,
+)
 from merkl.core.policy.document import (
+    CREDENTIAL_ED25519,
+    AdminCredential,
     PolicyChange,
     PolicyDocument,
     SignedPolicy,
     asset_key,
-    verify_policy_signature,
 )
 from merkl.core.policy.engine import Decision, RiskScore, RuleOutcome, evaluate
 from merkl.core.policy.state import NonceEntry, Outflow, Reconciliation, SpendEntry
@@ -117,16 +123,21 @@ class SignerEngine:
         clock: Clock | None = None,
         risk: Callable[[str], RiskScore] | None = None,
         admin_public_key: str | None = None,
+        admin: AdminCredential | None = None,
         codec: RailCodec | None = None,
     ) -> None:
-        pinned = admin_public_key or policy.document.admin_public_key
-        if not verify_policy_signature(policy, admin_public_key=pinned):
+        pinned = admin or (
+            AdminCredential(credential_type=CREDENTIAL_ED25519, public_key=admin_public_key)
+            if admin_public_key is not None
+            else policy.document.effective_admin
+        )
+        if not verify_policy_signature(policy, admin=pinned):
             raise SignerError("the policy document's admin signature does not verify")
         # Resolved at boot, not per request: a signer that cannot read its rail's
         # bytes must refuse to start rather than discover it mid-payment.
         self._codec = codec or codec_for(policy.document.rail)
         self._policy = policy
-        self._admin_public_key = pinned
+        self._admin = pinned
         self._keystore = keystore
         self._state = state
         self._clock = clock or Clock()
@@ -143,6 +154,11 @@ class SignerEngine:
     @property
     def policy_hash(self) -> str:
         return self._policy.policy_hash
+
+    @property
+    def admin(self) -> AdminCredential:
+        """The admin credential currently pinned, not necessarily the document's own."""
+        return self._admin
 
     def public_key(self) -> JSONObject:
         return {"public_key": self._keystore.public_key(), "key_type": "ed25519"}
@@ -359,9 +375,9 @@ class SignerEngine:
         that could replace the admin.
         """
         incoming = SignedPolicy.from_content(raw_policy)
-        if not verify_policy_signature(incoming, admin_public_key=self._admin_public_key):
+        if not verify_policy_signature(incoming, admin=self._admin):
             raise SignerError(
-                "the new policy is not signed by the admin key this signer has pinned"
+                "the new policy is not signed by the admin credential this signer has pinned"
             )
         if incoming.document.treasury != self.document.treasury:
             raise SignerError("a policy update cannot change which treasury the signer serves")
@@ -372,7 +388,7 @@ class SignerEngine:
             at=self._clock.now(),
         )
         self._policy = incoming
-        self._admin_public_key = incoming.document.admin_public_key
+        self._admin = incoming.document.effective_admin
         self._changes.append(change)
         return {
             "change": change.to_content(),

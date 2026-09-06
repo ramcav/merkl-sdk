@@ -226,6 +226,11 @@ def main() -> None:
         p.add_argument("--host", help="Signer host, instead of a socket")
         p.add_argument("--port", type=int, default=8787, help="Signer port for --host")
         p.add_argument("--json", dest="as_json", action="store_true", help="Structured output")
+        p.add_argument(
+            "--relay-token",
+            help="Relay bearer token (default: $MERKL_RELAY_TOKEN). Only needed once the "
+            "signer has relay tokens configured (docs/SIGNER-RPC.md, \"Who may call what\")",
+        )
 
     # reconcile
     reconcile_p = sub.add_parser(
@@ -326,6 +331,25 @@ def main() -> None:
         "--blocklist", nargs="*", default=[], help="Destinations the risk scorer refuses"
     )
 
+    token_p = signer_sub.add_parser(
+        "token", help="Manage relay bearer tokens (docs/SIGNER-RPC.md, \"Who may call what\")"
+    )
+    token_sub = token_p.add_subparsers(dest="token_command", metavar="<subcommand>")
+    token_add_p = token_sub.add_parser("add", help="Register a new relay token; prints it once")
+    token_add_p.add_argument("id", help="A label for this token (e.g. 'dashboard', 'ci')")
+    token_add_p.add_argument(
+        "--home", type=Path, default=None, help="Signer directory (~/.merkl/signer)"
+    )
+    token_revoke_p = token_sub.add_parser("revoke", help="Remove a relay token by id")
+    token_revoke_p.add_argument("id", help="The token id to remove")
+    token_revoke_p.add_argument(
+        "--home", type=Path, default=None, help="Signer directory (~/.merkl/signer)"
+    )
+    token_list_p = token_sub.add_parser("list", help="List relay token ids (never the tokens)")
+    token_list_p.add_argument(
+        "--home", type=Path, default=None, help="Signer directory (~/.merkl/signer)"
+    )
+
     # treasury
     treasury_p = sub.add_parser("treasury", help="Set up and check a co-signed treasury")
     treasury_sub = treasury_p.add_subparsers(dest="treasury_command", metavar="<subcommand>")
@@ -340,6 +364,29 @@ def main() -> None:
     )
     verify_p = treasury_sub.add_parser("verify", help="Check a treasury's flags and signer list")
     verify_p.add_argument("address", help="Treasury account address")
+
+    # policy
+    policy_p = sub.add_parser("policy", help="Sign and read policy documents (plan D16)")
+    policy_sub = policy_p.add_subparsers(dest="policy_command", metavar="<subcommand>")
+    policy_sign_p = policy_sub.add_parser(
+        "sign", help="Sign a policy document with an Ed25519 admin key (the non-browser path)"
+    )
+    policy_sign_p.add_argument("document", type=Path, help="A bare PolicyDocument, as JSON")
+    policy_sign_p.add_argument(
+        "--key", dest="key_path", type=Path, required=True, help="Ed25519 seed file, hex, 0600"
+    )
+    policy_sign_p.add_argument(
+        "--out", type=Path, default=None, help="Where to write the signed policy (default: stdout)"
+    )
+    policy_show_p = policy_sub.add_parser(
+        "show", help="Render a policy document (signed or bare) in words"
+    )
+    policy_show_p.add_argument(
+        "document", type=Path, help="A PolicyDocument or SignedPolicy JSON"
+    )
+    policy_show_p.add_argument(
+        "--json", dest="as_json", action="store_true", help="Structured output"
+    )
 
     # demo
     demo_p = sub.add_parser(
@@ -408,6 +455,7 @@ def main() -> None:
                 host=args.host,
                 port=args.port,
                 as_json=args.as_json,
+                bearer_token=args.relay_token,
             )
         )
     elif args.command == "reconcile":
@@ -424,21 +472,39 @@ def main() -> None:
             )
         )
     elif args.command == "signer":
-        from merkl.cli.signer import serve_command
+        if args.signer_command == "serve":
+            from merkl.cli.signer import serve_command
 
-        if args.signer_command != "serve":
-            signer_p.print_help()
-            return
-        raise SystemExit(
-            serve_command(
-                policy_path=args.policy,
-                home=args.home,
-                socket_path=args.socket,
-                host=args.host,
-                port=args.port,
-                blocklist=tuple(args.blocklist),
+            raise SystemExit(
+                serve_command(
+                    policy_path=args.policy,
+                    home=args.home,
+                    socket_path=args.socket,
+                    host=args.host,
+                    port=args.port,
+                    blocklist=tuple(args.blocklist),
+                )
             )
-        )
+        if args.signer_command == "token":
+            from merkl.cli.signer import token_command
+
+            if args.token_command not in ("add", "revoke", "list"):
+                token_p.print_help()
+                return
+            raise SystemExit(
+                token_command(args.token_command, getattr(args, "id", None), home=args.home)
+            )
+        signer_p.print_help()
+    elif args.command == "policy":
+        from merkl.cli.policy import show_command, sign_command
+
+        if args.policy_command == "sign":
+            raise SystemExit(
+                sign_command(args.document, key_path=args.key_path, out=args.out)
+            )
+        if args.policy_command == "show":
+            raise SystemExit(show_command(args.document, as_json=args.as_json))
+        policy_p.print_help()
     elif args.command == "treasury":
         from merkl.cli.treasury import init_command, verify_command
 

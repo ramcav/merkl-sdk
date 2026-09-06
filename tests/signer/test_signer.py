@@ -327,7 +327,7 @@ class TestPolicyUpdate:
             signature=rogue_key.sign(rogue_document.pre_image()).hex(),
             signer_public_key=fixtures.ed25519_public_hex(rogue_key),
         )
-        with pytest.raises(SignerError, match="admin key this signer has pinned"):
+        with pytest.raises(SignerError, match="admin credential this signer has pinned"):
             engine.policy_update(rogue.to_content())
 
     def test_a_policy_update_cannot_move_the_treasury(self, tmp_path: Path) -> None:
