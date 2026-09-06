@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Final
@@ -35,7 +35,7 @@ from xrpl.asyncio.transaction import autofill, sign, submit_and_wait
 from xrpl.core import keypairs
 from xrpl.core.binarycodec import encode, encode_for_multisigning
 from xrpl.models.amounts import IssuedCurrencyAmount
-from xrpl.models.requests import AccountTx, Ledger, Subscribe, Tx
+from xrpl.models.requests import AccountTx, Ledger, Manifest, Subscribe, Tx
 from xrpl.models.requests.subscribe import StreamParameter
 from xrpl.models.response import Response
 from xrpl.models.transactions import Memo, Payment, Signer
@@ -60,7 +60,9 @@ from merkl.core.rail import (
     Signature,
     SignedTx,
     UnsignedTx,
+    tx_id_from_blob,
 )
+from merkl.core.verify.xrpl import build_tx_path
 
 TESTNET_JSON_RPC: Final = "https://s.altnet.rippletest.net:51234"
 TESTNET_WEBSOCKET: Final = "wss://s.altnet.rippletest.net:51233"
@@ -143,6 +145,7 @@ class XrplSettlementAdapter:
         self._agent = agent_wallet
         self._policy_public_key = policy_public_key
         self._policy_address = signer_address(policy_public_key)
+        self._json_rpc_url = json_rpc_url
         self._client = AsyncJsonRpcClient(json_rpc_url)
         self._websocket_url = websocket_url
         self._signers_count = signers_count
@@ -379,16 +382,22 @@ class XrplSettlementAdapter:
             await task
 
     async def _capture_proof(self, ref: SettlementRef, signed: SignedTx) -> SettlementProof:
-        """What is obtainable at settlement time, and what is honestly missing.
+        """What is obtainable at settlement time, honestly.
 
-        rippled exposes no API that returns a SHAMap path for a transaction, so
-        the proof carries the validated transaction with its metadata, the ledger
-        header (whose ``transaction_hash`` is the root of the transaction SHAMap),
-        and every validation message seen for that ledger index. That is enough to
-        check a quorum of validators signed *a* ledger with that transaction root;
-        it is not enough to prove offline that this transaction is in that root.
-        Rebuilding the SHAMap from the ledger's full binary transaction set would
-        close the gap, and ``missing`` says so rather than implying otherwise.
+        Alongside the validated transaction and the ledger header, this fetches
+        the ledger's *full* binary transaction set (``ledger`` with
+        ``transactions``, ``expand`` and ``binary``) and builds the transaction
+        SHAMap locally (:func:`~merkl.core.verify.xrpl.build_tx_path`) to get the
+        path from this transaction's leaf to the header's own
+        ``transaction_hash`` — closing the gap phase 2 left as ``shamap_path`` in
+        ``missing``. It also fetches, once per distinct signer, the manifest in
+        effect for every validator that signed this ledger (the ``manifest`` RPC,
+        by the ephemeral key the ``validations`` stream reported), since a
+        verifier checks a validation's signature against a manifest-authorized
+        key, never against a self-reported one. Any of these can fail
+        independently — a network hiccup, a validator whose manifest this server
+        does not have cached — and each failure narrows ``captured``/``missing``
+        rather than the whole proof.
         """
         header: JSONValue = None
         transaction: JSONValue = None
@@ -406,13 +415,23 @@ class XrplSettlementAdapter:
             response = await self._client.request(Tx(transaction=ref.tx_hash))
             transaction = dict(response.result)
 
-        validations = tuple(
-            v
-            for v in self._validations
-            if isinstance(v, dict) and _ledger_index_of(v) == ref.ledger_index
+        expected_root = header.get("transaction_hash") if isinstance(header, dict) else None
+        tx_path = await self._build_tx_path_with_retry(
+            ref.tx_hash,
+            ref.ledger_index,
+            expected_root if isinstance(expected_root, str) else None,
         )
+
+        validations = tuple(
+            await self._with_manifests(
+                v
+                for v in self._validations
+                if isinstance(v, dict) and _ledger_index_of(v) == ref.ledger_index
+            )
+        )
+
         captured = ["signed_blob"]
-        missing = ["shamap_path"]
+        missing: list[str] = []
         if header is not None:
             captured.append("ledger_header")
         else:
@@ -425,6 +444,10 @@ class XrplSettlementAdapter:
             captured.append("validator_validations")
         else:
             missing.append("validator_validations")
+        if tx_path is not None:
+            captured.append("shamap_path")
+        else:
+            missing.append("shamap_path")
         return SettlementProof(
             rail=RAIL_XRPL,
             tx_hash=ref.tx_hash,
@@ -432,10 +455,112 @@ class XrplSettlementAdapter:
             ledger_hash=ledger_hash or None,
             ledger_header=header,
             transaction=transaction,
+            tx_path=tx_path,
             validations=validations,
             captured=tuple(captured),
             missing=tuple(missing),
         )
+
+    async def _build_tx_path_with_retry(
+        self, tx_hash: str, ledger_index: int, expected_root: str | None
+    ) -> JSONObject | None:
+        """Retry :meth:`_build_tx_path` a couple of times over a fresh connection.
+
+        The self-check in :meth:`_build_tx_path` is the real safety net — a
+        path that does not fold to the header's own ``transaction_hash`` is
+        never returned, whatever the reason. This retries a few times, each
+        over a *new* connection rather than the adapter's own long-lived one,
+        purely as cheap insurance against an ordinary transient blip (one
+        dropped request, one slow node in a load-balanced public cluster) —
+        not a guarantee against every way a public RPC endpoint can misbehave.
+        """
+        delays = (0.0, 1.0, 2.0)
+        for delay in delays:
+            if delay:
+                await asyncio.sleep(delay)
+            client = AsyncJsonRpcClient(self._json_rpc_url)
+            path = await self._build_tx_path(tx_hash, ledger_index, expected_root, client=client)
+            if path is not None:
+                return path
+        return None
+
+    async def _build_tx_path(
+        self,
+        tx_hash: str,
+        ledger_index: int,
+        expected_root: str | None,
+        *,
+        client: AsyncJsonRpcClient,
+    ) -> JSONObject | None:
+        """The transaction SHAMap path for ``tx_hash``, or ``None`` if it cannot be built.
+
+        Self-checked against ``expected_root`` (the same ``transaction_hash``
+        this capture already read from the ledger header) before it is
+        returned: a JSON-RPC cluster can answer two requests for the same,
+        already-validated ledger from replicas at slightly different points in
+        their own catch-up, and a path built from a transaction set that does
+        not actually match this header is worse than no path at all — it would
+        fail at verification time instead of being named missing here.
+        """
+        try:
+            response = await client.request(
+                Ledger(ledger_index=ledger_index, transactions=True, expand=True, binary=True)
+            )
+            raw_txs = response.result.get("ledger", {}).get("transactions", [])
+            items: list[tuple[bytes, bytes, bytes]] = []
+            target: tuple[bytes, bytes, bytes] | None = None
+            target_id = bytes.fromhex(tx_hash)
+            for entry in raw_txs:
+                blob_hex = str(entry.get("tx_blob", ""))
+                # RPC api_version 2 (xrpl-py's Ledger request default) names this
+                # field "meta_blob"; api_version 1 names it "meta". Both are the
+                # same hex metadata blob — only the key changed.
+                meta_hex = str(entry.get("meta_blob") or entry.get("meta") or "")
+                tx_id_hex = tx_id_from_blob(RAIL_XRPL, blob_hex)
+                if tx_id_hex is None:
+                    continue
+                item = (bytes.fromhex(tx_id_hex), bytes.fromhex(blob_hex), bytes.fromhex(meta_hex))
+                items.append(item)
+                if item[0] == target_id:
+                    target = item
+            if target is None:
+                return None
+            root, steps = build_tx_path(target_id, items)
+            if expected_root is not None and root.lower() != expected_root.lower():
+                return None
+            steps_json: list[JSONValue] = list(steps)
+            return {
+                "tx_blob": target[1].hex(),
+                "tx_meta": target[2].hex(),
+                "steps": steps_json,
+            }
+        except Exception:  # noqa: BLE001 - a path we cannot build is "missing", not fatal
+            return None
+
+    async def _with_manifests(self, entries: Iterable[JSONValue]) -> list[JSONValue]:
+        """Every validation entry, each carrying the manifest in effect when it signed."""
+        out: list[JSONValue] = []
+        manifests: dict[str, str | None] = {}
+        for entry in entries:
+            if not isinstance(entry, dict):
+                out.append(entry)
+                continue
+            key = entry.get("validation_public_key")
+            manifest_b64: str | None = None
+            if isinstance(key, str) and key:
+                if key not in manifests:
+                    manifests[key] = await self._fetch_manifest(key)
+                manifest_b64 = manifests[key]
+            out.append({**entry, "manifest": manifest_b64} if manifest_b64 else dict(entry))
+        return out
+
+    async def _fetch_manifest(self, public_key: str) -> str | None:
+        with contextlib.suppress(Exception):
+            response = await self._client.request(Manifest(public_key=public_key))
+            manifest = response.result.get("manifest")
+            if isinstance(manifest, str) and manifest:
+                return manifest
+        return None
 
     async def _close_time(self, ledger_index: int) -> str:
         with contextlib.suppress(Exception):
@@ -579,9 +704,7 @@ def _outflows_since(outflows: Sequence[Outflow], since: str) -> list[Outflow]:
     return [o for o in outflows if o.close_time >= since]
 
 
-async def history(
-    treasury: str, since: str = "", *, json_rpc_url: str
-) -> Sequence[Outflow]:
+async def history(treasury: str, since: str = "", *, json_rpc_url: str) -> Sequence[Outflow]:
     """Read-only rail history for reconciliation (plan D17) — no wallet, no signing.
 
     For a caller that must never hold a signing key — the notary, in

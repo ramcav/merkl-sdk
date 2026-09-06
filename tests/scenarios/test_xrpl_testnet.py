@@ -231,8 +231,52 @@ class TestXrplTestnet:
         record("settlement proof", outcome)
         proof = outcome.proof
         assert proof is not None
-        assert "shamap_path" in proof.missing, "the proof must not imply it has a path"
         assert "ledger_header" in proof.captured
+        assert "shamap_path" in proof.captured, proof.missing
+        assert isinstance(proof.tx_path, dict)
+        from merkl.core.verify.xrpl import fold_tx_path
+
+        header = proof.ledger_header
+        assert isinstance(header, dict)
+        folded = fold_tx_path(
+            proof.tx_hash,
+            str(proof.tx_path["tx_blob"]),
+            str(proof.tx_path["tx_meta"]),
+            proof.tx_path["steps"],  # type: ignore[arg-type]
+        )
+        assert folded == str(header["transaction_hash"]).lower()
+
+    async def test_the_settlement_proof_reaches_proven_offline_with_the_testnet_unl(
+        self, tmp_path: Path, network: dict[str, Any]
+    ) -> None:
+        """The whole point: a pinned testnet UNL turns this proof into proven-offline."""
+        import httpx
+
+        from merkl.core.verify.receipt import verify_receipt
+        from merkl.core.verify.settlement import LEDGER_PROVEN_OFFLINE, ValidatorTrust
+        from merkl.core.verify.xrpl import pin_validator_list
+
+        rig = _rig(tmp_path, network, _policy(network))
+        outcome = await rig.builder.execute(
+            instruction=rig.instruction(),
+            intent=rig.intent(value="1", destination=network["destination"], asset="XRP"),
+        )
+        record("proven-offline", outcome)
+        assert outcome.proof is not None
+        async with httpx.AsyncClient() as client:
+            response = await client.get("https://vl.altnet.rippletest.net", timeout=15.0)
+            response.raise_for_status()
+            unl_document = response.json()
+        reading = pin_validator_list(unl_document)
+        trust = ValidatorTrust(validators={m: m for m in reading.masters}, quorum=reading.quorum())
+        verdict = verify_receipt(
+            outcome.receipt.envelope,
+            outcome.receipt.leaves,
+            settlement_proof=outcome.proof.to_content(),
+            validator_trust=trust,
+            policy_document=sign_policy(rig.policy).to_content(),
+        )
+        assert verdict.ledger_inclusion == LEDGER_PROVEN_OFFLINE, verdict.ledger_inclusion_detail
 
     async def test_the_injection_drain_is_denied(
         self, tmp_path: Path, network: dict[str, Any]
