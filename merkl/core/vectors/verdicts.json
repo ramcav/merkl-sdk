@@ -541,7 +541,7 @@
             "status": "pass"
           },
           {
-            "detail": "3 of 3 pinned validators named this ledger, but the capture carries no signature this verifier can check — agreement counted, not proved",
+            "detail": "0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved",
             "name": "settlement.validator_quorum",
             "status": "not_implemented"
           },
@@ -1289,7 +1289,7 @@
             "status": "pass"
           },
           {
-            "detail": "3 of 3 pinned validators named this ledger, but the capture carries no signature this verifier can check — agreement counted, not proved",
+            "detail": "0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved",
             "name": "settlement.validator_quorum",
             "status": "not_implemented"
           },

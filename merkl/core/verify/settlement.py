@@ -27,11 +27,18 @@ verifier ends up claiming more than it holds:
 And then the composite the reader actually asked about,
 ``settlement.ledger_inclusion``: is this transaction in that ledger? That needs
 one more link — a path from the transaction to the header's transaction-set
-root. XRPL captures do not carry it yet (phase 2 named ``shamap_path`` in the
-proof's own ``missing`` list), so on XRPL this reports what is missing rather
-than passing. The fake rail does carry it, which is what keeps the
-``proven-offline`` path of plan D10 exercised in both implementations instead
-of being code nobody runs.
+root. Both rails carry it: the fake rail's own toy binary tree, and XRPL's real
+16-ary transaction SHAMap (:mod:`merkl.core.verify.xrpl`), built by the adapter
+at capture time from the ledger's full binary transaction set and folded back
+here from the leaf — recomputed from the transaction's own raw bytes, not
+merely a hash the proof hands over.
+
+XRPL's validator quorum is a real check too, not a count: each validation entry
+carries the raw ``STValidation`` blob the validations stream published and the
+manifest in effect for that validator, and :func:`~merkl.core.verify.xrpl.evaluate_validation`
+verifies the whole chain — the manifest's own signatures, that its ephemeral
+key is the one that actually signed, and that signature itself — before an
+entry counts as one *pinned master key's* agreement.
 """
 
 from __future__ import annotations
@@ -45,6 +52,7 @@ from merkl.core.canonical import JSONObject, JSONValue
 from merkl.core.checks import Check, CheckStatus, no_data, outcome
 from merkl.core.crypto import CryptoError, ed25519_verify
 from merkl.core.rail import RAIL_FAKE, RAIL_XRPL
+from merkl.core.verify.xrpl import evaluate_validation, fold_tx_path
 
 __all__ = [
     "CHECK_LEDGER_HEADER",
@@ -363,13 +371,75 @@ def _header_check(proof: Mapping[str, Any], rail: str) -> tuple[Check, str | Non
 
 
 VALIDATION_MESSAGE_RULES: Final[dict[str, Any]] = {RAIL_FAKE: fake_validation_message}
-"""Rails whose validation messages this verifier can reconstruct and check.
+"""Rails whose validation messages this generic path reconstructs and checks.
 
-XRPL is absent by design: its validation stream reports secp256k1 validator keys
-and does not republish the serialized ``STValidation`` that was signed, so a
-capture from it supports counting which validators named a ledger, not verifying
-that they did. That gap is reported by name rather than papered over.
+XRPL is absent from this dict on purpose: it has its own rule,
+:func:`_xrpl_quorum_check`, since a real ``STValidation`` is not a fixed
+message shape — it is a captured blob re-serialized minus its own signature,
+checked against a manifest chain, not a two-field message an Ed25519 key signs
+directly. :data:`VALIDATION_MESSAGE_RULES` is what is left of the *generic*
+path once XRPL has its own: today, only the fake rail.
 """
+
+
+def _xrpl_quorum_check(
+    proof: Mapping[str, Any],
+    ledger_hash: str,
+    trust: ValidatorTrust,
+    entries: list[Mapping[str, Any]],
+) -> Check:
+    """Count *pinned master keys* whose manifest-verified ephemeral key signed this ledger.
+
+    Every link is checked by :func:`~merkl.core.verify.xrpl.evaluate_validation`:
+    the manifest's own two signatures, that its ephemeral key is the one that
+    actually signed this validation, and that signature itself. A validator
+    nobody pinned returns ``None`` and does not count either way — see
+    ``validator-outside-the-pinned-list`` in ``merkl/core/vectors/xrpl/cases.json``.
+    """
+    agreed: set[str] = set()
+    disagreed: list[str] = []
+    unchecked = 0
+    for entry in entries:
+        verdict = evaluate_validation(
+            entry, ledger_hash=ledger_hash, pinned_masters=trust.validators.keys()
+        )
+        if verdict is None:
+            continue
+        if verdict.outcome == "agree" and verdict.master_key is not None:
+            agreed.add(verdict.master_key)
+        elif verdict.outcome == "disagree":
+            disagreed.append(verdict.master_key or "(unknown)")
+        else:
+            unchecked += 1
+
+    total = len(trust.validators)
+    if disagreed:
+        return Check(
+            CHECK_VALIDATOR_QUORUM,
+            CheckStatus.FAIL,
+            f"{len(disagreed)} pinned validator(s) did not sign {ledger_hash}: "
+            f"{', '.join(sorted(set(disagreed))[:4])}",
+        )
+    if len(agreed) >= trust.quorum:
+        return outcome(
+            CHECK_VALIDATOR_QUORUM,
+            True,
+            f"{len(agreed)} of {total} pinned validators signed ledger {ledger_hash}, "
+            f"quorum is {trust.quorum}",
+        )
+    if unchecked:
+        return no_data(
+            CHECK_VALIDATOR_QUORUM,
+            f"{len(agreed)} of {total} pinned validators verified, {unchecked} more validation "
+            "entries did not carry enough evidence (a raw validation blob and a manifest for "
+            "it) to check — agreement counted, not proved",
+        )
+    return outcome(
+        CHECK_VALIDATOR_QUORUM,
+        False,
+        f"{len(agreed)} of {total} pinned validators signed ledger {ledger_hash}, "
+        f"quorum is {trust.quorum}",
+    )
 
 
 def _quorum_check(
@@ -394,6 +464,8 @@ def _quorum_check(
             CHECK_VALIDATOR_QUORUM,
             "there is no ledger hash for the validations to agree about",
         )
+    if rail == RAIL_XRPL:
+        return _xrpl_quorum_check(proof, ledger_hash, trust, entries)
 
     message_rule = VALIDATION_MESSAGE_RULES.get(rail)
     agreed: set[str] = set()
@@ -449,8 +521,8 @@ def _quorum_check(
     )
 
 
-def _tx_path_root(tx_hash: str, path: Mapping[str, Any]) -> str | None:
-    """Fold a transaction id up the transaction-set path. None when malformed."""
+def _fake_tx_path_root(tx_hash: str, path: Mapping[str, Any]) -> str | None:
+    """Fold a transaction id up the fake rail's toy binary tree. None when malformed."""
     siblings = path.get("siblings")
     directions = path.get("directions")
     if not isinstance(siblings, list) or not isinstance(directions, list):
@@ -475,6 +547,30 @@ def _tx_path_root(tx_hash: str, path: Mapping[str, Any]) -> str | None:
         pair = current + other if direction == "right" else other + current
         current = hashlib.sha256(pair).digest()
     return current.hex()
+
+
+def _xrpl_tx_path_root(tx_hash: str, path: Mapping[str, Any]) -> str | None:
+    """Fold a transaction up XRPL's real 16-ary SHAMap. None when malformed.
+
+    Unlike the fake rail's path, this recomputes the leaf itself from the
+    transaction's own raw ``tx_blob``/``tx_meta`` (both carried inside ``path``,
+    since they are what the leaf hash is *of*) rather than starting from a hash
+    the proof merely hands over — see
+    :func:`merkl.core.verify.xrpl.fold_tx_path`.
+    """
+    tx_blob = path.get("tx_blob")
+    tx_meta = path.get("tx_meta")
+    steps = path.get("steps")
+    if not isinstance(tx_blob, str) or not isinstance(tx_meta, str) or not isinstance(steps, list):
+        return None
+    return fold_tx_path(tx_hash, tx_blob, tx_meta, steps)
+
+
+TX_PATH_ROOT_RULES: Final[dict[str, Any]] = {
+    RAIL_FAKE: _fake_tx_path_root,
+    RAIL_XRPL: _xrpl_tx_path_root,
+}
+"""Rails whose transaction-set path this verifier can fold back to a root."""
 
 
 def read_settlement_proof(
@@ -527,7 +623,8 @@ def read_settlement_proof(
     path_ok = False
     path_detail = "the proof carries no path from this transaction to the ledger's transaction set"
     if isinstance(path, Mapping) and tx_root is not None:
-        derived = _tx_path_root(tx_hash, path)
+        path_rule = TX_PATH_ROOT_RULES.get(rail)
+        derived = path_rule(tx_hash, path) if path_rule is not None else None
         path_ok = derived is not None and derived.lower() == tx_root.lower()
         path_detail = (
             f"the transaction folds to the header's transaction root {tx_root.lower()}"

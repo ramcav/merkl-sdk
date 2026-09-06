@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 
 import pytest
 
 from merkl.adapters.fake.rail import merkle_root, validator_set
 from merkl.core.checks import CheckStatus
+from merkl.core.rail import tx_id_from_blob
+from merkl.core.vectors.xrpl import XRPL_VECTORS_DIR
 from merkl.core.verify.settlement import (
     CHECK_LEDGER_HEADER,
     CHECK_PROOF_MATCHES,
@@ -21,6 +24,7 @@ from merkl.core.verify.settlement import (
     read_settlement_proof,
     xrpl_ledger_hash,
 )
+from merkl.core.verify.xrpl import build_tx_path, pin_validator_list
 
 TX = "AA" * 32
 LEDGER = 1_000_001
@@ -258,3 +262,89 @@ class TestOfflineInclusion:
         }
         reading = _read(proof, trust=_trust())
         assert reading.ledger_inclusion == LEDGER_PROVEN_OFFLINE
+
+
+class TestXrplRealOfflineInclusion:
+    """A real XRPL testnet ledger, real validator signatures, a real UNL.
+
+    ``ledger_20537819.json`` is not synthetic: it is ledger 20537819's whole
+    binary transaction set and header, and the five validations that ledger
+    actually received on the ``validations`` stream, each with the manifest in
+    effect for that validator at the time — captured together in one session,
+    the same way the XRPL adapter captures a settlement proof. ``fixtures.json``
+    carries the real testnet UNL from ``vl.altnet.rippletest.net``. Nothing
+    here is faked; this is the mechanism plan D20 asks for, reaching
+    ``proven-offline`` against material XRPL itself produced.
+    """
+
+    def test_a_real_testnet_ledger_reaches_proven_offline(self) -> None:
+        fixture = json.loads((XRPL_VECTORS_DIR / "ledger_20537819.json").read_text())
+        unl = json.loads((XRPL_VECTORS_DIR / "fixtures.json").read_text())["unl"]
+
+        items = []
+        for tx in fixture["transactions"]:
+            tx_id = bytes.fromhex(tx_id_from_blob("xrpl", tx["tx_blob"]) or "")
+            items.append((tx_id, bytes.fromhex(tx["tx_blob"]), bytes.fromhex(tx["meta"])))
+        target = items[0]
+        root_hex, steps = build_tx_path(target[0], items)
+        assert root_hex == fixture["header"]["transaction_hash"].lower()
+
+        reading = pin_validator_list(unl)
+        trust = ValidatorTrust(validators={m: m for m in reading.masters}, quorum=reading.quorum())
+
+        tx_hash = target[0].hex().upper()
+        proof = {
+            "rail": "xrpl",
+            "tx_hash": tx_hash,
+            "ledger_index": fixture["ledger_index"],
+            "ledger_hash": fixture["header"]["ledger_hash"],
+            "ledger_header": fixture["header"],
+            "tx_path": {"tx_blob": target[1].hex(), "tx_meta": target[2].hex(), "steps": steps},
+            "validations": fixture["validations"],
+            "captured": (
+                "ledger_header",
+                "validated_transaction_with_metadata",
+                "shamap_path",
+                "validator_validations",
+            ),
+            "missing": (),
+        }
+        result = read_settlement_proof(
+            proof, rail="xrpl", tx_hash=tx_hash, ledger_index=fixture["ledger_index"], trust=trust
+        )
+        assert result.ledger_inclusion == LEDGER_PROVEN_OFFLINE, result.detail
+        for check in result.checks:
+            assert check.status is CheckStatus.PASS, (check.name, check.detail)
+
+    def test_a_tampered_transaction_root_is_not_proven(self) -> None:
+        fixture = json.loads((XRPL_VECTORS_DIR / "ledger_20537819.json").read_text())
+        unl = json.loads((XRPL_VECTORS_DIR / "fixtures.json").read_text())["unl"]
+        items = []
+        for tx in fixture["transactions"]:
+            tx_id = bytes.fromhex(tx_id_from_blob("xrpl", tx["tx_blob"]) or "")
+            items.append((tx_id, bytes.fromhex(tx["tx_blob"]), bytes.fromhex(tx["meta"])))
+        target = items[0]
+        _, steps = build_tx_path(target[0], items)
+        steps = [dict(s) for s in steps]
+        siblings = list(steps[0]["siblings"])
+        siblings[0] = "ee" * 32
+        steps[0]["siblings"] = siblings
+
+        reading = pin_validator_list(unl)
+        trust = ValidatorTrust(validators={m: m for m in reading.masters}, quorum=reading.quorum())
+        tx_hash = target[0].hex().upper()
+        proof = {
+            "rail": "xrpl",
+            "tx_hash": tx_hash,
+            "ledger_index": fixture["ledger_index"],
+            "ledger_hash": fixture["header"]["ledger_hash"],
+            "ledger_header": fixture["header"],
+            "tx_path": {"tx_blob": target[1].hex(), "tx_meta": target[2].hex(), "steps": steps},
+            "validations": fixture["validations"],
+            "captured": (),
+            "missing": (),
+        }
+        result = read_settlement_proof(
+            proof, rail="xrpl", tx_hash=tx_hash, ledger_index=fixture["ledger_index"], trust=trust
+        )
+        assert result.ledger_inclusion != LEDGER_PROVEN_OFFLINE
