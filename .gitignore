@@ -28,3 +28,11 @@ build/
 signer-keystore/
 signer-state/
 *.keystore.json
+*.key
+approver.key
+receipts/
+
+# Node — the JS suite runs with no dependencies, but npm still writes these
+node_modules/
+package-lock.json
+npm-debug.log*
