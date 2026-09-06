@@ -814,12 +814,22 @@ class SignedPolicy:
 
 @dataclasses.dataclass(frozen=True)
 class PolicyChange:
-    """The record a signer writes when a policy is replaced (plan D16)."""
+    """The record a signer writes when a policy is replaced (plan D16).
+
+    ``signed_by`` is the credential that authorized the change — the admin the
+    signer had pinned *before* the update, not whatever the new document
+    nominates. ``credential_type`` names its kind (``ed25519`` or
+    ``webauthn``), added alongside it in plan D16's extension so a reader can
+    tell which verification path produced this change without re-deriving it
+    from the document. Defaults to ``ed25519`` for change entries recorded
+    before that field existed — every one of them was.
+    """
 
     old_hash: str
     new_hash: str
     signed_by: str
     at: str
+    credential_type: str = CREDENTIAL_ED25519
 
     def to_content(self) -> JSONObject:
         return {
@@ -827,16 +837,22 @@ class PolicyChange:
             "new_hash": self.new_hash,
             "signed_by": self.signed_by,
             "at": self.at,
+            "credential_type": self.credential_type,
         }
 
     @classmethod
     def from_content(cls, data: Any) -> PolicyChange:
-        obj = _members(data, {"old_hash", "new_hash", "signed_by", "at"}, "policy_change")
+        obj = _members(
+            data,
+            {"old_hash", "new_hash", "signed_by", "at", "credential_type"},
+            "policy_change",
+        )
         return cls(
             old_hash=_required(obj, "old_hash", "policy_change"),
             new_hash=_required(obj, "new_hash", "policy_change"),
             signed_by=_required(obj, "signed_by", "policy_change"),
             at=_required(obj, "at", "policy_change"),
+            credential_type=obj.get("credential_type", CREDENTIAL_ED25519),
         )
 
 

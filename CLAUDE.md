@@ -9,8 +9,9 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
 - `merkl.core` — the pure proof core: Merkle trees and proofs, leaf encodings,
   Intent v1, the co-signer receipt, the signed policy document and the
   deterministic policy engine (see below). No I/O, no clock, no new deps
-- `merkl.signer` — the co-signer process: keystore, agent-request auth, sealed
-  rule state, the authoritative decision flow, JSON-RPC over a Unix socket
+- `merkl.signer` — the co-signer process: keystore, agent-request auth, relay
+  bearer auth for every other RPC method, sealed rule state, the authoritative
+  decision flow, JSON-RPC over a Unix socket
 - `merkl.adapters` — the edge: `fake` (in-memory rail), `xrpl` (multisigned
   Payments + treasury bootstrap), `signer_dev` / `signer_nitro` (SignerPort
   clients), `nitro` (KMS sealing and the CMS envelope it answers with)
@@ -25,7 +26,9 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
 - `SessionContext` — async context manager for session lifecycle
 - `@trace` and `@guardrail` decorators for auto-recording actions (concurrency-safe via `contextvars`)
 - `merkl` CLI — `merkl install --claude-code [--global]` writes hooks into
-  `settings.json`; `merkl demo [--xrpl-testnet]` runs the five scenarios
+  `settings.json`; `merkl demo [--xrpl-testnet]` runs the five scenarios;
+  `merkl policy sign|show` and `merkl signer token add|revoke|list` manage
+  policy admin signatures and relay bearer tokens
 - `HookState` (`merkl/hooks/claude_code.py`) — one tempfile-backed object per Claude Code session, owns session_id, turn rotation, dataflow snippets, sub-agent parent linkage
 - Framework integrations: LangChain, OpenAI, Google ADK, CrewAI — all route through `merkl.integrations._common.record_tool_call` so new action fields plumb through one call site
 - Shared value objects (`SHA256Hash`, `canonical_hash`, `SessionId`, `ActionId`, `Timestamp`, enums, errors) imported by both SDK and merkl-api
@@ -59,10 +62,13 @@ merkl/core/
   ports.py       SettlementPort, SignerPort, ReceiptStorePort, ApprovalPort,
                  RiskPort, ClockPort (Protocols only)
   policy/
-    document.py  PolicyDocument v1, SignedPolicy (merkl-policy-v1), approvers
+    document.py  PolicyDocument v1, SignedPolicy (merkl-policy-v1), approvers,
+                 AdminCredential (ed25519 or webauthn; the legacy
+                 admin_public_key field stays byte-identical for policy_hash)
     engine.py    evaluate(intent, policy, state, risk, now) -> Decision
     state.py     LedgerState, StateView, StateStore, reconcile()
-    approvals.py ApprovalAssertion (WebAuthn + Ed25519), verify_quorum()
+    approvals.py ApprovalAssertion (WebAuthn + Ed25519), verify_quorum(),
+                 verify_policy_signature() — one path for admins and approvers
   receipt.py     the seven leaves, LEFT/RIGHT/ROOT, Envelope, Receipt,
                  selective disclosure, verify_receipt_structure
   checks.py      Check / CheckStatus / VerificationResult, shared by every
@@ -98,7 +104,16 @@ audit and small enough to put inside an enclave in phase 3. The one exception is
 the signer is about to sign and holds it against the intent; it loads lazily
 behind its own extra (`signer-xrpl`), and nothing else imports it at module
 level. The settlement adapter runs in the agent's process, so its account of what
-its bytes encode is never taken on trust — see `docs/SIGNER-RPC.md` section 4.
+its bytes encode is never taken on trust — see `docs/SIGNER-RPC.md` section 5.
+
+`merkl/signer/relay_auth.py` is the relay bearer credential (`docs/SIGNER-RPC.md`
+section 3, "Who may call what"): who may call anything but `propose`, checked
+in `merkl.signer.server.RpcRouter` and threaded through both transports (an
+HTTP `Authorization` header, or a vsock `auth` frame member the Nitro parent
+proxy forwards unchanged). Only a token's SHA-256 is ever stored, and a
+failure is *raised* rather than logged — this module obeys the same
+"the signer says nothing" rule `tests/signer/test_signer_purity.py` enforces
+across all of `merkl/signer/`.
 
 `merkl/signer/` also holds the enclave-side pieces (phase 3): `attestation.py`
 talks to `/dev/nsm` over one `ioctl` with CBOR on both sides, `keystore.py` gains
@@ -202,12 +217,19 @@ merkl/demo/
 - `merkl/integrations/` — langchain.py, openai.py, google_adk.py, crewai.py
 - `merkl/hooks/claude_code.py` — Claude Code PostToolUse + SessionEnd hook; `HookState` class owns all per-session scratch state
 - `merkl/cli/main.py` — the CLI: `verify`, `receipt show`, `disclose`, `approve`,
-  `reject`, `reconcile`, `install`, `signer serve`, `treasury`, `demo`
+  `reject`, `reconcile`, `install`, `signer serve|token`, `policy sign|show`,
+  `treasury`, `demo`
 - `merkl/cli/verify.py` — `merkl verify` over a receipt, a bundle or a rendered
   verify.html; exit 0 nothing contradicted, 1 contradicted, 2 unreadable
 - `merkl/cli/demo.py` — `merkl demo`: fake rail always, XRPL testnet with
   `--xrpl-testnet` / `MERKL_XRPL_TESTNET=1`; writes a folder of `verify.html`
   and exits non-zero if a page does not verify cleanly
+- `merkl/cli/policy.py` — `merkl policy sign` (the non-browser admin path: an
+  Ed25519 key over `policy_hash`, in the same `ApprovalAssertion` shape a
+  WebAuthn admin's ceremony produces) and `merkl policy show` (a document
+  rendered in words)
+- `merkl/cli/signer.py` — `merkl signer serve` (loads `relay-tokens.json` from
+  `--home` if present) and `merkl signer token add|revoke|list`
 - `merkl/cli/receipt.py`, `merkl/cli/approve.py`, `merkl/cli/reconcile.py`
 - `merkl/demo/scenarios.py`, `merkl/demo/pages.py`, `merkl/demo/xrpl_env.py` —
   the five scenarios, the page-writer, and the XRPL testnet environment
@@ -232,8 +254,8 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # 1253 tests, 8 skipped
-npm test                                        # 182 JS tests, node --test, no bundler
+pytest                                          # 1316 tests, 8 skipped
+npm test                                        # 195 JS tests, node --test, no bundler
 mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py nitro merkl/demo merkl/cli
 ruff check merkl/core merkl/signer merkl/adapters nitro tests/core tests/signer merkl/demo merkl/cli tests/demo
 python -m merkl.core.vectors.generate --check              # fixtures are current

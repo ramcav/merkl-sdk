@@ -214,7 +214,7 @@ fingerprint, not fetched at verification time from whoever answers.
 **What is outside all of it.** A compromised *agent* can still ask for payments,
 and the policy is what refuses them. A compromised settlement adapter can still
 produce bytes that encode a different payment, and the rail codec inside the
-enclave is what catches that (`docs/SIGNER-RPC.md` section 4). The enclave
+enclave is what catches that (`docs/SIGNER-RPC.md` section 5). The enclave
 protects the key and the decision; it does not make the agent honest.
 
 ## What was executed, and what was not

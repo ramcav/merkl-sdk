@@ -209,7 +209,7 @@ Two things a rail adapter must get right, because the signer depends on them:
   the adapter's account of what the bytes mean, because the adapter runs in the
   agent's own process. Add a rail and you also add a **verify-only** codec at
   `merkl/signer/rails/<rail>.py`: an allowlist of fields, not a blocklist of
-  dangerous ones (`docs/SIGNER-RPC.md` §4). The signer refuses to boot for a
+  dangerous ones (`docs/SIGNER-RPC.md` §5). The signer refuses to boot for a
   rail with no codec, rather than discover the gap mid-payment.
 
 ### Deploy the signer

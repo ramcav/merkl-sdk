@@ -10,11 +10,15 @@ from merkl.core.canonical import ContentError
 from merkl.core.intent import IssuedCurrency
 from merkl.core.policy.approvals import verify_policy_signature
 from merkl.core.policy.document import (
+    CREDENTIAL_ED25519,
+    CREDENTIAL_WEBAUTHN,
     POLICY_TAG,
+    AdminCredential,
     AgentSection,
     ApproverCredential,
     AssetLimit,
     EscalationTier,
+    PolicyChange,
     PolicyDocument,
     PolicyError,
     ReferenceBinding,
@@ -111,6 +115,79 @@ class TestSignature:
         document = make_document()
         assert document.pre_image().startswith(POLICY_TAG)
         assert document.policy_hash() == SHA256Hash.from_bytes(document.pre_image()).hex()
+
+
+class TestAdminCredential:
+    """PolicyDocument.admin (plan D16, extended): ed25519 or webauthn."""
+
+    def test_admin_and_admin_public_key_are_mutually_exclusive(self) -> None:
+        with pytest.raises(PolicyError, match="mutually exclusive"):
+            make_document(
+                admin_public_key=fixtures.ed25519_public_hex(ADMIN),
+                admin=AdminCredential(
+                    credential_type=CREDENTIAL_ED25519,
+                    public_key=fixtures.ed25519_public_hex(OTHER),
+                ),
+            )
+
+    def test_a_document_needs_one_admin_or_the_other(self) -> None:
+        with pytest.raises(PolicyError, match="needs an admin"):
+            make_document(admin_public_key=None)
+
+    def test_the_legacy_field_synthesizes_an_ed25519_effective_admin(self) -> None:
+        document = make_document()
+        admin = document.effective_admin
+        assert admin.credential_type == CREDENTIAL_ED25519
+        assert admin.public_key == fixtures.ed25519_public_hex(ADMIN)
+        assert admin.origins == ()
+
+    def test_a_legacy_document_emits_no_admin_member(self) -> None:
+        """The whole point: policy_hash over this shape must never move."""
+        content = make_document().to_content()
+        assert "admin" not in content
+        assert content["admin_public_key"] == fixtures.ed25519_public_hex(ADMIN)
+
+    def test_a_webauthn_admin_round_trips_and_hashes_differently(self) -> None:
+        webauthn_admin = AdminCredential(
+            credential_type=CREDENTIAL_WEBAUTHN,
+            public_key="04" + "ab" * 64,
+            origins=("https://admin.example.com",),
+            rp_id="admin.example.com",
+            user_verification=True,
+        )
+        document = make_document(admin_public_key=None, admin=webauthn_admin)
+        assert document.effective_admin == webauthn_admin
+        content = document.to_content()
+        assert "admin_public_key" not in content
+        assert content["admin"]["credential_type"] == "webauthn"
+        assert PolicyDocument.from_content(content) == document
+        assert document.policy_hash() != make_document().policy_hash()
+
+    def test_a_webauthn_admin_needs_a_relying_party(self) -> None:
+        with pytest.raises(PolicyError, match="rp_id"):
+            AdminCredential(credential_type=CREDENTIAL_WEBAUTHN, public_key="04" + "ab" * 64)
+
+
+class TestPolicyChange:
+    def test_round_trips_with_credential_type(self) -> None:
+        change = PolicyChange(
+            old_hash="a" * 64,
+            new_hash="b" * 64,
+            signed_by=fixtures.ed25519_public_hex(ADMIN),
+            at="2026-02-01T00:00:00Z",
+            credential_type="webauthn",
+        )
+        assert PolicyChange.from_content(change.to_content()) == change
+
+    def test_credential_type_defaults_to_ed25519(self) -> None:
+        content = {
+            "old_hash": "a" * 64,
+            "new_hash": "b" * 64,
+            "signed_by": fixtures.ed25519_public_hex(ADMIN),
+            "at": "2026-02-01T00:00:00Z",
+        }
+        change = PolicyChange.from_content(content)
+        assert change.credential_type == "ed25519"
 
 
 class TestValidation:

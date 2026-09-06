@@ -386,6 +386,7 @@ class SignerEngine:
             new_hash=incoming.policy_hash,
             signed_by=incoming.signer_public_key,
             at=self._clock.now(),
+            credential_type=self._admin.credential_type,
         )
         self._policy = incoming
         self._admin = incoming.document.effective_admin

@@ -9,6 +9,41 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+### Added — phase 6
+
+- **Relay bearer authentication on the signer RPC.** Every method but
+  `propose` — `health`, `public_key`, `attestation`, `approve`, `reject`,
+  `settle`, `release`, `policy_update` — now accepts an optional relay
+  credential: `merkl signer token add|revoke|list` writes SHA-256 digests
+  only to the signer's config and prints a fresh token exactly once. Once at
+  least one is configured, every non-`propose` method requires
+  `Authorization: Bearer <id>:<secret>`, checked in constant time; with none
+  configured a signer behaves exactly as it did before this phase. Wired
+  through both transports — the HTTP `Authorization` header for the dev
+  signer, and a vsock `auth` frame member the Nitro parent proxy forwards
+  unchanged from the header it received (`merkl.signer.relay_auth`,
+  `docs/SIGNER-RPC.md` §3, "Who may call what"). Not a fund-moving secret: it
+  bounds who may push at the signer, not what a push can accomplish.
+- **Policy documents may be signed by a WebAuthn admin, not only Ed25519.**
+  `PolicyDocument.admin` (`{credential_type, public_key, origins?, rp_id?,
+  user_verification?}`) sits beside the legacy `admin_public_key` field —
+  mutually exclusive, and the legacy field still emits exactly the bytes it
+  always did, so `policy_hash` for every document signed before this phase is
+  byte-identical (`merkl/core/vectors/policies.json` proves it: regenerating
+  touches only `manifest.json`). `SignedPolicy.signature` may now be an
+  `ApprovalAssertion`-shaped object — Ed25519 or WebAuthn — over the 32-byte
+  `policy_hash`, with `approver_id` fixed to `"admin"`, verified by
+  `merkl.core.policy.approvals.verify_policy_signature`: one function for
+  both admins and approvers, no second WebAuthn parser. `merkl policy sign
+  <document.json> --key <ed25519>` is the non-browser path; `merkl policy
+  show` renders a document — rules, tiers, approvers, admin — in words.
+  `verifyPolicySignature` is the `@merkl/verify` mirror
+  (`docs/INTERFACES-P4.md` §6, "Policy signing for the dashboard", has the
+  exact WebAuthn challenge and the POST body the API relays to
+  `policy_update`). `PolicyChange` gains `credential_type`, naming which kind
+  of admin authorized the change; it defaults to `ed25519` for change entries
+  recorded before this field existed, which every one before this phase was.
+
 ## [0.2.0] - 2026-09-06
 
 ### Added — phase 5

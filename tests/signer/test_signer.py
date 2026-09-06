@@ -323,6 +323,7 @@ class TestPolicyUpdate:
         result = engine.policy_update(updated.to_content())
         assert result["change"]["old_hash"] == old_hash
         assert result["change"]["new_hash"] == updated.policy_hash
+        assert result["change"]["credential_type"] == "ed25519"
         assert engine.policy_hash == updated.policy_hash
         assert engine.policy_changes()[0]["old_hash"] == old_hash
 

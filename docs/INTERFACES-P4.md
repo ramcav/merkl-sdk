@@ -146,6 +146,7 @@ the file.
 | `verifyAttestation(bytes, {trust, now, expectedPublicKey, expectedUserData})` | the nine attestation checks |
 | `verifyAssertion(assertion, challengeBytes, credential)` | `{approver_id, valid, detail}` — for the approvals queue |
 | `verifyQuorum(assertions, challengeBytes, approvers, quorum)` | `{quorum, checks, accepted, reached}` |
+| `verifyPolicySignature(signedPolicy, {adminPublicKey, admin})` | `{valid, detail, unsupported?}` — an admin's signature over a policy change (§6) |
 | `escalationChallenge(contents)` | `LEFT_pre`, so the queue can show what a passkey will sign |
 | `readSettlementProof(proof, {rail, txHash, ledgerIndex, trust, live})` | `{checks, ledger_inclusion, detail}` |
 | `actionLeafHash`, `receiptLeafHash`, `canonicalHashHex`, `deriveRoot`, `merkleRoot` | the primitives, if you need one directly |
@@ -214,6 +215,7 @@ All inside the wheel, under `merkl/core/vectors/`:
 | `verdicts.json` | 4 verdicts | the whole reading beside the exact material it was reached from |
 | `tampered.json` | 28 | receipts and disclosures that must fail, with the exact failing check names |
 | `approvals.json` | 10 + quorum cases | WebAuthn and Ed25519 assertions, valid and invalid |
+| `policies.json` | 9 | admin signatures over a policy document — legacy and assertion-shaped, valid and tampered (§6) |
 | `merkle.json`, `action_leaf.json`, `receipt_leaf.json` | 8 / 10 / 21 | the frozen encodings |
 | `bundles/cases.json` | 12 | real merkl-api exports (v1.1, continuation, v1.2) and mutations of them |
 | `attestation/cases.json` | 17 | three documents AWS actually signed |
@@ -228,7 +230,7 @@ Regenerate with `python -m merkl.core.vectors.generate`,
 
 ## 5. Signer RPC: `reject`
 
-New method, documented in `docs/SIGNER-RPC.md` §3. `{challenge, assertions}` in,
+New method, documented in `docs/SIGNER-RPC.md` §4. `{challenge, assertions}` in,
 a `deny` envelope out, with the signed refusals inside leaf 2's escalation and
 the reservation released.
 
@@ -242,7 +244,115 @@ test the signer end against.
 
 ---
 
-## 6. What did not change
+## 6. Policy signing for the dashboard
+
+Plan D16, extended: an org can now put a policy change into force with a
+WebAuthn admin credential from the browser, not only an Ed25519 key on some
+operator's machine. `PolicyDocument.admin` names it:
+
+```json
+{"credential_type": "webauthn", "public_key": "<hex, uncompressed SEC1 point>",
+ "origins": ["https://app.merkl.ai"], "rp_id": "app.merkl.ai", "user_verification": true}
+```
+
+The legacy `admin_public_key` field (a bare Ed25519 hex string) still works and
+still means exactly what it always did — a document carries one or the other,
+never both — and `PolicyDocument.to_content()` emits the legacy field alone
+when that is what is set, so `policy_hash` for every document signed before
+this phase is **byte-identical**. `merkl/core/vectors/policies.json` is the
+proof: regenerating the vectors after this change touched only `manifest.json`.
+
+### The exact WebAuthn challenge
+
+**`policy_hash`, the 32-byte digest — not the pre-image, and not an
+escalation's `LEFT_pre`.** Compute it the same way the signer and both
+verifiers do:
+
+```
+policy_hash = SHA-256("merkl-policy-v1" || NUL || canonical_bytes(document))
+```
+
+Hand those 32 bytes to `navigator.credentials.get()` as `publicKey.challenge`
+exactly as you would `LEFT_pre` for an approval — same ceremony, same
+`AuthenticatorAssertionResponse`, different bytes. Getting this wrong (signing
+the pre-image, or a hash of the JSON string instead of `canonical_bytes`)
+produces a signature that will never verify against anything, silently, so
+check it against `merkl/core/vectors/policies.json`'s `webauthn-admin-valid`
+case before wiring it up for real.
+
+### The assertion shape
+
+Package the WebAuthn ceremony's output exactly as an approver's assertion is
+packaged (`RECEIPT-SPEC.md` §3.3) — same fields, same encodings, with
+`approver_id` fixed to the literal string `"admin"`:
+
+```json
+{"approver_id": "admin",
+ "credential_type": "webauthn",
+ "signature": "<hex DER>",
+ "client_data_json": "<hex of the raw clientDataJSON bytes>",
+ "authenticator_data": "<hex>",
+ "signed_at": "2026-02-01T09:00:00Z"}
+```
+
+`client_data_json` is hex of the *exact bytes* the browser produced — not a
+re-serialization of the parsed JSON, which would change the bytes the
+signature covers and so break it. The inner `challenge` member of
+`clientDataJSON` stays base64url, because that is what WebAuthn puts there.
+
+An Ed25519 admin who is not in a browser (`merkl policy sign` — the
+non-browser path) produces the same shape, just with `credential_type:
+"ed25519"` and no `client_data_json` / `authenticator_data`, signing the raw
+32 bytes of `policy_hash` directly. One wire shape either way.
+
+### The POST body the API expects
+
+```json
+{"signed_policy": {
+  "document": { … PolicyDocument.to_content() … },
+  "signature": { … the assertion above, or the legacy hex string … },
+  "signer_public_key": "<hex>"
+}}
+```
+
+That is `SignedPolicy.to_content()`, unmodified, and it is exactly the body
+`merkl.signer.engine.SignerEngine.policy_update` and the `policy_update` RPC
+method already accept (`docs/SIGNER-RPC.md` §4) — the notary's route is a
+relay, the same shape D1 and D11 already establish for `approve`/`reject`:
+forward `{signed_policy}` to the signer's `policy_update` verbatim and store
+the returned change entry beside the receipt log, never evaluate the
+signature itself. `signer_public_key` is the credential's own `public_key`
+(the WebAuthn P-256 point, or the Ed25519 key) — the same value that must
+appear in `PolicyDocument.admin.public_key` (or `admin_public_key`) for the
+document to trust the key that is about to sign it, and the same value the
+signer checks the incoming signature against **its own currently-pinned
+admin**, never against whatever the incoming document nominates (a forged
+document could nominate anything).
+
+### Verifying it — `verifyPolicySignature`
+
+```js
+import { verifyPolicySignature } from '@merkl/verify';
+
+const result = await verifyPolicySignature(signedPolicy, { admin: pinnedAdminCredential });
+// { valid: boolean, detail: string, unsupported?: true }
+```
+
+Mirrors `merkl.core.policy.approvals.verify_policy_signature` exactly, and
+like every other function in the package, returns a structured result rather
+than a boolean (`README.md`'s "nothing returns a single boolean"). `admin`
+pins a full credential — a WebAuthn admin's `origins` included, which matters:
+without it, an assertion phished from a lookalike origin would still verify.
+`adminPublicKey` pins a legacy Ed25519 key only. Passing neither trusts the
+document's own `admin` / `admin_public_key` member, which is exactly what a
+forged document exploits by nominating itself — pin one before you act on the
+result. A runtime with no Ed25519 in Web Crypto reports `valid: false,
+unsupported: true` rather than a quiet failure; this only matters for an
+Ed25519 admin, since WebAuthn's ECDSA P-256 has no such gap.
+
+---
+
+## 7. What did not change
 
 `merkl-leaf-v1`, `merkl-binding-v1`, `merkl-entry-v1`, `merkl-receipt-leaf-v1`
 and `merkl-receipt-v1` are untouched, byte for byte. Every bundle that verified

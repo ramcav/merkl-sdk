@@ -22,7 +22,9 @@ Reference implementation: `merkl.signer.server` (server) and
 {"protocol": "merkl-signer-rpc-v1", "error": {"code": "signer_auth_error", "message": "…"}}
 ```
 
-`GET /health` returns the `health` result without a body, for a supervisor.
+`GET /health` returns the `health` result without a body, for a supervisor —
+subject to the same relay credential as every other method once one is
+configured (§3); it is not a special case.
 
 | Error code | HTTP | Means |
 |---|---|---|
@@ -43,9 +45,10 @@ before the other reserved against it.
 
 ## 2. Authentication
 
-`propose` carries a `SignedRequest` (plan D15). Every other method is
-unauthenticated in this phase and is expected to be reachable only through the
-socket's file permissions; phase 3 authenticates them at the vsock boundary.
+`propose` carries a `SignedRequest` (plan D15). Every other method
+authenticates differently — see §3, "Who may call what" — because a request to
+`propose` names a decision to make, and everything else names an action to take
+against a decision or the signer's own configuration.
 
 ```json
 {"method": "propose",
@@ -68,7 +71,73 @@ never against `agent_public_key` in the request; that member exists so the
 request is self-describing, not so it can authenticate itself. The nonce is
 recorded in signer state and refused a second time.
 
-## 3. Methods
+## 3. Who may call what
+
+`propose` authenticates itself, above: the caller signs the request with the
+key the policy names for that agent, and needs no other credential. Every
+other method — `health`, `public_key`, `attestation`, `approve`, `reject`,
+`settle`, `release`, `policy_update` — has no signature of its own. Today that
+means "reachable by anything that can reach the transport": file permissions
+on a Unix socket, or nothing at all once the signer sits behind the Nitro
+parent's HTTP relay.
+
+A **relay token** bounds that. It lives in the signer's own config, never in
+the policy document — the policy is public and replayable, and who may push
+things at the signer is an operational fact, not a rule an intent gets
+evaluated against:
+
+```json
+{"relay_tokens": [{"id": "dashboard", "token_sha256": "<hex>"}]}
+```
+
+Only the SHA-256 of each token is ever stored. `merkl signer token add <id>`
+writes a fresh entry to that config and prints the bearer token **exactly
+once**:
+
+```
+$ merkl signer token add dashboard
+relay token 'dashboard' created. This is the only time it is shown:
+
+  dashboard:3f9a1c…
+
+Pass it as 'Authorization: Bearer <token>', --relay-token, or $MERKL_RELAY_TOKEN.
+```
+
+`merkl signer token revoke <id>` removes one; `merkl signer token list` prints
+only ids, never tokens. The id before the colon is not secret — it is what
+lets a failure name *which* credential did not verify without ever naming the
+credential itself.
+
+Once at least one relay token is configured, every method but `propose`
+requires `Authorization: Bearer <id>:<secret>` matching one of them, checked in
+constant time. **No relay tokens configured behaves exactly as this phase
+found it** — every method reachable, bounded only by the transport — so an
+existing deployment keeps working unmodified; adding a token is what switches
+a signer into requiring one for everything but `propose`.
+
+Over vsock, which has no headers, the same credential travels as a top-level
+`auth` member of the request frame:
+
+```json
+{"method": "approve", "params": { … }, "auth": {"bearer": "<id>:<secret>"}}
+```
+
+The Nitro parent proxy lifts the token out of the HTTP `Authorization` header
+it received and forwards it into that member unchanged (`nitro/parent/proxy.py`)
+— it does not generate, store or check relay tokens itself, the same way it
+does not generate, store or check anything else that matters (§6).
+
+**This is not a fund-moving secret.** Holding a relay token lets you push
+approvals, rejections and policy changes at the signer and ask about its own
+state; it authorizes none of them by itself. The signer still only agrees
+because the agent's own request was signed (`propose`), because the assertions
+attached to an `approve`/`reject` verify against the policy's approvers, or
+because a `policy_update` verifies against the pinned admin (§4, `policy_update`,
+below). Losing a relay token is an availability incident — flooding,
+forced escalation churn, a renamed policy over and over — not a theft. It
+bounds who may push, not what pushing can accomplish.
+
+## 4. Methods
 
 ### `health`
 
@@ -225,20 +294,40 @@ only ever report every reservation as unsettled.
 ### `policy_update`
 
 ```json
-{"signed_policy": {"document": { … }, "signature": "<hex>", "signer_public_key": "<hex>"}}
+{"signed_policy": {"document": { … }, "signature": "<hex or an ApprovalAssertion>",
+                    "signer_public_key": "<hex>"}}
 ```
 
-Accepted only when the signature verifies against the admin key the signer has
-**currently pinned** — not the key the incoming document nominates, which a
-forged document could set to its own. The treasury may not change. Returns the
-change entry (plan D16) for the SDK to post to the notary:
+`signature` is either the legacy raw Ed25519 hex over the tagged pre-image, or
+an `ApprovalAssertion`-shaped object (`RECEIPT-SPEC.md` section 3.3) — Ed25519
+or WebAuthn — over the 32-byte `policy_hash`, with `approver_id` fixed to
+`"admin"`. Both are accepted only when the signature verifies against the admin
+**credential** the signer has **currently pinned** — not the key or credential
+the incoming document nominates, which a forged document could set to its own.
+`merkl.core.policy.approvals.verify_policy_signature` is the one function that
+checks either shape; it is the same one an approver's assertion goes through.
+The treasury may not change. Returns the change entry (plan D16) for the SDK to
+post to the notary:
 
 ```json
-{"change": {"old_hash": "<hex>", "new_hash": "<hex>", "signed_by": "<hex>", "at": "…"},
+{"change": {"old_hash": "<hex>", "new_hash": "<hex>", "signed_by": "<hex>",
+            "credential_type": "ed25519", "at": "…"},
  "policy_hash": "<hex>", "policy_version": "2026.02.0"}
 ```
 
-## 4. Reading the bytes before signing them
+`signed_by` is the credential's `public_key` — Ed25519 or the WebAuthn P-256
+point — never the credential's shape or origins; a reader who needs those
+looks them up in the document itself. `credential_type` names *whose*
+signature authorized this change (the admin the signer had pinned before the
+update, i.e. `signed_by`'s kind), not the kind of admin the new document
+nominates; it defaults to `ed25519` on a change entry recorded before this
+field existed, which every one before this phase was. Once adopted, the
+signer pins whatever admin *that* document names, ed25519 or webauthn — an
+org can hand its policy
+from a legacy admin key to a WebAuthn one in a single update, signed by the key
+being retired.
+
+## 5. Reading the bytes before signing them
 
 The settlement adapter runs in the **agent's** process. That is the party this
 whole design assumes may be compromised, so its account of what a payload encodes
@@ -303,7 +392,7 @@ the *rail* will accept them — a malformed fee or a stale `LastLedgerSequence`
 makes the transaction fail, not misdeliver. That is a liveness problem, and it
 shows up as a `FAILED` receipt rather than a wrong payment.
 
-## 5. The Nitro transport (phase 3, shipped)
+## 6. The Nitro transport (phase 3, shipped)
 
 The Nitro parent proxy implements this contract over vsock. Same methods, same
 request and response shapes; `merkl.adapters.signer_nitro.NitroSignerClient` is a
@@ -325,7 +414,10 @@ for the same router. What changed:
 - the policy document is baked into the image too, for the same reason: one
   handed over by the parent at boot is a policy the parent chooses.
 
-No method signature changes.
+No method signature changes. The one envelope-level addition, the optional
+`auth` member carrying a relay bearer token (§3), is on the *request* frame,
+not on any method's own params or result, and is absent entirely on a signer
+with no relay tokens configured — the same `RpcRouter` answers both ways.
 
 The vsock framing is four bytes of big-endian length and then the same JSON body
 (`merkl.signer.vsock`). Not HTTP: inside the enclave an HTTP parser would be code
