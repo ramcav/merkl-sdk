@@ -29,11 +29,14 @@ import json
 import logging
 import os
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
 from merkl.adapters.nitro.kms import KmstoolEnclaveKms, RecipientKms
 from merkl.core.policy.document import SignedPolicy
+from merkl.core.policy.state import Outflow
 from merkl.signer.attestation import NitroSecureModule
 from merkl.signer.engine import SignerEngine
 from merkl.signer.keystore import NitroKeystore
@@ -92,6 +95,22 @@ class ParentChannel:
     def store(self, blob: bytes) -> None:
         self._result("store_sealed_key", {"blob": base64.b64encode(blob).decode()})
 
+    def history(self, treasury: str, since: str) -> list[Outflow]:
+        """Validated rail outflows, read by the parent, parsed here.
+
+        This is the one place untrusted input crosses into the enclave and is
+        *used* rather than only stored, so it is parsed into checked value
+        objects at the boundary. What it is used for matters as much: it goes to
+        ``SignerEngine.reconcile``, which compares it to state the enclave wrote
+        itself. A parent that invents outflows makes its own instance look like
+        it is leaking money. A parent that hides them hides its own alarm.
+        Neither moves a payment (plan D2: state is never supplied by the caller).
+        """
+        outflows = self._result("history", {"treasury": treasury, "since": since}).get("outflows")
+        if not isinstance(outflows, list):
+            raise SystemExit("the parent answered history with no outflow array")
+        return [Outflow.from_content(entry) for entry in outflows]
+
 
 def build_sealing(nsm: NitroSecureModule, parent: ParentChannel) -> Any:
     """Pick a KMS backend. One or the other, and the choice is measured."""
@@ -128,6 +147,43 @@ def _required(name: str) -> str:
     return value
 
 
+def _reconcile(engine: SignerEngine, parent: ParentChannel, treasury: str) -> None:
+    """Compare the rail's validated outflows to what this signer authorized.
+
+    Logs counts and transaction hashes, never amounts or destinations.
+    ``unmatched_outflows`` is the line that matters: money left the treasury and
+    the signer has no record of authorizing it, which is the failure this whole
+    design exists to make visible.
+    """
+    try:
+        outflows = parent.history(treasury, "")
+    except Exception as exc:  # noqa: BLE001 - a parent that will not answer is not a crash
+        log.warning("reconciliation skipped: %s", type(exc).__name__)
+        return
+    report = engine.reconcile(outflows)
+    if report.unmatched_outflows:
+        log.error(
+            "UNMATCHED OUTFLOWS: %s left the treasury with no authorization on record: %s",
+            len(report.unmatched_outflows),
+            ", ".join(report.unmatched_outflows[:10]),
+        )
+    else:
+        log.info(
+            "reconciled: %s matched, %s reservations still unsettled",
+            len(report.matched),
+            len(report.unsettled_reservations),
+        )
+
+
+def _reconcile_forever(
+    engine: SignerEngine, parent: ParentChannel, treasury: str
+) -> None:  # pragma: no cover - a background loop
+    interval = int(os.environ.get("MERKL_RECONCILE_SECONDS", "300"))
+    while True:
+        time.sleep(interval)
+        _reconcile(engine, parent, treasury)
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     signed_policy = SignedPolicy.from_content(json.loads(POLICY_PATH.read_text()))
@@ -148,6 +204,14 @@ def main() -> int:
     state = SealedStateStore(STATE_DIR, signed_policy.document.treasury, keystore.seal_key())
     engine = SignerEngine(policy=signed_policy, keystore=keystore, state=state)
     keystore.bind_policy(lambda: engine.policy_hash)
+
+    _reconcile(engine, parent, signed_policy.document.treasury)
+    threading.Thread(
+        target=_reconcile_forever,
+        args=(engine, parent, signed_policy.document.treasury),
+        daemon=True,
+        name="merkl-reconcile",
+    ).start()
 
     port = int(os.environ.get("MERKL_VSOCK_PORT", DEFAULT_PORT))
     server = VsockRpcServer(RpcRouter(engine), port=port)

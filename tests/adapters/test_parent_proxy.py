@@ -124,3 +124,86 @@ def test_the_relay_never_logs_a_body() -> None:
     handler = build_handler(NotAClient())  # type: ignore[arg-type]
     assert handler.log_message.__doc__ is not None
     assert "names who paid whom" in handler.log_message.__doc__
+
+
+# --------------------------------------------------------------------------- #
+# Rail history: evidence the enclave reconciles against, never an instruction
+# --------------------------------------------------------------------------- #
+
+
+def outflow(tx_hash: str = "ABC123") -> dict[str, Any]:
+    return {
+        "tx_hash": tx_hash,
+        "treasury": "rTREASURY",
+        "destination": "rDEST",
+        "value": "10",
+        "asset": "XRP",
+        "ledger_index": 42,
+        "close_time": "2026-01-01T00:00:00Z",
+    }
+
+
+def test_the_default_provider_reports_nothing_rather_than_pretending(tmp_path: Path) -> None:
+    server, _ = control(tmp_path)
+    assert server.answer("history", {"treasury": "rT", "since": ""})["result"]["outflows"] == []
+
+
+def test_history_reaches_the_enclave(tmp_path: Path) -> None:
+    seen: list[tuple[str, str]] = []
+
+    def provider(treasury: str, since: str) -> list[dict[str, Any]]:
+        seen.append((treasury, since))
+        return [outflow()]
+
+    server = ControlServer(BlobStore(tmp_path), FakeCredentials(), 5006, provider)  # type: ignore[arg-type]
+    answer = server.answer("history", {"treasury": "rT", "since": "2026-01-01T00:00:00Z"})
+    assert answer["result"]["outflows"] == [outflow()]
+    assert seen == [("rT", "2026-01-01T00:00:00Z")]
+
+
+def test_a_rail_that_is_down_is_an_error_not_a_crash(tmp_path: Path) -> None:
+    def provider(treasury: str, since: str) -> list[dict[str, Any]]:
+        raise ConnectionError("the ledger is unreachable")
+
+    server = ControlServer(BlobStore(tmp_path), FakeCredentials(), 5006, provider)  # type: ignore[arg-type]
+    answer = server.answer("history", {"treasury": "rT", "since": ""})
+    assert answer["error"]["code"] == "state_error"
+    assert "unreachable" not in answer["error"]["message"]
+
+
+def test_untrusted_history_becomes_checked_value_objects_or_an_error() -> None:
+    """The enclave parses at the boundary. That is what makes the parent's word
+    evidence rather than instruction."""
+    from merkl.core.canonical import ContentError
+    from merkl.core.policy.state import Outflow
+
+    assert Outflow.from_content(outflow()).tx_hash == "ABC123"
+    for broken in (
+        {**outflow(), "ledger_index": "42"},
+        {**outflow(), "value": 10},
+        {"tx_hash": "A"},
+        [],
+    ):
+        with pytest.raises(ContentError):
+            Outflow.from_content(broken)
+
+
+@pytest.mark.parametrize(
+    "spec,match",
+    [
+        ("no-colon", "package.module:callable"),
+        ("json:not_a_real_attribute", "not callable"),
+    ],
+)
+def test_a_bad_history_provider_is_refused_at_startup(spec: str, match: str) -> None:
+    from nitro.parent.proxy import load_history_provider
+
+    with pytest.raises(SystemExit, match=match):
+        load_history_provider(spec)
+
+
+def test_the_default_history_provider_resolves_to_nothing() -> None:
+    from nitro.parent.proxy import load_history_provider, no_history
+
+    assert load_history_provider("none") is no_history
+    assert load_history_provider("") is no_history

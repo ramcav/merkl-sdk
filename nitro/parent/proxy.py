@@ -41,11 +41,13 @@ from __future__ import annotations
 
 import argparse
 import base64
+import importlib
 import json
 import logging
 import os
 import stat
 import threading
+from collections.abc import Callable
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -153,26 +155,70 @@ class InstanceCredentials:
 # --------------------------------------------------------------------------- #
 
 
+HistoryProvider = Callable[[str, str], list[dict[str, Any]]]
+"""``(treasury, since) -> [Outflow.to_content(), ...]``. Runs on the parent."""
+
+
+def no_history(treasury: str, since: str) -> list[dict[str, Any]]:
+    """The default: the parent was not configured with a rail reader.
+
+    An empty list is honest — the enclave reconciles against nothing and its
+    ``unmatched_outflows`` line stays empty because it saw no outflows, not
+    because it saw none that were unmatched. Configure ``--rail`` in production;
+    plan D17 is a hard requirement, not a nice-to-have.
+    """
+    return []
+
+
 class ControlServer:
-    """Answers the enclave's own requests: blobs and credentials.
+    """Answers the enclave's own requests: blobs, credentials, and rail history.
 
     A separate vsock port from the signer RPC, and separate on purpose: this
-    direction is the enclave asking, and the request set is three methods long.
+    direction is the enclave asking, and the request set is five methods long.
     Sharing a port with the signer's contract would mean one dispatch table where
     a method meant for one direction could be reached from the other.
+
+    ``history`` is the interesting one. ``SettlementPort.history()`` needs the
+    network, so it runs out here, on the machine this design assumes may be
+    compromised. What comes back is **evidence, not instruction**: the enclave
+    parses it into ``Outflow`` value objects and hands them to
+    ``SignerEngine.reconcile``, which compares them to state it wrote itself. A
+    parent that invents outflows makes its own instance look like it is leaking
+    money; a parent that hides them hides its own alarm. Neither moves a payment,
+    because nothing on this channel reaches the decision path.
     """
 
-    METHODS: Final = frozenset({"credentials", "sealed_key", "store_sealed_key", "store_state"})
+    METHODS: Final = frozenset(
+        {"credentials", "sealed_key", "store_sealed_key", "store_state", "history"}
+    )
 
-    def __init__(self, blobs: BlobStore, credentials: InstanceCredentials, port: int) -> None:
+    def __init__(
+        self,
+        blobs: BlobStore,
+        credentials: InstanceCredentials,
+        port: int,
+        history: HistoryProvider = no_history,
+    ) -> None:
         self._blobs = blobs
         self._credentials = credentials
         self._port = port
+        self._history = history
         self._lock = threading.Lock()
 
     def answer(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         if method not in self.METHODS:
             return {"error": {"code": "signer_error", "message": f"unknown method {method!r}"}}
+        if method == "history":
+            # Outside the lock: it may reach the network, and a slow rail must not
+            # stall the enclave asking for its sealed key.
+            try:
+                outflows = self._history(
+                    str(params.get("treasury", "")), str(params.get("since", ""))
+                )
+            except Exception as exc:  # noqa: BLE001 - a rail failure is not a crash
+                log.warning("history lookup failed: %s", type(exc).__name__)
+                return {"error": {"code": "state_error", "message": "history unavailable"}}
+            return {"result": {"outflows": outflows}}
         with self._lock:
             if method == "credentials":
                 return {"result": self._credentials.get()}
@@ -279,6 +325,32 @@ def _error(message: str) -> dict[str, Any]:
     return {"error": {"code": "signer_error", "message": message}}
 
 
+def load_history_provider(spec: str) -> HistoryProvider:
+    """Resolve ``package.module:callable`` into a history provider.
+
+    An extension point rather than a built-in rail reader, and deliberately.
+    ``XrplSettlementAdapter`` is constructed with a treasury *and an agent
+    wallet*, because its main job is building and signing transactions — and the
+    parent is the process that must not hold a signing key. Wiring it in here
+    would put one on the wrong side of the boundary to save an operator twenty
+    lines. So the operator supplies a read-only reader, and the default supplies
+    none.
+
+    The callable takes ``(treasury, since)`` and returns a list of
+    ``Outflow.to_content()`` objects.
+    """
+    if not spec or spec == "none":
+        return no_history
+    module_name, _, attribute = spec.partition(":")
+    if not module_name or not attribute:
+        raise SystemExit(f"--history-provider must be 'package.module:callable', not {spec!r}")
+    module = importlib.import_module(module_name)
+    provider = getattr(module, attribute, None)
+    if not callable(provider):
+        raise SystemExit(f"{spec} is not callable")
+    return provider  # type: ignore[no-any-return]
+
+
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover - a process entry point
     parser = argparse.ArgumentParser(description="Merkl Nitro parent proxy")
     parser.add_argument(
@@ -291,6 +363,11 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - a process 
     )
     parser.add_argument("--port", type=int, default=8787)
     parser.add_argument("--state-dir", type=Path, default=Path("/var/lib/merkl"))
+    parser.add_argument(
+        "--history-provider",
+        default="none",
+        help="package.module:callable returning validated outflows, for reconciliation (D17)",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -301,7 +378,12 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - a process 
         )
 
     blobs = BlobStore(args.state_dir)
-    control = ControlServer(blobs, InstanceCredentials(), args.control_port)
+    control = ControlServer(
+        blobs,
+        InstanceCredentials(),
+        args.control_port,
+        load_history_provider(args.history_provider),
+    )
     threading.Thread(target=control.serve_forever, daemon=True, name="merkl-control").start()
 
     client = VsockRpcClient(cid=args.cid, port=args.enclave_port)

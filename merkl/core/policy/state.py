@@ -401,6 +401,35 @@ class Outflow:
             }
         )
 
+    @classmethod
+    def from_content(cls, data: Any) -> Outflow:
+        """Rebuild an outflow from JSON, validating on the way in.
+
+        The reader is the enclave, and what it is reading came from the parent —
+        the party this design assumes may be compromised. So this is not a
+        convenience: it is the boundary where untrusted history becomes a value
+        object with checked fields, or an error. Reconciliation compares it to
+        state; it never takes a decision from it.
+        """
+        obj = _object(data, "outflow")
+        return cls(
+            tx_hash=_required(obj, "tx_hash", "outflow"),
+            treasury=_required(obj, "treasury", "outflow"),
+            destination=_required(obj, "destination", "outflow"),
+            value=_required(obj, "value", "outflow"),
+            asset=_required(obj, "asset", "outflow"),
+            ledger_index=_ledger_index(obj),
+            close_time=_required(obj, "close_time", "outflow"),
+            anchor=obj.get("anchor"),
+        )
+
+
+def _ledger_index(obj: Mapping[str, Any]) -> int:
+    value = obj.get("ledger_index")
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise StateError("outflow.ledger_index must be a non-negative integer")
+    return value
+
 
 @dataclasses.dataclass(frozen=True)
 class Reconciliation:
