@@ -74,7 +74,7 @@ Releases are cut by pushing a `v<version>` tag; see
   fixtures — a ledger, two validators' validations and manifests, the
   testnet UNL — with tamper cases for both implementations.
 
-## [0.2.0] - 2026-09-06
+## [0.2.0] - 2026-09-07
 
 ### Added — phase 5
 
