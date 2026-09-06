@@ -96,6 +96,21 @@ the adapter's business (`merkl.adapters.xrpl.signer_address`).
 
 `null` on a dev signer, and receipt leaf 3 records that absence as a fact.
 
+On a Nitro signer, the leaf-3 content instead — a **fresh** document each call,
+because an attestation is a statement about a moment and a verifier is entitled
+to bound how old that moment is:
+
+```json
+{"attestation": {"format": "aws-nitro",
+                 "document": "<base64 of the CBOR COSE_Sign1>",
+                 "policy_public_key": "<hex>"}}
+```
+
+The document binds two things and both matter: `public_key` is the policy public
+key, so the attestation is about *this* key rather than about some enclave from
+the same image; `user_data` is the policy hash, so it says which policy was being
+enforced. `docs/ATTESTATION-VERIFY.md` specifies how to check it.
+
 ### `propose`
 
 `params.request` is the `SignedRequest`. Its own `params` are:
@@ -250,9 +265,13 @@ the *rail* will accept them — a malformed fee or a stale `LastLedgerSequence`
 makes the transaction fail, not misdeliver. That is a liveness problem, and it
 shows up as a `FAILED` receipt rather than a wrong payment.
 
-## 5. Phase 3 notes
+## 5. The Nitro transport (phase 3, shipped)
 
-The Nitro parent proxy implements this contract over vsock, with:
+The Nitro parent proxy implements this contract over vsock. Same methods, same
+request and response shapes; `merkl.adapters.signer_nitro.NitroSignerClient` is a
+subclass of the dev client that adds no RPC method, and
+`tests/signer/test_vsock.py` asserts the two transports answer byte-identically
+for the same router. What changed:
 
 - `attestation` returning the CBOR attestation document (base64) instead of
   `null`, and receipt leaf 3 carrying it;
@@ -264,6 +283,19 @@ The Nitro parent proxy implements this contract over vsock, with:
 - **the enclave image installs the rail codec extra** (`signer-xrpl` for an XRPL
   treasury). The codec is inside the enclave, not in the parent proxy: it is the
   check that makes the policy signature mean something, so it has to be measured
-  by the same attestation as the key it protects.
+  by the same attestation as the key it protects;
+- the policy document is baked into the image too, for the same reason: one
+  handed over by the parent at boot is a policy the parent chooses.
 
 No method signature changes.
+
+The vsock framing is four bytes of big-endian length and then the same JSON body
+(`merkl.signer.vsock`). Not HTTP: inside the enclave an HTTP parser would be code
+in the trusted computing base earning nothing, with one peer and one content
+type. The announced length is checked against the 4 MiB cap before anything is
+allocated, because the peer is the party this design assumes may be hostile.
+
+A second vsock port carries the *other* direction — the enclave asking the parent
+for the sealed key blob and for AWS credentials (`nitro/parent/proxy.py`). It is
+a separate port and a separate three-method dispatch table on purpose: sharing
+one would mean a method meant for one direction could be reached from the other.
