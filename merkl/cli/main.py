@@ -11,6 +11,7 @@ Usage:
     merkl signer serve --policy p.json     # run the dev co-signer
     merkl treasury init --xrpl-testnet     # fund and lock down a testnet treasury
     merkl treasury verify <address>        # check the signer list and master key
+    merkl xrpl pin-unl <url|file> -o u.json  # audit a validator list, pin its master keys
     merkl demo [--xrpl-testnet]            # run the five scenarios, write pages to open
 
 Every verification command is offline. Trust anchors — the PCR allowlist, the
@@ -365,6 +366,25 @@ def main() -> None:
     verify_p = treasury_sub.add_parser("verify", help="Check a treasury's flags and signer list")
     verify_p.add_argument("address", help="Treasury account address")
 
+    # xrpl
+    xrpl_p = sub.add_parser("xrpl", help="XRPL-specific offline tools")
+    xrpl_sub = xrpl_p.add_subparsers(dest="xrpl_command", metavar="<subcommand>")
+    pin_unl_p = xrpl_sub.add_parser(
+        "pin-unl", help="Audit a published validator list and pin its master keys"
+    )
+    pin_unl_p.add_argument(
+        "source", help="A validator-list URL (vl.ripple.com, ...) or a local JSON file"
+    )
+    pin_unl_p.add_argument(
+        "-o", "--out", type=Path, default=None, help="Write the pinned form here"
+    )
+    pin_unl_p.add_argument(
+        "--quorum-fraction",
+        type=float,
+        default=0.8,
+        help="Fraction of pinned validators required to agree (default 0.8)",
+    )
+
     # policy
     policy_p = sub.add_parser("policy", help="Sign and read policy documents (plan D16)")
     policy_sub = policy_p.add_subparsers(dest="policy_command", metavar="<subcommand>")
@@ -518,6 +538,14 @@ def main() -> None:
         if args.treasury_command == "verify":
             raise SystemExit(verify_command(args.address))
         treasury_p.print_help()
+    elif args.command == "xrpl":
+        from merkl.cli.xrpl_unl import pin_unl_command
+
+        if args.xrpl_command == "pin-unl":
+            raise SystemExit(
+                pin_unl_command(args.source, out=args.out, quorum_fraction=args.quorum_fraction)
+            )
+        xrpl_p.print_help()
     elif args.command == "demo":
         from merkl.cli.demo import demo_command
 
