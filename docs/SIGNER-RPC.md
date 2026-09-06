@@ -296,6 +296,13 @@ type. The announced length is checked against the 4 MiB cap before anything is
 allocated, because the peer is the party this design assumes may be hostile.
 
 A second vsock port carries the *other* direction — the enclave asking the parent
-for the sealed key blob and for AWS credentials (`nitro/parent/proxy.py`). It is
-a separate port and a separate three-method dispatch table on purpose: sharing
-one would mean a method meant for one direction could be reached from the other.
+for the sealed key blob, for AWS credentials, and for the rail history it
+reconciles against (`nitro/parent/proxy.py`). It is a separate port and a
+separate five-method dispatch table on purpose: sharing one would mean a method
+meant for one direction could be reached from the other.
+
+That history is **evidence, not instruction**. It arrives from the party this
+design assumes may be compromised, is parsed into checked `Outflow` value objects
+at the boundary, and goes only to `SignerEngine.reconcile`, which compares it to
+state the enclave wrote itself. Rule state is never supplied by the caller
+(plan D2), and nothing on that channel reaches the decision path.

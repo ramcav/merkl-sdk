@@ -115,8 +115,18 @@ sudo nitro-cli run-enclave --eif-path merkl-signer.eif --cpu-count 2 --memory 10
 nitro-cli describe-enclaves | jq -r '.[0].EnclaveCID'    # → 16, usually
 
 docker run -d --restart=always --network host --device /dev/vsock \
-  -v /var/lib/merkl:/var/lib/merkl merkl-parent:0.1.1 --cid 16
+  -v /var/lib/merkl:/var/lib/merkl merkl-parent:0.1.1 \
+  --cid 16 --history-provider yourpkg.rail:read_outflows
 ```
+
+`--history-provider` is `package.module:callable`, taking `(treasury, since)` and
+returning `Outflow.to_content()` objects. Reconciliation (plan D17) needs the
+rail's validated outflows, reading a ledger needs a network the enclave does not
+have, and `XrplSettlementAdapter` is constructed with an *agent wallet* because
+its main job is signing transactions — the parent is precisely the process that
+must not hold a signing key. So the operator supplies a read-only reader. Without
+one the enclave reconciles against nothing, and its `unmatched_outflows` line is
+empty because it saw no outflows rather than because there were none.
 
 Then, from the agent's host:
 
@@ -140,6 +150,14 @@ ciphertext to the parent, which writes `/var/lib/merkl/policy-key.sealed`. Back
 up that file. Losing it and the KMS key together loses the signer's identity, and
 a treasury whose signer list names a key nobody can produce is a treasury that
 cannot pay.
+
+**Reconciliation.** At boot and every `MERKL_RECONCILE_SECONDS` (300 by default)
+the enclave asks the parent for rail history, parses it into checked `Outflow`
+objects, and compares it to state it wrote itself. `UNMATCHED OUTFLOWS` in the
+enclave log is the line to alert on: money left the treasury with no
+authorization on record. A parent that invents outflows makes its own instance
+look like it is leaking; a parent that hides them hides its own alarm. Neither
+moves a payment — nothing on that channel reaches the decision path.
 
 **A restart.** The parent hands the blob back, `kms:Decrypt` opens it under the
 same measurements, the same public key comes up. Nothing else changes.
@@ -209,6 +227,7 @@ Written on a Mac with no `nitro-cli`, no NSM device and no AWS account. Precisel
 | `merkl.core.verify.cbor` | **Executed.** RFC 8949 vectors, property tests, and the real documents. |
 | `merkl.adapters.nitro.cms` | **Executed.** Against envelopes `openssl cms -encrypt` produced. `tests/adapters/test_cms.py`. |
 | `merkl.signer.vsock` framing | **Executed.** Over `socket.socketpair()`, including that vsock and HTTP answer byte-identically. |
+| The parent's blob store, control channel and history provider | **Executed** under pytest, including that a bad provider is refused at startup and a rail that is down is an error rather than a crash. |
 | `NitroKeystore` lifecycle | **Executed** against fake NSM and KMS ports: generate, seal, hand over, reopen, derive the state key, attest. |
 | KMS request shaping | **Executed** against fakes: what goes out, and every refusal. |
 | `Dockerfile.parent` | **Executed.** `docker build` succeeds; the image imports the proxy and the verifier, and refuses `--listen 0.0.0.0`. |

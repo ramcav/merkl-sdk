@@ -81,8 +81,16 @@ def test_nothing_imports_a_codec_eagerly() -> None:
 
 
 @pytest.mark.parametrize("path", MODULES, ids=[str(p.name) for p in MODULES])
-def test_the_signer_never_prints_a_secret(path: pathlib.Path) -> None:
-    """No print/log call anywhere near the keystore or the state."""
+def test_the_signer_says_nothing(path: pathlib.Path) -> None:
+    """The signer holds the key, so it writes to no stream at all.
+
+    Not "does not log secrets" — does not log. Anywhere the signer could format a
+    message is somewhere a seed, a passphrase or a destination could end up in a
+    file somebody else can read, and the cheapest way to be sure is to have no
+    such place. The processes that *do* log are outside the boundary
+    (``nitro/enclave/main.py`` and ``nitro/parent/proxy.py``), where every line is
+    a boot milestone, a port, a count, or an exception's type name.
+    """
     source = path.read_text(encoding="utf-8")
-    if path.name in ("keystore.py", "state.py"):
-        assert "print(" not in source, f"{path.name} prints"
+    for forbidden in ("print(", "logging.", "sys.stdout", "sys.stderr", "warnings.warn"):
+        assert forbidden not in source, f"{path.name} writes to a stream: {forbidden}"
