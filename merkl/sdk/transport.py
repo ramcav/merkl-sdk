@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from typing import Any
 
@@ -89,10 +90,8 @@ class AsyncTransport:
                 # the structured body so callers can branch on error_code.
                 if 400 <= resp.status_code < 500:
                     body: dict[str, Any] = {}
-                    try:
+                    with contextlib.suppress(Exception):
                         body = resp.json()
-                    except Exception:
-                        pass
                     raise ApiError(
                         status=resp.status_code,
                         error_code=str(body.get("error_code") or body.get("error") or ""),

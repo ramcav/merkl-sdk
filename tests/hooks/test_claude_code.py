@@ -187,7 +187,9 @@ def test_display_name_search_and_web_tools():
     from merkl.hooks.claude_code import _display_name
 
     assert _display_name("Grep", {"pattern": "foo", "path": "src/pkg"}).startswith("Grep foo")
-    assert _display_name("WebFetch", {"url": "https://example.com/x"}).startswith("Fetched example.com/x")
+    assert _display_name("WebFetch", {"url": "https://example.com/x"}).startswith(
+        "Fetched example.com/x"
+    )
     assert _display_name("Task", {"description": "audit auth"}).startswith("Sub-agent: audit auth")
 
 
@@ -331,9 +333,24 @@ def test_infer_goal_skips_synthetic_user_messages(tmp_path, merkl_env):  # noqa:
 
     transcript = tmp_path / "t.jsonl"
     lines = [
-        {"message": {"role": "user", "content": "<local-command-caveat>Caveat: The messages below were generated..."}},
-        {"message": {"role": "user", "content": [{"type": "text", "text": "<command-name>/hooks</command-name>"}]}},
-        {"message": {"role": "user", "content": "<local-command-stdout>Set model to Opus 5</local-command-stdout>"}},
+        {
+            "message": {
+                "role": "user",
+                "content": "<local-command-caveat>Caveat: The messages below were generated...",
+            }
+        },
+        {
+            "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": "<command-name>/hooks</command-name>"}],
+            }
+        },
+        {
+            "message": {
+                "role": "user",
+                "content": "<local-command-stdout>Set model to Opus 5</local-command-stdout>",
+            }
+        },
         {"isMeta": True, "message": {"role": "user", "content": "meta noise"}},
         {"message": {"role": "assistant", "content": "hi"}},
         {"message": {"role": "user", "content": "Fix the billing rate bug"}},
@@ -380,7 +397,9 @@ def test_user_prompt_skips_synthetic(merkl_env, capture_httpx):  # noqa: ANN001
     assert [c for c in capture_httpx if c["url"].endswith("/actions")] == []
 
 
-def test_permission_denied_records_blocked_approval(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+def test_permission_denied_records_blocked_approval(  # noqa: ANN001
+    merkl_env, capture_httpx, tmp_path, monkeypatch
+):
     from merkl.hooks.claude_code import HookState
 
     monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "ev"))
@@ -404,7 +423,9 @@ def test_permission_denied_records_blocked_approval(merkl_env, capture_httpx, tm
     assert "rm -rf" not in json.dumps(a)
 
 
-def test_session_end_commits_transcript_then_seals(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+def test_session_end_commits_transcript_then_seals(  # noqa: ANN001
+    merkl_env, capture_httpx, tmp_path, monkeypatch
+):
     import hashlib
 
     from merkl.hooks.claude_code import HookState

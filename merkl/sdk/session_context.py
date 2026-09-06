@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 from typing import Any
 
@@ -87,15 +88,13 @@ class SessionContext:
             self._session_token = None
         if not self._session_id:
             return
-        try:
+        # Session may already be closed (force-seal, idle timeout).
+        # __aexit__ is best-effort cleanup — don't raise inside it.
+        with contextlib.suppress(Exception):
             await self._transport.post(
                 f"/v1/sessions/{self._session_id}/close",
                 json={},
             )
-        except Exception:
-            # Session may already be closed (force-seal, idle timeout).
-            # __aexit__ is best-effort cleanup — don't raise inside it.
-            pass
 
     async def record_action(
         self,

@@ -33,6 +33,7 @@ All per-Claude-session state is held in one ``HookState`` JSON file
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import hashlib
 import json
@@ -41,7 +42,7 @@ import re
 import sys
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -184,16 +185,12 @@ class HookState:
                 f.write(payload)
             os.replace(tmp, path)
         except OSError:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp)
-            except OSError:
-                pass
 
     def delete(self) -> None:
-        try:
+        with contextlib.suppress(FileNotFoundError):
             self._path(self.claude_session_id).unlink()
-        except FileNotFoundError:
-            pass
 
     def reset_for_resume(self) -> None:
         """Keep the Merkl session id, drop per-run scratch.
@@ -303,10 +300,8 @@ def _extract_snippets(data: object, max_snippets: int = 16) -> list[str]:
                 _walk(item)
 
     if isinstance(data, str):
-        try:
+        with contextlib.suppress(Exception):
             data = json.loads(data)
-        except Exception:
-            pass
 
     _walk(data)
 
@@ -383,7 +378,12 @@ def _input_preview(tool_name: str, tool_input: object) -> str:
         return str(tool_input.get("url", ""))[:200]
     if tool_name in ("Read", "Write", "Edit", "NotebookEdit"):
         path = str(tool_input.get("file_path", ""))
-        extra = tool_input.get("content") or tool_input.get("new_string") or tool_input.get("old_string") or ""
+        extra = (
+            tool_input.get("content")
+            or tool_input.get("new_string")
+            or tool_input.get("old_string")
+            or ""
+        )
         return f"{path}: {str(extra)[:140]}".strip(": ") if extra else path
     if tool_name in ("Glob", "Grep"):
         pattern = tool_input.get("pattern", "")
@@ -482,7 +482,7 @@ def _append_evidence(
         entry = {
             "action_id": action_id,
             "session_id": session_id,
-            "recorded_at": datetime.now(timezone.utc).isoformat(),
+            "recorded_at": datetime.now(UTC).isoformat(),
             "tool_name": tool_name,
             "input": tool_input,
             "output": tool_response,
