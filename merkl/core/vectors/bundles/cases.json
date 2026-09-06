@@ -1,0 +1,2409 @@
+{
+  "cases": [
+    {
+      "actions": [
+        {
+          "action_id": "01a072d4-5ff9-72df-b3ea-5a73ed75d087",
+          "committed_leaf": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+          "computed_leaf": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+          "derived_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "index": 0,
+          "leaf_matches": true,
+          "ok": true,
+          "proof_ok": true,
+          "receipt_id": null,
+          "tool_name": "tool_0"
+        },
+        {
+          "action_id": "01a072d4-5ffa-733c-bd64-834ddcedb94c",
+          "committed_leaf": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+          "computed_leaf": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+          "derived_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "index": 1,
+          "leaf_matches": true,
+          "ok": true,
+          "proof_ok": true,
+          "receipt_id": null,
+          "tool_name": "tool_1"
+        },
+        {
+          "action_id": "01a072d4-5ffb-738d-bdfb-9778a9d1b23b",
+          "committed_leaf": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+          "computed_leaf": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+          "derived_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "index": 2,
+          "leaf_matches": true,
+          "ok": true,
+          "proof_ok": true,
+          "receipt_id": null,
+          "tool_name": "tool_2"
+        },
+        {
+          "action_id": "01a072d4-5ffc-7ff1-93d8-9019ecdff9c6",
+          "committed_leaf": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+          "computed_leaf": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+          "derived_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "index": 3,
+          "leaf_matches": true,
+          "ok": true,
+          "proof_ok": true,
+          "receipt_id": null,
+          "tool_name": "tool_3"
+        },
+        {
+          "action_id": "01a072d4-5ffd-7789-8455-eddfd297fdc8",
+          "committed_leaf": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+          "computed_leaf": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+          "derived_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "index": 4,
+          "leaf_matches": true,
+          "ok": true,
+          "proof_ok": true,
+          "receipt_id": null,
+          "tool_name": "tool_4"
+        }
+      ],
+      "checks": {
+        "log.actions": "pass",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "not_implemented",
+        "log.inclusion": "pass",
+        "log.session_root": "pass"
+      },
+      "complete": false,
+      "description": "A sealed five-action session exported at bundle v1.1: action leaves, inclusion proofs, the audit entry, the RFC 6962 log proof and the signed checkpoint. No continuation, so that check reports not_implemented.",
+      "file": "session-v1.1.json",
+      "name": "session-v1.1",
+      "ok": true,
+      "tamper": null
+    },
+    {
+      "actions": [
+        {
+          "action_id": "01a072d8-4f92-74fd-9347-e15d10dfb5f2",
+          "committed_leaf": "f7e1197ea2f78feff0fe4dac9ba3d9cbced9ff5068fd7c5bb829f0f1d103bfba",
+          "computed_leaf": "f7e1197ea2f78feff0fe4dac9ba3d9cbced9ff5068fd7c5bb829f0f1d103bfba",
+          "derived_root": "e804f9af0d9d1160ec2b1a89ffafa347d95476d78e8814bde5e1df9bf5312faf",
+          "index": 0,
+          "leaf_matches": true,
+          "ok": true,
+          "proof_ok": true,
+          "receipt_id": null,
+          "tool_name": "after"
+        }
+      ],
+      "checks": {
+        "log.actions": "pass",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "pass",
+        "log.inclusion": "pass",
+        "log.session_root": "pass"
+      },
+      "complete": true,
+      "description": "A successor session whose leaf 0 is the binding to the parent it continued. Every check has inputs, so this bundle is the one that reports complete.",
+      "file": "continuation-v1.1.json",
+      "name": "continuation-v1.1",
+      "ok": true,
+      "tamper": null
+    },
+    {
+      "actions": [
+        {
+          "action_id": "01a07441-746d-7af6-82cf-5826ac871543",
+          "committed_leaf": "4a569e0c04116fb384537dfa6a09ae6f62e806c1f23d2b549f28fd96be628a5c",
+          "computed_leaf": "4a569e0c04116fb384537dfa6a09ae6f62e806c1f23d2b549f28fd96be628a5c",
+          "derived_root": "4a569e0c04116fb384537dfa6a09ae6f62e806c1f23d2b549f28fd96be628a5c",
+          "index": 0,
+          "leaf_matches": true,
+          "ok": true,
+          "proof_ok": true,
+          "receipt_id": "01936b2e-2222-7000-8000-000000000001",
+          "tool_name": "xrpl_payment"
+        }
+      ],
+      "checks": {
+        "log.actions": "pass",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "not_implemented",
+        "log.inclusion": "pass",
+        "log.session_root": "pass"
+      },
+      "complete": false,
+      "description": "Bundle v1.2: the same session shape plus a receipts[] entry whose envelope hash is the transaction action's input_hash. The log checks are unchanged by the addition, which is what 'additive' has to mean.",
+      "file": "receipts-v1.2.json",
+      "name": "receipts-v1.2",
+      "ok": true,
+      "tamper": null
+    },
+    {
+      "bundle": {
+        "actions": [
+          {
+            "action_id": "01a072d4-5ff9-72df-b3ea-5a73ed75d087",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 0",
+            "drift_score": 0.0,
+            "drift_score_str": "0.0",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "input_preview": "",
+            "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000100",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+              "leaf_index": 0,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2099-01-01T00:00:00+00:00",
+            "tool_name": "tool_0",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffa-733c-bd64-834ddcedb94c",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 1",
+            "drift_score": 0.1,
+            "drift_score_str": "0.1",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+            "input_preview": "",
+            "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000101",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+              "leaf_index": 1,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961932+00:00",
+            "tool_name": "tool_1",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffb-738d-bdfb-9778a9d1b23b",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 2",
+            "drift_score": 0.2,
+            "drift_score_str": "0.2",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000002",
+            "input_preview": "",
+            "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000102",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+              "leaf_index": 2,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962182+00:00",
+            "tool_name": "tool_2",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffc-7ff1-93d8-9019ecdff9c6",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 3",
+            "drift_score": 0.3,
+            "drift_score_str": "0.3",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000003",
+            "input_preview": "",
+            "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000103",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+              "leaf_index": 3,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962392+00:00",
+            "tool_name": "tool_3",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffd-7789-8455-eddfd297fdc8",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 4",
+            "drift_score": 0.4,
+            "drift_score_str": "0.4",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000004",
+            "input_preview": "",
+            "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000104",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "left"
+              ],
+              "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+              "leaf_index": 4,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+                "e714431443e351be3eeadafb40485f2a0f07742617d57b4967d90752ecb6b1c5",
+                "7643f13733d350c10477521e4d66f2f4b9e486911b531356bd47e04e44359550"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962599+00:00",
+            "tool_name": "tool_4",
+            "visibility": "org_only"
+          }
+        ],
+        "audit_log": {
+          "current_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+          "entry_id": "8140814b-8e25-4a74-a97c-0a4a3b9d301c",
+          "leaf_count": 5,
+          "prev_log_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sealed_at_iso": "2026-09-05T18:28:35.962851Z",
+          "sequence": 0,
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "session_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "workspace_id": "6399431c-1f47-45a6-b827-a28143057dda"
+        },
+        "continuation": null,
+        "exported_at": "2026-09-05T18:28:35.967679Z",
+        "session": {
+          "action_count": 5,
+          "agent_id": "a",
+          "closed_at": "2026-09-05T18:28:35.962829+00:00",
+          "commitment_hash": "f349ba0257292f28464cface3634f9566022780f1e808b621f412d5587ff3aac",
+          "created_at": "2026-09-05T18:28:35.959935+00:00",
+          "goal": "verify the bundle",
+          "leaf_count": 5,
+          "root_hash": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "sealed": true,
+          "sealed_at": "2026-09-05T18:28:35.962848+00:00",
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "status": "closed"
+        },
+        "transparency": {
+          "checkpoint": {
+            "body": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda\n1\n9T+K8XycobTnyBlykkH3AkWdHDKsh9EUfe/en2lfh7Y=\ntime 1788632915\n",
+            "key_id": "31e343813f7d916b",
+            "origin": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda",
+            "public_key": "c8b2cf6da9021c9d96f15fbfa2401fbc7871c5e755df442cbcb62cd1590349f1",
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "signature": "9f15290008c1e55678bcab92ec6b83176fc39c9d85c9ca9a94e2f2fd6c164b3cacf94d7b22d961a2ab219f975c23df285e42fbc79d78c6777b6efffcbbe9220f",
+            "timestamp": "2026-09-05T18:28:35.967431+00:00",
+            "tree_size": 1
+          },
+          "log_inclusion": {
+            "entry_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+            "leaf_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "path": [],
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "sequence": 0,
+            "tree_size": 1
+          }
+        },
+        "verification": {
+          "anchor_algorithm": "The checkpoint body digest is submitted to public OpenTimestamps calendars, which aggregate submissions into Bitcoin transactions. A pending attestation upgrades to a standalone Bitcoin proof once mined; verify with the ots client. Merkl cannot backdate an anchored checkpoint.",
+          "audit_log_algorithm": "SHA-256('merkl-entry-v1' || NUL || workspace_id_16_bytes || session_id_utf8 || session_root_32_bytes || leaf_count_8be || sealed_at_iso_utf8 || sequence_8be || prev_log_hash_32_bytes)",
+          "checkpoint_algorithm": "Ed25519 signature over the checkpoint body bytes (signed-note format: origin, tree_size, base64 root, 'time <unix>' lines, each newline-terminated). Verify with the advertised public key; compare key_id = first 8 bytes of SHA-256(public_key), hex.",
+          "continuation_algorithm": "For successor sessions: leaf 0 = SHA-256('merkl-binding-v1' || NUL || parent_session_id_utf8 || parent_root_32_bytes || reason_utf8). Proving leaf 0 against successor.root ties the continuation to its parent cryptographically.",
+          "leaf_hash_algorithm": "SHA-256 of 'merkl-leaf-v1' || NUL || null-byte-separated UTF-8 fields: action_id, session_id, action_type, tool_name, input_hash_hex, output_hash_hex, timestamp_iso, drift_score_str, guardrail_result, display_name, depends_on_sorted_csv, status, category",
+          "log_tree_algorithm": "RFC 6962 Merkle tree over audit log entry current_hash values in sequence order: leaf = SHA-256(0x00 || entry_hash), node = SHA-256(0x01 || left || right). Inclusion and consistency proofs per RFC 9162 §2.1.",
+          "tree_algorithm": "Binary Merkle tree — SHA-256(left_digest_bytes || right_digest_bytes). Odd-length levels: last leaf duplicated to next power of 2."
+        },
+        "version": "1.1"
+      },
+      "checks": {
+        "log.actions": "fail",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "not_implemented",
+        "log.inclusion": "pass",
+        "log.session_root": "pass"
+      },
+      "complete": false,
+      "description": "One action's timestamp was changed after the fact. The leaf no longer recomputes, so the action check fails even though every hash in the bundle is internally consistent with itself.",
+      "fails": [
+        "log.actions"
+      ],
+      "file": "session-v1.1.json",
+      "name": "action-timestamp-edited",
+      "ok": false,
+      "tamper": "action-timestamp-edited"
+    },
+    {
+      "bundle": {
+        "actions": [
+          {
+            "action_id": "01a072d4-5ff9-72df-b3ea-5a73ed75d087",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 0",
+            "drift_score": 0.0,
+            "drift_score_str": "0.0",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "input_preview": "",
+            "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba23850",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000100",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+              "leaf_index": 0,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961601+00:00",
+            "tool_name": "tool_0",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffa-733c-bd64-834ddcedb94c",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 1",
+            "drift_score": 0.1,
+            "drift_score_str": "0.1",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+            "input_preview": "",
+            "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000101",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+              "leaf_index": 1,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961932+00:00",
+            "tool_name": "tool_1",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffb-738d-bdfb-9778a9d1b23b",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 2",
+            "drift_score": 0.2,
+            "drift_score_str": "0.2",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000002",
+            "input_preview": "",
+            "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000102",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+              "leaf_index": 2,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962182+00:00",
+            "tool_name": "tool_2",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffc-7ff1-93d8-9019ecdff9c6",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 3",
+            "drift_score": 0.3,
+            "drift_score_str": "0.3",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000003",
+            "input_preview": "",
+            "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000103",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+              "leaf_index": 3,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962392+00:00",
+            "tool_name": "tool_3",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffd-7789-8455-eddfd297fdc8",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 4",
+            "drift_score": 0.4,
+            "drift_score_str": "0.4",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000004",
+            "input_preview": "",
+            "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000104",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "left"
+              ],
+              "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+              "leaf_index": 4,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+                "e714431443e351be3eeadafb40485f2a0f07742617d57b4967d90752ecb6b1c5",
+                "7643f13733d350c10477521e4d66f2f4b9e486911b531356bd47e04e44359550"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962599+00:00",
+            "tool_name": "tool_4",
+            "visibility": "org_only"
+          }
+        ],
+        "audit_log": {
+          "current_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+          "entry_id": "8140814b-8e25-4a74-a97c-0a4a3b9d301c",
+          "leaf_count": 5,
+          "prev_log_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sealed_at_iso": "2026-09-05T18:28:35.962851Z",
+          "sequence": 0,
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "session_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "workspace_id": "6399431c-1f47-45a6-b827-a28143057dda"
+        },
+        "continuation": null,
+        "exported_at": "2026-09-05T18:28:35.967679Z",
+        "session": {
+          "action_count": 5,
+          "agent_id": "a",
+          "closed_at": "2026-09-05T18:28:35.962829+00:00",
+          "commitment_hash": "f349ba0257292f28464cface3634f9566022780f1e808b621f412d5587ff3aac",
+          "created_at": "2026-09-05T18:28:35.959935+00:00",
+          "goal": "verify the bundle",
+          "leaf_count": 5,
+          "root_hash": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "sealed": true,
+          "sealed_at": "2026-09-05T18:28:35.962848+00:00",
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "status": "closed"
+        },
+        "transparency": {
+          "checkpoint": {
+            "body": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda\n1\n9T+K8XycobTnyBlykkH3AkWdHDKsh9EUfe/en2lfh7Y=\ntime 1788632915\n",
+            "key_id": "31e343813f7d916b",
+            "origin": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda",
+            "public_key": "c8b2cf6da9021c9d96f15fbfa2401fbc7871c5e755df442cbcb62cd1590349f1",
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "signature": "9f15290008c1e55678bcab92ec6b83176fc39c9d85c9ca9a94e2f2fd6c164b3cacf94d7b22d961a2ab219f975c23df285e42fbc79d78c6777b6efffcbbe9220f",
+            "timestamp": "2026-09-05T18:28:35.967431+00:00",
+            "tree_size": 1
+          },
+          "log_inclusion": {
+            "entry_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+            "leaf_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "path": [],
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "sequence": 0,
+            "tree_size": 1
+          }
+        },
+        "verification": {
+          "anchor_algorithm": "The checkpoint body digest is submitted to public OpenTimestamps calendars, which aggregate submissions into Bitcoin transactions. A pending attestation upgrades to a standalone Bitcoin proof once mined; verify with the ots client. Merkl cannot backdate an anchored checkpoint.",
+          "audit_log_algorithm": "SHA-256('merkl-entry-v1' || NUL || workspace_id_16_bytes || session_id_utf8 || session_root_32_bytes || leaf_count_8be || sealed_at_iso_utf8 || sequence_8be || prev_log_hash_32_bytes)",
+          "checkpoint_algorithm": "Ed25519 signature over the checkpoint body bytes (signed-note format: origin, tree_size, base64 root, 'time <unix>' lines, each newline-terminated). Verify with the advertised public key; compare key_id = first 8 bytes of SHA-256(public_key), hex.",
+          "continuation_algorithm": "For successor sessions: leaf 0 = SHA-256('merkl-binding-v1' || NUL || parent_session_id_utf8 || parent_root_32_bytes || reason_utf8). Proving leaf 0 against successor.root ties the continuation to its parent cryptographically.",
+          "leaf_hash_algorithm": "SHA-256 of 'merkl-leaf-v1' || NUL || null-byte-separated UTF-8 fields: action_id, session_id, action_type, tool_name, input_hash_hex, output_hash_hex, timestamp_iso, drift_score_str, guardrail_result, display_name, depends_on_sorted_csv, status, category",
+          "log_tree_algorithm": "RFC 6962 Merkle tree over audit log entry current_hash values in sequence order: leaf = SHA-256(0x00 || entry_hash), node = SHA-256(0x01 || left || right). Inclusion and consistency proofs per RFC 9162 §2.1.",
+          "tree_algorithm": "Binary Merkle tree — SHA-256(left_digest_bytes || right_digest_bytes). Odd-length levels: last leaf duplicated to next power of 2."
+        },
+        "version": "1.1"
+      },
+      "checks": {
+        "log.actions": "fail",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "not_implemented",
+        "log.inclusion": "pass",
+        "log.session_root": "pass"
+      },
+      "complete": false,
+      "description": "The committed leaf hash was replaced. Both the recompute and the inclusion proof land elsewhere.",
+      "fails": [
+        "log.actions"
+      ],
+      "file": "session-v1.1.json",
+      "name": "action-leaf-hash-swapped",
+      "ok": false,
+      "tamper": "action-leaf-hash-swapped"
+    },
+    {
+      "bundle": {
+        "actions": [
+          {
+            "action_id": "01a072d4-5ff9-72df-b3ea-5a73ed75d087",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 0",
+            "drift_score": 0.0,
+            "drift_score_str": "0.0",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "input_preview": "",
+            "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000100",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+              "leaf_index": 0,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a40",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961601+00:00",
+            "tool_name": "tool_0",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffa-733c-bd64-834ddcedb94c",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 1",
+            "drift_score": 0.1,
+            "drift_score_str": "0.1",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+            "input_preview": "",
+            "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000101",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+              "leaf_index": 1,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961932+00:00",
+            "tool_name": "tool_1",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffb-738d-bdfb-9778a9d1b23b",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 2",
+            "drift_score": 0.2,
+            "drift_score_str": "0.2",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000002",
+            "input_preview": "",
+            "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000102",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+              "leaf_index": 2,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962182+00:00",
+            "tool_name": "tool_2",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffc-7ff1-93d8-9019ecdff9c6",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 3",
+            "drift_score": 0.3,
+            "drift_score_str": "0.3",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000003",
+            "input_preview": "",
+            "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000103",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+              "leaf_index": 3,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962392+00:00",
+            "tool_name": "tool_3",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffd-7789-8455-eddfd297fdc8",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 4",
+            "drift_score": 0.4,
+            "drift_score_str": "0.4",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000004",
+            "input_preview": "",
+            "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000104",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "left"
+              ],
+              "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+              "leaf_index": 4,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+                "e714431443e351be3eeadafb40485f2a0f07742617d57b4967d90752ecb6b1c5",
+                "7643f13733d350c10477521e4d66f2f4b9e486911b531356bd47e04e44359550"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962599+00:00",
+            "tool_name": "tool_4",
+            "visibility": "org_only"
+          }
+        ],
+        "audit_log": {
+          "current_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+          "entry_id": "8140814b-8e25-4a74-a97c-0a4a3b9d301c",
+          "leaf_count": 5,
+          "prev_log_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sealed_at_iso": "2026-09-05T18:28:35.962851Z",
+          "sequence": 0,
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "session_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "workspace_id": "6399431c-1f47-45a6-b827-a28143057dda"
+        },
+        "continuation": null,
+        "exported_at": "2026-09-05T18:28:35.967679Z",
+        "session": {
+          "action_count": 5,
+          "agent_id": "a",
+          "closed_at": "2026-09-05T18:28:35.962829+00:00",
+          "commitment_hash": "f349ba0257292f28464cface3634f9566022780f1e808b621f412d5587ff3aac",
+          "created_at": "2026-09-05T18:28:35.959935+00:00",
+          "goal": "verify the bundle",
+          "leaf_count": 5,
+          "root_hash": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "sealed": true,
+          "sealed_at": "2026-09-05T18:28:35.962848+00:00",
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "status": "closed"
+        },
+        "transparency": {
+          "checkpoint": {
+            "body": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda\n1\n9T+K8XycobTnyBlykkH3AkWdHDKsh9EUfe/en2lfh7Y=\ntime 1788632915\n",
+            "key_id": "31e343813f7d916b",
+            "origin": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda",
+            "public_key": "c8b2cf6da9021c9d96f15fbfa2401fbc7871c5e755df442cbcb62cd1590349f1",
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "signature": "9f15290008c1e55678bcab92ec6b83176fc39c9d85c9ca9a94e2f2fd6c164b3cacf94d7b22d961a2ab219f975c23df285e42fbc79d78c6777b6efffcbbe9220f",
+            "timestamp": "2026-09-05T18:28:35.967431+00:00",
+            "tree_size": 1
+          },
+          "log_inclusion": {
+            "entry_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+            "leaf_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "path": [],
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "sequence": 0,
+            "tree_size": 1
+          }
+        },
+        "verification": {
+          "anchor_algorithm": "The checkpoint body digest is submitted to public OpenTimestamps calendars, which aggregate submissions into Bitcoin transactions. A pending attestation upgrades to a standalone Bitcoin proof once mined; verify with the ots client. Merkl cannot backdate an anchored checkpoint.",
+          "audit_log_algorithm": "SHA-256('merkl-entry-v1' || NUL || workspace_id_16_bytes || session_id_utf8 || session_root_32_bytes || leaf_count_8be || sealed_at_iso_utf8 || sequence_8be || prev_log_hash_32_bytes)",
+          "checkpoint_algorithm": "Ed25519 signature over the checkpoint body bytes (signed-note format: origin, tree_size, base64 root, 'time <unix>' lines, each newline-terminated). Verify with the advertised public key; compare key_id = first 8 bytes of SHA-256(public_key), hex.",
+          "continuation_algorithm": "For successor sessions: leaf 0 = SHA-256('merkl-binding-v1' || NUL || parent_session_id_utf8 || parent_root_32_bytes || reason_utf8). Proving leaf 0 against successor.root ties the continuation to its parent cryptographically.",
+          "leaf_hash_algorithm": "SHA-256 of 'merkl-leaf-v1' || NUL || null-byte-separated UTF-8 fields: action_id, session_id, action_type, tool_name, input_hash_hex, output_hash_hex, timestamp_iso, drift_score_str, guardrail_result, display_name, depends_on_sorted_csv, status, category",
+          "log_tree_algorithm": "RFC 6962 Merkle tree over audit log entry current_hash values in sequence order: leaf = SHA-256(0x00 || entry_hash), node = SHA-256(0x01 || left || right). Inclusion and consistency proofs per RFC 9162 §2.1.",
+          "tree_algorithm": "Binary Merkle tree — SHA-256(left_digest_bytes || right_digest_bytes). Odd-length levels: last leaf duplicated to next power of 2."
+        },
+        "version": "1.1"
+      },
+      "checks": {
+        "log.actions": "fail",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "not_implemented",
+        "log.inclusion": "pass",
+        "log.session_root": "pass"
+      },
+      "complete": false,
+      "description": "A sibling in the Merkle path was altered: the leaf is genuine, the path to the root is not.",
+      "fails": [
+        "log.actions"
+      ],
+      "file": "session-v1.1.json",
+      "name": "inclusion-proof-sibling-edited",
+      "ok": false,
+      "tamper": "inclusion-proof-sibling-edited"
+    },
+    {
+      "bundle": {
+        "actions": [
+          {
+            "action_id": "01a072d4-5ff9-72df-b3ea-5a73ed75d087",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 0",
+            "drift_score": 0.0,
+            "drift_score_str": "0.0",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "input_preview": "",
+            "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000100",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+              "leaf_index": 0,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961601+00:00",
+            "tool_name": "tool_0",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffa-733c-bd64-834ddcedb94c",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 1",
+            "drift_score": 0.1,
+            "drift_score_str": "0.1",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+            "input_preview": "",
+            "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000101",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+              "leaf_index": 1,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961932+00:00",
+            "tool_name": "tool_1",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffb-738d-bdfb-9778a9d1b23b",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 2",
+            "drift_score": 0.2,
+            "drift_score_str": "0.2",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000002",
+            "input_preview": "",
+            "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000102",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+              "leaf_index": 2,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962182+00:00",
+            "tool_name": "tool_2",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffc-7ff1-93d8-9019ecdff9c6",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 3",
+            "drift_score": 0.3,
+            "drift_score_str": "0.3",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000003",
+            "input_preview": "",
+            "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000103",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+              "leaf_index": 3,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962392+00:00",
+            "tool_name": "tool_3",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffd-7789-8455-eddfd297fdc8",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 4",
+            "drift_score": 0.4,
+            "drift_score_str": "0.4",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000004",
+            "input_preview": "",
+            "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000104",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "left"
+              ],
+              "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+              "leaf_index": 4,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+                "e714431443e351be3eeadafb40485f2a0f07742617d57b4967d90752ecb6b1c5",
+                "7643f13733d350c10477521e4d66f2f4b9e486911b531356bd47e04e44359550"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962599+00:00",
+            "tool_name": "tool_4",
+            "visibility": "org_only"
+          }
+        ],
+        "audit_log": {
+          "current_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+          "entry_id": "8140814b-8e25-4a74-a97c-0a4a3b9d301c",
+          "leaf_count": 5,
+          "prev_log_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sealed_at_iso": "2026-09-05T18:28:35.962851Z",
+          "sequence": 1,
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "session_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "workspace_id": "6399431c-1f47-45a6-b827-a28143057dda"
+        },
+        "continuation": null,
+        "exported_at": "2026-09-05T18:28:35.967679Z",
+        "session": {
+          "action_count": 5,
+          "agent_id": "a",
+          "closed_at": "2026-09-05T18:28:35.962829+00:00",
+          "commitment_hash": "f349ba0257292f28464cface3634f9566022780f1e808b621f412d5587ff3aac",
+          "created_at": "2026-09-05T18:28:35.959935+00:00",
+          "goal": "verify the bundle",
+          "leaf_count": 5,
+          "root_hash": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "sealed": true,
+          "sealed_at": "2026-09-05T18:28:35.962848+00:00",
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "status": "closed"
+        },
+        "transparency": {
+          "checkpoint": {
+            "body": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda\n1\n9T+K8XycobTnyBlykkH3AkWdHDKsh9EUfe/en2lfh7Y=\ntime 1788632915\n",
+            "key_id": "31e343813f7d916b",
+            "origin": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda",
+            "public_key": "c8b2cf6da9021c9d96f15fbfa2401fbc7871c5e755df442cbcb62cd1590349f1",
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "signature": "9f15290008c1e55678bcab92ec6b83176fc39c9d85c9ca9a94e2f2fd6c164b3cacf94d7b22d961a2ab219f975c23df285e42fbc79d78c6777b6efffcbbe9220f",
+            "timestamp": "2026-09-05T18:28:35.967431+00:00",
+            "tree_size": 1
+          },
+          "log_inclusion": {
+            "entry_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+            "leaf_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "path": [],
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "sequence": 0,
+            "tree_size": 1
+          }
+        },
+        "verification": {
+          "anchor_algorithm": "The checkpoint body digest is submitted to public OpenTimestamps calendars, which aggregate submissions into Bitcoin transactions. A pending attestation upgrades to a standalone Bitcoin proof once mined; verify with the ots client. Merkl cannot backdate an anchored checkpoint.",
+          "audit_log_algorithm": "SHA-256('merkl-entry-v1' || NUL || workspace_id_16_bytes || session_id_utf8 || session_root_32_bytes || leaf_count_8be || sealed_at_iso_utf8 || sequence_8be || prev_log_hash_32_bytes)",
+          "checkpoint_algorithm": "Ed25519 signature over the checkpoint body bytes (signed-note format: origin, tree_size, base64 root, 'time <unix>' lines, each newline-terminated). Verify with the advertised public key; compare key_id = first 8 bytes of SHA-256(public_key), hex.",
+          "continuation_algorithm": "For successor sessions: leaf 0 = SHA-256('merkl-binding-v1' || NUL || parent_session_id_utf8 || parent_root_32_bytes || reason_utf8). Proving leaf 0 against successor.root ties the continuation to its parent cryptographically.",
+          "leaf_hash_algorithm": "SHA-256 of 'merkl-leaf-v1' || NUL || null-byte-separated UTF-8 fields: action_id, session_id, action_type, tool_name, input_hash_hex, output_hash_hex, timestamp_iso, drift_score_str, guardrail_result, display_name, depends_on_sorted_csv, status, category",
+          "log_tree_algorithm": "RFC 6962 Merkle tree over audit log entry current_hash values in sequence order: leaf = SHA-256(0x00 || entry_hash), node = SHA-256(0x01 || left || right). Inclusion and consistency proofs per RFC 9162 §2.1.",
+          "tree_algorithm": "Binary Merkle tree — SHA-256(left_digest_bytes || right_digest_bytes). Odd-length levels: last leaf duplicated to next power of 2."
+        },
+        "version": "1.1"
+      },
+      "checks": {
+        "log.actions": "pass",
+        "log.audit_entry": "fail",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "not_implemented",
+        "log.inclusion": "pass",
+        "log.session_root": "pass"
+      },
+      "complete": false,
+      "description": "The entry's position in the hash chain was changed, which changes its hash and breaks the chain that follows it.",
+      "fails": [
+        "log.audit_entry"
+      ],
+      "file": "session-v1.1.json",
+      "name": "audit-entry-resequenced",
+      "ok": false,
+      "tamper": "audit-entry-resequenced"
+    },
+    {
+      "bundle": {
+        "actions": [
+          {
+            "action_id": "01a072d4-5ff9-72df-b3ea-5a73ed75d087",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 0",
+            "drift_score": 0.0,
+            "drift_score_str": "0.0",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "input_preview": "",
+            "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000100",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+              "leaf_index": 0,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961601+00:00",
+            "tool_name": "tool_0",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffa-733c-bd64-834ddcedb94c",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 1",
+            "drift_score": 0.1,
+            "drift_score_str": "0.1",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+            "input_preview": "",
+            "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000101",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+              "leaf_index": 1,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961932+00:00",
+            "tool_name": "tool_1",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffb-738d-bdfb-9778a9d1b23b",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 2",
+            "drift_score": 0.2,
+            "drift_score_str": "0.2",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000002",
+            "input_preview": "",
+            "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000102",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+              "leaf_index": 2,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962182+00:00",
+            "tool_name": "tool_2",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffc-7ff1-93d8-9019ecdff9c6",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 3",
+            "drift_score": 0.3,
+            "drift_score_str": "0.3",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000003",
+            "input_preview": "",
+            "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000103",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+              "leaf_index": 3,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962392+00:00",
+            "tool_name": "tool_3",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffd-7789-8455-eddfd297fdc8",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 4",
+            "drift_score": 0.4,
+            "drift_score_str": "0.4",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000004",
+            "input_preview": "",
+            "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000104",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "left"
+              ],
+              "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+              "leaf_index": 4,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+                "e714431443e351be3eeadafb40485f2a0f07742617d57b4967d90752ecb6b1c5",
+                "7643f13733d350c10477521e4d66f2f4b9e486911b531356bd47e04e44359550"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962599+00:00",
+            "tool_name": "tool_4",
+            "visibility": "org_only"
+          }
+        ],
+        "audit_log": {
+          "current_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+          "entry_id": "8140814b-8e25-4a74-a97c-0a4a3b9d301c",
+          "leaf_count": 5,
+          "prev_log_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sealed_at_iso": "2026-09-05T18:28:35.962851Z",
+          "sequence": 0,
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "session_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "workspace_id": "6399431c-1f47-45a6-b827-a28143057dda"
+        },
+        "continuation": null,
+        "exported_at": "2026-09-05T18:28:35.967679Z",
+        "session": {
+          "action_count": 5,
+          "agent_id": "a",
+          "closed_at": "2026-09-05T18:28:35.962829+00:00",
+          "commitment_hash": "f349ba0257292f28464cface3634f9566022780f1e808b621f412d5587ff3aac",
+          "created_at": "2026-09-05T18:28:35.959935+00:00",
+          "goal": "verify the bundle",
+          "leaf_count": 5,
+          "root_hash": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "sealed": true,
+          "sealed_at": "2026-09-05T18:28:35.962848+00:00",
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "status": "closed"
+        },
+        "transparency": {
+          "checkpoint": {
+            "body": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda\n1\n9T+K8XycobTnyBlykkH3AkWdHDKsh9EUfe/en2lfh7Y=\ntime 1788632915\n",
+            "key_id": "31e343813f7d916b",
+            "origin": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda",
+            "public_key": "c8b2cf6da9021c9d96f15fbfa2401fbc7871c5e755df442cbcb62cd1590349f1",
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "signature": "9f15290008c1e55678bcab92ec6b83176fc39c9d85c9ca9a94e2f2fd6c164b3cacf94d7b22d961a2ab219f975c23df285e42fbc79d78c6777b6efffcbbe92200",
+            "timestamp": "2026-09-05T18:28:35.967431+00:00",
+            "tree_size": 1
+          },
+          "log_inclusion": {
+            "entry_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+            "leaf_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "path": [],
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "sequence": 0,
+            "tree_size": 1
+          }
+        },
+        "verification": {
+          "anchor_algorithm": "The checkpoint body digest is submitted to public OpenTimestamps calendars, which aggregate submissions into Bitcoin transactions. A pending attestation upgrades to a standalone Bitcoin proof once mined; verify with the ots client. Merkl cannot backdate an anchored checkpoint.",
+          "audit_log_algorithm": "SHA-256('merkl-entry-v1' || NUL || workspace_id_16_bytes || session_id_utf8 || session_root_32_bytes || leaf_count_8be || sealed_at_iso_utf8 || sequence_8be || prev_log_hash_32_bytes)",
+          "checkpoint_algorithm": "Ed25519 signature over the checkpoint body bytes (signed-note format: origin, tree_size, base64 root, 'time <unix>' lines, each newline-terminated). Verify with the advertised public key; compare key_id = first 8 bytes of SHA-256(public_key), hex.",
+          "continuation_algorithm": "For successor sessions: leaf 0 = SHA-256('merkl-binding-v1' || NUL || parent_session_id_utf8 || parent_root_32_bytes || reason_utf8). Proving leaf 0 against successor.root ties the continuation to its parent cryptographically.",
+          "leaf_hash_algorithm": "SHA-256 of 'merkl-leaf-v1' || NUL || null-byte-separated UTF-8 fields: action_id, session_id, action_type, tool_name, input_hash_hex, output_hash_hex, timestamp_iso, drift_score_str, guardrail_result, display_name, depends_on_sorted_csv, status, category",
+          "log_tree_algorithm": "RFC 6962 Merkle tree over audit log entry current_hash values in sequence order: leaf = SHA-256(0x00 || entry_hash), node = SHA-256(0x01 || left || right). Inclusion and consistency proofs per RFC 9162 §2.1.",
+          "tree_algorithm": "Binary Merkle tree — SHA-256(left_digest_bytes || right_digest_bytes). Odd-length levels: last leaf duplicated to next power of 2."
+        },
+        "version": "1.1"
+      },
+      "checks": {
+        "log.actions": "pass",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "fail",
+        "log.continuation": "not_implemented",
+        "log.inclusion": "pass",
+        "log.session_root": "pass"
+      },
+      "complete": false,
+      "description": "The checkpoint signature was edited. The body still claims the right root, so only the signature check catches it.",
+      "fails": [
+        "log.checkpoint_signature"
+      ],
+      "file": "session-v1.1.json",
+      "name": "checkpoint-signature-forged",
+      "ok": false,
+      "tamper": "checkpoint-signature-forged"
+    },
+    {
+      "bundle": {
+        "actions": [
+          {
+            "action_id": "01a072d4-5ff9-72df-b3ea-5a73ed75d087",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 0",
+            "drift_score": 0.0,
+            "drift_score_str": "0.0",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "input_preview": "",
+            "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000100",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+              "leaf_index": 0,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961601+00:00",
+            "tool_name": "tool_0",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffa-733c-bd64-834ddcedb94c",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 1",
+            "drift_score": 0.1,
+            "drift_score_str": "0.1",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+            "input_preview": "",
+            "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000101",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+              "leaf_index": 1,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961932+00:00",
+            "tool_name": "tool_1",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffb-738d-bdfb-9778a9d1b23b",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 2",
+            "drift_score": 0.2,
+            "drift_score_str": "0.2",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000002",
+            "input_preview": "",
+            "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000102",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+              "leaf_index": 2,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962182+00:00",
+            "tool_name": "tool_2",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffc-7ff1-93d8-9019ecdff9c6",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 3",
+            "drift_score": 0.3,
+            "drift_score_str": "0.3",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000003",
+            "input_preview": "",
+            "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000103",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+              "leaf_index": 3,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962392+00:00",
+            "tool_name": "tool_3",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffd-7789-8455-eddfd297fdc8",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 4",
+            "drift_score": 0.4,
+            "drift_score_str": "0.4",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000004",
+            "input_preview": "",
+            "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000104",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "left"
+              ],
+              "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+              "leaf_index": 4,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+                "e714431443e351be3eeadafb40485f2a0f07742617d57b4967d90752ecb6b1c5",
+                "7643f13733d350c10477521e4d66f2f4b9e486911b531356bd47e04e44359550"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962599+00:00",
+            "tool_name": "tool_4",
+            "visibility": "org_only"
+          }
+        ],
+        "audit_log": {
+          "current_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+          "entry_id": "8140814b-8e25-4a74-a97c-0a4a3b9d301c",
+          "leaf_count": 5,
+          "prev_log_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sealed_at_iso": "2026-09-05T18:28:35.962851Z",
+          "sequence": 0,
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "session_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "workspace_id": "6399431c-1f47-45a6-b827-a28143057dda"
+        },
+        "continuation": null,
+        "exported_at": "2026-09-05T18:28:35.967679Z",
+        "session": {
+          "action_count": 5,
+          "agent_id": "a",
+          "closed_at": "2026-09-05T18:28:35.962829+00:00",
+          "commitment_hash": "f349ba0257292f28464cface3634f9566022780f1e808b621f412d5587ff3aac",
+          "created_at": "2026-09-05T18:28:35.959935+00:00",
+          "goal": "verify the bundle",
+          "leaf_count": 5,
+          "root_hash": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "sealed": true,
+          "sealed_at": "2026-09-05T18:28:35.962848+00:00",
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "status": "closed"
+        },
+        "transparency": {
+          "checkpoint": {
+            "body": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda\n1\n9T+K8XycobTnyBlykkH3AkWdHDKsh9EUfe/en2lfh7Y=\ntime 1788632915\n",
+            "key_id": "31e343813f7d916b",
+            "origin": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda",
+            "public_key": "c8b2cf6da9021c9d96f15fbfa2401fbc7871c5e755df442cbcb62cd1590349f1",
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "signature": "9f15290008c1e55678bcab92ec6b83176fc39c9d85c9ca9a94e2f2fd6c164b3cacf94d7b22d961a2ab219f975c23df285e42fbc79d78c6777b6efffcbbe9220f",
+            "timestamp": "2026-09-05T18:28:35.967431+00:00",
+            "tree_size": 2
+          },
+          "log_inclusion": {
+            "entry_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+            "leaf_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "path": [],
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "sequence": 0,
+            "tree_size": 1
+          }
+        },
+        "verification": {
+          "anchor_algorithm": "The checkpoint body digest is submitted to public OpenTimestamps calendars, which aggregate submissions into Bitcoin transactions. A pending attestation upgrades to a standalone Bitcoin proof once mined; verify with the ots client. Merkl cannot backdate an anchored checkpoint.",
+          "audit_log_algorithm": "SHA-256('merkl-entry-v1' || NUL || workspace_id_16_bytes || session_id_utf8 || session_root_32_bytes || leaf_count_8be || sealed_at_iso_utf8 || sequence_8be || prev_log_hash_32_bytes)",
+          "checkpoint_algorithm": "Ed25519 signature over the checkpoint body bytes (signed-note format: origin, tree_size, base64 root, 'time <unix>' lines, each newline-terminated). Verify with the advertised public key; compare key_id = first 8 bytes of SHA-256(public_key), hex.",
+          "continuation_algorithm": "For successor sessions: leaf 0 = SHA-256('merkl-binding-v1' || NUL || parent_session_id_utf8 || parent_root_32_bytes || reason_utf8). Proving leaf 0 against successor.root ties the continuation to its parent cryptographically.",
+          "leaf_hash_algorithm": "SHA-256 of 'merkl-leaf-v1' || NUL || null-byte-separated UTF-8 fields: action_id, session_id, action_type, tool_name, input_hash_hex, output_hash_hex, timestamp_iso, drift_score_str, guardrail_result, display_name, depends_on_sorted_csv, status, category",
+          "log_tree_algorithm": "RFC 6962 Merkle tree over audit log entry current_hash values in sequence order: leaf = SHA-256(0x00 || entry_hash), node = SHA-256(0x01 || left || right). Inclusion and consistency proofs per RFC 9162 §2.1.",
+          "tree_algorithm": "Binary Merkle tree — SHA-256(left_digest_bytes || right_digest_bytes). Odd-length levels: last leaf duplicated to next power of 2."
+        },
+        "version": "1.1"
+      },
+      "checks": {
+        "log.actions": "pass",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "fail",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "not_implemented",
+        "log.inclusion": "pass",
+        "log.session_root": "pass"
+      },
+      "complete": false,
+      "description": "The bundle claims a tree size the signed note does not. A real signature over a different statement is the subtle version of no signature at all.",
+      "fails": [
+        "log.checkpoint_body"
+      ],
+      "file": "session-v1.1.json",
+      "name": "checkpoint-body-disagrees",
+      "ok": false,
+      "tamper": "checkpoint-body-disagrees"
+    },
+    {
+      "bundle": {
+        "actions": [
+          {
+            "action_id": "01a072d4-5ff9-72df-b3ea-5a73ed75d087",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 0",
+            "drift_score": 0.0,
+            "drift_score_str": "0.0",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "input_preview": "",
+            "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000100",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+              "leaf_index": 0,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961601+00:00",
+            "tool_name": "tool_0",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffa-733c-bd64-834ddcedb94c",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 1",
+            "drift_score": 0.1,
+            "drift_score_str": "0.1",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+            "input_preview": "",
+            "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000101",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+              "leaf_index": 1,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961932+00:00",
+            "tool_name": "tool_1",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffb-738d-bdfb-9778a9d1b23b",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 2",
+            "drift_score": 0.2,
+            "drift_score_str": "0.2",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000002",
+            "input_preview": "",
+            "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000102",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+              "leaf_index": 2,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962182+00:00",
+            "tool_name": "tool_2",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffc-7ff1-93d8-9019ecdff9c6",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 3",
+            "drift_score": 0.3,
+            "drift_score_str": "0.3",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000003",
+            "input_preview": "",
+            "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000103",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+              "leaf_index": 3,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962392+00:00",
+            "tool_name": "tool_3",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffd-7789-8455-eddfd297fdc8",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 4",
+            "drift_score": 0.4,
+            "drift_score_str": "0.4",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000004",
+            "input_preview": "",
+            "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000104",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "left"
+              ],
+              "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+              "leaf_index": 4,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+                "e714431443e351be3eeadafb40485f2a0f07742617d57b4967d90752ecb6b1c5",
+                "7643f13733d350c10477521e4d66f2f4b9e486911b531356bd47e04e44359550"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962599+00:00",
+            "tool_name": "tool_4",
+            "visibility": "org_only"
+          }
+        ],
+        "audit_log": {
+          "current_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+          "entry_id": "8140814b-8e25-4a74-a97c-0a4a3b9d301c",
+          "leaf_count": 5,
+          "prev_log_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sealed_at_iso": "2026-09-05T18:28:35.962851Z",
+          "sequence": 0,
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "session_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "workspace_id": "6399431c-1f47-45a6-b827-a28143057dda"
+        },
+        "continuation": null,
+        "exported_at": "2026-09-05T18:28:35.967679Z",
+        "session": {
+          "action_count": 5,
+          "agent_id": "a",
+          "closed_at": "2026-09-05T18:28:35.962829+00:00",
+          "commitment_hash": "f349ba0257292f28464cface3634f9566022780f1e808b621f412d5587ff3aac",
+          "created_at": "2026-09-05T18:28:35.959935+00:00",
+          "goal": "verify the bundle",
+          "leaf_count": 5,
+          "root_hash": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "sealed": true,
+          "sealed_at": "2026-09-05T18:28:35.962848+00:00",
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "status": "closed"
+        },
+        "transparency": {
+          "checkpoint": {
+            "body": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda\n1\n9T+K8XycobTnyBlykkH3AkWdHDKsh9EUfe/en2lfh7Y=\ntime 1788632915\n",
+            "key_id": "31e343813f7d916b",
+            "origin": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda",
+            "public_key": "c8b2cf6da9021c9d96f15fbfa2401fbc7871c5e755df442cbcb62cd1590349f1",
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "signature": "9f15290008c1e55678bcab92ec6b83176fc39c9d85c9ca9a94e2f2fd6c164b3cacf94d7b22d961a2ab219f975c23df285e42fbc79d78c6777b6efffcbbe9220f",
+            "timestamp": "2026-09-05T18:28:35.967431+00:00",
+            "tree_size": 1
+          },
+          "log_inclusion": {
+            "entry_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+            "leaf_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "path": [],
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b0",
+            "sequence": 0,
+            "tree_size": 1
+          }
+        },
+        "verification": {
+          "anchor_algorithm": "The checkpoint body digest is submitted to public OpenTimestamps calendars, which aggregate submissions into Bitcoin transactions. A pending attestation upgrades to a standalone Bitcoin proof once mined; verify with the ots client. Merkl cannot backdate an anchored checkpoint.",
+          "audit_log_algorithm": "SHA-256('merkl-entry-v1' || NUL || workspace_id_16_bytes || session_id_utf8 || session_root_32_bytes || leaf_count_8be || sealed_at_iso_utf8 || sequence_8be || prev_log_hash_32_bytes)",
+          "checkpoint_algorithm": "Ed25519 signature over the checkpoint body bytes (signed-note format: origin, tree_size, base64 root, 'time <unix>' lines, each newline-terminated). Verify with the advertised public key; compare key_id = first 8 bytes of SHA-256(public_key), hex.",
+          "continuation_algorithm": "For successor sessions: leaf 0 = SHA-256('merkl-binding-v1' || NUL || parent_session_id_utf8 || parent_root_32_bytes || reason_utf8). Proving leaf 0 against successor.root ties the continuation to its parent cryptographically.",
+          "leaf_hash_algorithm": "SHA-256 of 'merkl-leaf-v1' || NUL || null-byte-separated UTF-8 fields: action_id, session_id, action_type, tool_name, input_hash_hex, output_hash_hex, timestamp_iso, drift_score_str, guardrail_result, display_name, depends_on_sorted_csv, status, category",
+          "log_tree_algorithm": "RFC 6962 Merkle tree over audit log entry current_hash values in sequence order: leaf = SHA-256(0x00 || entry_hash), node = SHA-256(0x01 || left || right). Inclusion and consistency proofs per RFC 9162 §2.1.",
+          "tree_algorithm": "Binary Merkle tree — SHA-256(left_digest_bytes || right_digest_bytes). Odd-length levels: last leaf duplicated to next power of 2."
+        },
+        "version": "1.1"
+      },
+      "checks": {
+        "log.actions": "pass",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "not_implemented",
+        "log.inclusion": "fail",
+        "log.session_root": "pass"
+      },
+      "complete": false,
+      "description": "The RFC 6962 path no longer folds to the checkpoint's root.",
+      "fails": [
+        "log.inclusion"
+      ],
+      "file": "session-v1.1.json",
+      "name": "log-inclusion-path-edited",
+      "ok": false,
+      "tamper": "log-inclusion-path-edited"
+    },
+    {
+      "bundle": {
+        "actions": [
+          {
+            "action_id": "01a072d4-5ff9-72df-b3ea-5a73ed75d087",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 0",
+            "drift_score": 0.0,
+            "drift_score_str": "0.0",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "input_preview": "",
+            "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000100",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+              "leaf_index": 0,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961601+00:00",
+            "tool_name": "tool_0",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffa-733c-bd64-834ddcedb94c",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 1",
+            "drift_score": 0.1,
+            "drift_score_str": "0.1",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+            "input_preview": "",
+            "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000101",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "right"
+              ],
+              "leaf_hash": "9b633486f81317c210c35e567fff25a4135b8133404d689579edac0441261a44",
+              "leaf_index": 1,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "3bc832e38fb7c135c1382f250c6f49e424869c7a6355cfe42fea0bc04ba2385f",
+                "c89d1f1c5098341b9b833e2ddc0b022f95eb253a4f00afd3872a737c6566c497",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.961932+00:00",
+            "tool_name": "tool_1",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffb-738d-bdfb-9778a9d1b23b",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 2",
+            "drift_score": 0.2,
+            "drift_score_str": "0.2",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000002",
+            "input_preview": "",
+            "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000102",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+              "leaf_index": 2,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962182+00:00",
+            "tool_name": "tool_2",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffc-7ff1-93d8-9019ecdff9c6",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 3",
+            "drift_score": 0.3,
+            "drift_score_str": "0.3",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000003",
+            "input_preview": "",
+            "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000103",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left",
+                "left",
+                "right"
+              ],
+              "leaf_hash": "5b3a2630ddf440557a0e2f3ec1d9bfbc40e64d8a7f3859b260238e7d706e43eb",
+              "leaf_index": 3,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "7c81f113dec1b8c9ab8f102689bb9251ca6c1338020c234f06e22896b185df9e",
+                "d9dcc03817dc497299e915e324f72490197f8add3d3e6157b654d68df030b540",
+                "6baef1cbe08bd22fb18704c3b4bccda75b5f8a4e31d9180a29192f5d10c387f9"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962392+00:00",
+            "tool_name": "tool_3",
+            "visibility": "org_only"
+          },
+          {
+            "action_id": "01a072d4-5ffd-7789-8455-eddfd297fdc8",
+            "action_type": "tool_call",
+            "category": "c",
+            "depends_on": [],
+            "display_name": "Step 4",
+            "drift_score": 0.4,
+            "drift_score_str": "0.4",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000004",
+            "input_preview": "",
+            "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000104",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "right",
+                "right",
+                "left"
+              ],
+              "leaf_hash": "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+              "leaf_index": 4,
+              "root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+              "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+              "siblings": [
+                "05298dd6dd0642a0173ed5e5967f6b4386a41a4ad07f6e37c0138d4fd0d6b412",
+                "e714431443e351be3eeadafb40485f2a0f07742617d57b4967d90752ecb6b1c5",
+                "7643f13733d350c10477521e4d66f2f4b9e486911b531356bd47e04e44359550"
+              ]
+            },
+            "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+            "status": "success",
+            "timestamp": "2026-09-05T18:28:35.962599+00:00",
+            "tool_name": "tool_4",
+            "visibility": "org_only"
+          }
+        ],
+        "audit_log": {
+          "current_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+          "entry_id": "8140814b-8e25-4a74-a97c-0a4a3b9d301c",
+          "leaf_count": 5,
+          "prev_log_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sealed_at_iso": "2026-09-05T18:28:35.962851Z",
+          "sequence": 0,
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "session_root": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15415",
+          "workspace_id": "6399431c-1f47-45a6-b827-a28143057dda"
+        },
+        "continuation": null,
+        "exported_at": "2026-09-05T18:28:35.967679Z",
+        "session": {
+          "action_count": 5,
+          "agent_id": "a",
+          "closed_at": "2026-09-05T18:28:35.962829+00:00",
+          "commitment_hash": "f349ba0257292f28464cface3634f9566022780f1e808b621f412d5587ff3aac",
+          "created_at": "2026-09-05T18:28:35.959935+00:00",
+          "goal": "verify the bundle",
+          "leaf_count": 5,
+          "root_hash": "e65856636624efdd64210bea62ca3843df61733cdcc67d29e72f4dd754b15410",
+          "sealed": true,
+          "sealed_at": "2026-09-05T18:28:35.962848+00:00",
+          "session_id": "01a072d4-5ff7-72cd-bb31-ee72b0422fe7",
+          "status": "closed"
+        },
+        "transparency": {
+          "checkpoint": {
+            "body": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda\n1\n9T+K8XycobTnyBlykkH3AkWdHDKsh9EUfe/en2lfh7Y=\ntime 1788632915\n",
+            "key_id": "31e343813f7d916b",
+            "origin": "merkl.ai/log/6399431c-1f47-45a6-b827-a28143057dda",
+            "public_key": "c8b2cf6da9021c9d96f15fbfa2401fbc7871c5e755df442cbcb62cd1590349f1",
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "signature": "9f15290008c1e55678bcab92ec6b83176fc39c9d85c9ca9a94e2f2fd6c164b3cacf94d7b22d961a2ab219f975c23df285e42fbc79d78c6777b6efffcbbe9220f",
+            "timestamp": "2026-09-05T18:28:35.967431+00:00",
+            "tree_size": 1
+          },
+          "log_inclusion": {
+            "entry_hash": "b654d08302b49a1748903c043edf5b41f5530495a243fec2b6dd3dcf68c2056a",
+            "leaf_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "path": [],
+            "root_hash": "f53f8af17c9ca1b4e7c819729241f702459d1c32ac87d1147defde9f695f87b6",
+            "sequence": 0,
+            "tree_size": 1
+          }
+        },
+        "verification": {
+          "anchor_algorithm": "The checkpoint body digest is submitted to public OpenTimestamps calendars, which aggregate submissions into Bitcoin transactions. A pending attestation upgrades to a standalone Bitcoin proof once mined; verify with the ots client. Merkl cannot backdate an anchored checkpoint.",
+          "audit_log_algorithm": "SHA-256('merkl-entry-v1' || NUL || workspace_id_16_bytes || session_id_utf8 || session_root_32_bytes || leaf_count_8be || sealed_at_iso_utf8 || sequence_8be || prev_log_hash_32_bytes)",
+          "checkpoint_algorithm": "Ed25519 signature over the checkpoint body bytes (signed-note format: origin, tree_size, base64 root, 'time <unix>' lines, each newline-terminated). Verify with the advertised public key; compare key_id = first 8 bytes of SHA-256(public_key), hex.",
+          "continuation_algorithm": "For successor sessions: leaf 0 = SHA-256('merkl-binding-v1' || NUL || parent_session_id_utf8 || parent_root_32_bytes || reason_utf8). Proving leaf 0 against successor.root ties the continuation to its parent cryptographically.",
+          "leaf_hash_algorithm": "SHA-256 of 'merkl-leaf-v1' || NUL || null-byte-separated UTF-8 fields: action_id, session_id, action_type, tool_name, input_hash_hex, output_hash_hex, timestamp_iso, drift_score_str, guardrail_result, display_name, depends_on_sorted_csv, status, category",
+          "log_tree_algorithm": "RFC 6962 Merkle tree over audit log entry current_hash values in sequence order: leaf = SHA-256(0x00 || entry_hash), node = SHA-256(0x01 || left || right). Inclusion and consistency proofs per RFC 9162 §2.1.",
+          "tree_algorithm": "Binary Merkle tree — SHA-256(left_digest_bytes || right_digest_bytes). Odd-length levels: last leaf duplicated to next power of 2."
+        },
+        "version": "1.1"
+      },
+      "checks": {
+        "log.actions": "pass",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "not_implemented",
+        "log.inclusion": "pass",
+        "log.session_root": "fail"
+      },
+      "complete": false,
+      "description": "Every action proof still folds, but to a root the session no longer claims. The actions look healthy; the session does not.",
+      "fails": [
+        "log.session_root"
+      ],
+      "file": "session-v1.1.json",
+      "name": "session-root-restated",
+      "ok": false,
+      "tamper": "session-root-restated"
+    },
+    {
+      "bundle": {
+        "actions": [
+          {
+            "action_id": "01a072d8-4f92-74fd-9347-e15d10dfb5f2",
+            "action_type": "tool_call",
+            "category": "",
+            "depends_on": [],
+            "display_name": "after",
+            "drift_score": 0.0,
+            "drift_score_str": "0.0",
+            "duration_ms": 0,
+            "guardrail_result": "passed",
+            "input_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+            "input_preview": "",
+            "leaf_hash": "f7e1197ea2f78feff0fe4dac9ba3d9cbced9ff5068fd7c5bb829f0f1d103bfba",
+            "output_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+            "output_preview": "",
+            "proof": {
+              "directions": [
+                "left"
+              ],
+              "leaf_hash": "f7e1197ea2f78feff0fe4dac9ba3d9cbced9ff5068fd7c5bb829f0f1d103bfba",
+              "leaf_index": 1,
+              "root": "e804f9af0d9d1160ec2b1a89ffafa347d95476d78e8814bde5e1df9bf5312faf",
+              "session_id": "01a072d8-4f90-779e-9028-b09d1ead5352",
+              "siblings": [
+                "1231646d116c05cb17a4431719c537a027cb85c29a1f8d2b72848ca73aac69c9"
+              ]
+            },
+            "session_id": "01a072d8-4f90-779e-9028-b09d1ead5352",
+            "status": "success",
+            "timestamp": "2026-09-05T18:32:53.901584+00:00",
+            "tool_name": "after",
+            "visibility": "org_only"
+          }
+        ],
+        "audit_log": {
+          "current_hash": "be4f3483d8e23dc278d1502114d044e2682c06cdc39b8d7cf5e25406fded76bd",
+          "entry_id": "c655f979-1d52-4efd-92a8-bdcfba820a36",
+          "leaf_count": 2,
+          "prev_log_hash": "7c7f527514a47d9e4671a3e5a7f11b3e5a7509220fd0f8df005898f51afa59d3",
+          "sealed_at_iso": "2026-09-05T18:32:53.901774Z",
+          "sequence": 1,
+          "session_id": "01a072d8-4f90-779e-9028-b09d1ead5352",
+          "session_root": "e804f9af0d9d1160ec2b1a89ffafa347d95476d78e8814bde5e1df9bf5312faf",
+          "workspace_id": "b2eb42ac-69bb-4412-bbda-21fb0a3ce9a3"
+        },
+        "continuation": {
+          "binding_leaf_hash": "1231646d116c05cb17a4431719c537a027cb85c29a1f8d2b72848ca73aac69c9",
+          "parent_root": "48b6651a43776638b1e31408f3a945f50f1a4c890e9983b0dac259cd0ea55d5a",
+          "parent_session_id": "01a072d8-4f8a-7569-b82d-21819cdee183",
+          "proof": {
+            "directions": [
+              "right"
+            ],
+            "leaf_hash": "1231646d116c05cb17a4431719c537a027cb85c29a1f8d2b72848ca73aac69c9",
+            "leaf_index": 0,
+            "root": "e804f9af0d9d1160ec2b1a89ffafa347d95476d78e8814bde5e1df9bf5312faf",
+            "session_id": "01a072d8-4f90-779e-9028-b09d1ead5352",
+            "siblings": [
+              "f7e1197ea2f78feff0fe4dac9ba3d9cbced9ff5068fd7c5bb829f0f1d103bfba"
+            ]
+          },
+          "reason": "force_seal_but_not_really"
+        },
+        "exported_at": "2026-09-05T18:32:53.907510Z",
+        "session": {
+          "action_count": 1,
+          "agent_id": "a",
+          "closed_at": "2026-09-05T18:32:53.901763+00:00",
+          "commitment_hash": "5cca64eeca3ec7ae8cda9eb8baa04f51c1e5429f1640c7b0c52d2ad79c98ed7c",
+          "created_at": "2026-09-05T18:32:53.901570+00:00",
+          "goal": "g",
+          "leaf_count": 2,
+          "root_hash": "e804f9af0d9d1160ec2b1a89ffafa347d95476d78e8814bde5e1df9bf5312faf",
+          "sealed": true,
+          "sealed_at": "2026-09-05T18:32:53.901772+00:00",
+          "session_id": "01a072d8-4f90-779e-9028-b09d1ead5352",
+          "status": "closed"
+        },
+        "transparency": {
+          "checkpoint": {
+            "body": "merkl.ai/log/b2eb42ac-69bb-4412-bbda-21fb0a3ce9a3\n2\nTljjyUrylu8EXAwoioOsL4B7w1XStPJslkeQ9oSHt34=\ntime 1788633173\n",
+            "key_id": "acb8b8b68d67fb6a",
+            "origin": "merkl.ai/log/b2eb42ac-69bb-4412-bbda-21fb0a3ce9a3",
+            "public_key": "fc6d4da3c2cefffe78c060b85d80402afe33dbde21649b4e3ed4f3541bc2ec8b",
+            "root_hash": "4e58e3c94af296ef045c0c288a83ac2f807bc355d2b4f26c964790f68487b77e",
+            "signature": "5dff1dab15a3da0acdd1861ed713e4d73abca4c7614c93dd3e0783c2660893750b7917f300378234967592cfc3584836764199de103ee88deab07f50f92a010e",
+            "timestamp": "2026-09-05T18:32:53.907413+00:00",
+            "tree_size": 2
+          },
+          "log_inclusion": {
+            "entry_hash": "be4f3483d8e23dc278d1502114d044e2682c06cdc39b8d7cf5e25406fded76bd",
+            "leaf_hash": "7c361634af0b6c51fb6f749fadd446a03538fab8f348f232d13e145a4969d31b",
+            "path": [
+              "12574d31743504260e02a32ca49b861c1ce3497f92a4d485a082a13abf028b2f"
+            ],
+            "root_hash": "4e58e3c94af296ef045c0c288a83ac2f807bc355d2b4f26c964790f68487b77e",
+            "sequence": 1,
+            "tree_size": 2
+          }
+        },
+        "verification": {
+          "anchor_algorithm": "The checkpoint body digest is submitted to public OpenTimestamps calendars, which aggregate submissions into Bitcoin transactions. A pending attestation upgrades to a standalone Bitcoin proof once mined; verify with the ots client. Merkl cannot backdate an anchored checkpoint.",
+          "audit_log_algorithm": "SHA-256('merkl-entry-v1' || NUL || workspace_id_16_bytes || session_id_utf8 || session_root_32_bytes || leaf_count_8be || sealed_at_iso_utf8 || sequence_8be || prev_log_hash_32_bytes)",
+          "checkpoint_algorithm": "Ed25519 signature over the checkpoint body bytes (signed-note format: origin, tree_size, base64 root, 'time <unix>' lines, each newline-terminated). Verify with the advertised public key; compare key_id = first 8 bytes of SHA-256(public_key), hex.",
+          "continuation_algorithm": "For successor sessions: leaf 0 = SHA-256('merkl-binding-v1' || NUL || parent_session_id_utf8 || parent_root_32_bytes || reason_utf8). Proving leaf 0 against successor.root ties the continuation to its parent cryptographically.",
+          "leaf_hash_algorithm": "SHA-256 of 'merkl-leaf-v1' || NUL || null-byte-separated UTF-8 fields: action_id, session_id, action_type, tool_name, input_hash_hex, output_hash_hex, timestamp_iso, drift_score_str, guardrail_result, display_name, depends_on_sorted_csv, status, category",
+          "log_tree_algorithm": "RFC 6962 Merkle tree over audit log entry current_hash values in sequence order: leaf = SHA-256(0x00 || entry_hash), node = SHA-256(0x01 || left || right). Inclusion and consistency proofs per RFC 9162 §2.1.",
+          "tree_algorithm": "Binary Merkle tree — SHA-256(left_digest_bytes || right_digest_bytes). Odd-length levels: last leaf duplicated to next power of 2."
+        },
+        "version": "1.1"
+      },
+      "checks": {
+        "log.actions": "pass",
+        "log.audit_entry": "pass",
+        "log.checkpoint_body": "pass",
+        "log.checkpoint_signature": "pass",
+        "log.continuation": "fail",
+        "log.inclusion": "pass",
+        "log.session_root": "pass"
+      },
+      "complete": true,
+      "description": "The reason a session was sealed is inside the binding leaf, so rewriting it breaks the link to the parent.",
+      "fails": [
+        "log.continuation"
+      ],
+      "file": "continuation-v1.1.json",
+      "name": "continuation-reason-edited",
+      "ok": false,
+      "tamper": "continuation-reason-edited"
+    }
+  ],
+  "description": "Proof bundles exported by merkl-api, and mutations of them that must fail. Both verifiers report the same check names with the same statuses; a tamper case names every check that must read 'fail'.",
+  "generator": "python -m merkl.core.vectors.bundles.generate",
+  "spec": "merkl-api/docs/SPEC.md sections 2-9"
+}
