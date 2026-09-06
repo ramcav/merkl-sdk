@@ -1,9 +1,12 @@
-"""Merkl CLI — install integrations and prepare disclosures.
+"""Merkl CLI — install integrations, run the signer, prepare disclosures.
 
 Usage:
     merkl install --claude-code            # install hook in .claude/settings.json
     merkl install --claude-code --global   # install in ~/.claude/settings.json
     merkl disclose <action_id>             # package one action's evidence for an auditor
+    merkl signer serve --policy p.json     # run the dev co-signer
+    merkl treasury init --xrpl-testnet     # fund and lock down a testnet treasury
+    merkl treasury verify <address>        # check the signer list and master key
 """
 
 from __future__ import annotations
@@ -207,9 +210,72 @@ def main() -> None:
         "--out", type=Path, default=None, help="Output folder (default: ./disclosure-<id>)"
     )
 
+    # signer
+    signer_p = sub.add_parser("signer", help="Run the Merkl co-signer")
+    signer_sub = signer_p.add_subparsers(dest="signer_command", metavar="<subcommand>")
+    serve_p = signer_sub.add_parser("serve", help="Serve the signer RPC")
+    serve_p.add_argument(
+        "--policy", type=Path, required=True, help="Signed policy document (JSON)"
+    )
+    serve_p.add_argument(
+        "--home", type=Path, default=None, help="Keystore and state directory (~/.merkl/signer)"
+    )
+    serve_p.add_argument(
+        "--socket", type=Path, default=None, help="Unix socket to bind (preferred)"
+    )
+    serve_p.add_argument("--host", default="127.0.0.1", help="Loopback address to bind instead")
+    serve_p.add_argument("--port", type=int, default=8787, help="Port for --host")
+    serve_p.add_argument(
+        "--blocklist", nargs="*", default=[], help="Destinations the risk scorer refuses"
+    )
+
+    # treasury
+    treasury_p = sub.add_parser("treasury", help="Set up and check a co-signed treasury")
+    treasury_sub = treasury_p.add_subparsers(dest="treasury_command", metavar="<subcommand>")
+    init_p = treasury_sub.add_parser("init", help="Fund and lock down a treasury")
+    init_p.add_argument(
+        "--xrpl-testnet", action="store_true", help="Bootstrap on the XRPL testnet"
+    )
+    init_p.add_argument("--agents", type=int, default=1, help="How many agent keys (default 1)")
+    init_p.add_argument("--home", type=Path, default=None, help="Signer keystore directory")
+    init_p.add_argument(
+        "--wallet-file", type=Path, default=None, help="Where to write seeds (0600)"
+    )
+    verify_p = treasury_sub.add_parser("verify", help="Check a treasury's flags and signer list")
+    verify_p.add_argument("address", help="Treasury account address")
+
     args = parser.parse_args()
 
-    if args.command == "disclose":
+    if args.command == "signer":
+        from merkl.cli.signer import serve_command
+
+        if args.signer_command != "serve":
+            signer_p.print_help()
+            return
+        raise SystemExit(
+            serve_command(
+                policy_path=args.policy,
+                home=args.home,
+                socket_path=args.socket,
+                host=args.host,
+                port=args.port,
+                blocklist=tuple(args.blocklist),
+            )
+        )
+    elif args.command == "treasury":
+        from merkl.cli.treasury import init_command, verify_command
+
+        if args.treasury_command == "init":
+            if not args.xrpl_testnet:
+                print("only --xrpl-testnet is supported today", file=sys.stderr)
+                raise SystemExit(2)
+            raise SystemExit(
+                init_command(home=args.home, agents=args.agents, wallet_file=args.wallet_file)
+            )
+        if args.treasury_command == "verify":
+            raise SystemExit(verify_command(args.address))
+        treasury_p.print_help()
+    elif args.command == "disclose":
         from merkl.cli.disclose import disclose
 
         disclose(
