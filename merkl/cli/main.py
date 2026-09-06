@@ -11,6 +11,7 @@ Usage:
     merkl signer serve --policy p.json     # run the dev co-signer
     merkl treasury init --xrpl-testnet     # fund and lock down a testnet treasury
     merkl treasury verify <address>        # check the signer list and master key
+    merkl demo [--xrpl-testnet]            # run the five scenarios, write pages to open
 
 Every verification command is offline. Trust anchors — the PCR allowlist, the
 validator key set, the policy document, the admin key — are flags, never values
@@ -340,6 +341,22 @@ def main() -> None:
     verify_p = treasury_sub.add_parser("verify", help="Check a treasury's flags and signer list")
     verify_p.add_argument("address", help="Treasury account address")
 
+    # demo
+    demo_p = sub.add_parser(
+        "demo", help="Run the five scenarios end to end and write pages to open"
+    )
+    demo_p.add_argument(
+        "--out", type=Path, default=None, help="Output folder (default: ./merkl-demo)"
+    )
+    demo_p.add_argument(
+        "--xrpl-testnet",
+        action="store_true",
+        help="Also run against XRPL testnet (or set MERKL_XRPL_TESTNET=1)",
+    )
+    demo_p.add_argument(
+        "--no-node", action="store_true", help="Skip the JavaScript verifier"
+    )
+
     args = parser.parse_args()
 
     if args.command == "verify":
@@ -435,6 +452,12 @@ def main() -> None:
         if args.treasury_command == "verify":
             raise SystemExit(verify_command(args.address))
         treasury_p.print_help()
+    elif args.command == "demo":
+        from merkl.cli.demo import demo_command
+
+        raise SystemExit(
+            demo_command(out=args.out, xrpl=args.xrpl_testnet, node=not args.no_node)
+        )
     elif args.command == "disclose":
         from merkl.cli.disclose import disclose
 
