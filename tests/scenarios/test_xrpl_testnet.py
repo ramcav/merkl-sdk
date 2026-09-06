@@ -330,6 +330,25 @@ class TestXrplTestnet:
         assert outflows, "the treasury should have paid at least once by now"
         assert all(o.treasury == network["treasury"] for o in outflows)
 
+    async def test_the_wallet_free_history_helper_agrees_with_the_adapter(
+        self, tmp_path: Path, network: dict[str, Any]
+    ) -> None:
+        """The notary's read-only path (no wallet, no signing key) against the real ledger.
+
+        Both call the same parser (`_outflows_from_response`); this is the proof
+        that reading the same account_tx twice, once through a wallet-holding
+        adapter and once through a throwaway client, produces the same evidence.
+        """
+        from merkl.adapters.xrpl import TESTNET_JSON_RPC, history
+
+        rig = _rig(tmp_path, network, _policy(network))
+        from_adapter = await rig.rail.history(network["treasury"], "2020-01-01T00:00:00Z")
+        from_helper = await history(
+            network["treasury"], "2020-01-01T00:00:00Z", json_rpc_url=TESTNET_JSON_RPC
+        )
+        assert from_helper, "the treasury should have paid at least once by now"
+        assert {o.tx_hash for o in from_helper} == {o.tx_hash for o in from_adapter}
+
 
 def teardown_module(module: Any) -> None:  # pragma: no cover - reporting only
     if not SUBMITTED:

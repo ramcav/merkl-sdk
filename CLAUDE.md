@@ -13,8 +13,10 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
   bearer auth for every other RPC method, sealed rule state, the authoritative
   decision flow, JSON-RPC over a Unix socket
 - `merkl.adapters` — the edge: `fake` (in-memory rail), `xrpl` (multisigned
-  Payments + treasury bootstrap), `signer_dev` / `signer_nitro` (SignerPort
-  clients), `nitro` (KMS sealing and the CMS envelope it answers with)
+  Payments + treasury bootstrap, plus a module-level `history()` that reads
+  `account_tx` with no wallet — the notary's reconciliation path),
+  `signer_dev` / `signer_nitro` (SignerPort clients), `nitro` (KMS sealing and
+  the CMS envelope it answers with)
 - `ReceiptBuilder` (`merkl/sdk/receipts.py`) — propose → route → co-sign →
   settle → attest, joining the enclosing session as one `transaction` action
 - `merkl.demo` — the five scenarios end to end (benign, prompt-injection drain,
@@ -254,7 +256,7 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # 1316 tests, 8 skipped
+pytest                                          # 1325 tests, 9 skipped
 npm test                                        # 195 JS tests, node --test, no bundler
 mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py nitro merkl/demo merkl/cli
 ruff check merkl/core merkl/signer merkl/adapters nitro tests/core tests/signer merkl/demo merkl/cli tests/demo

@@ -43,6 +43,15 @@ Releases are cut by pushing a `v<version>` tag; see
   `policy_update`). `PolicyChange` gains `credential_type`, naming which kind
   of admin authorized the change; it defaults to `ed25519` for change entries
   recorded before this field existed, which every one before this phase was.
+- **`merkl.adapters.xrpl.history(treasury, since, *, json_rpc_url)`** — a
+  module-level, read-only, wallet-free counterpart to
+  `XrplSettlementAdapter.history`, for the notary's reconciliation (plan D17),
+  which must never hold a signing key. Builds its own throwaway
+  `AsyncJsonRpcClient` and reads `account_tx` through the same
+  `_outflows_from_response` parser the wallet-holding method uses — one
+  parser, not two copies of it. `docs/INTERFACES-P4.md` §7, "Reconciliation:
+  reading rail history", documents the attribute-checked fallback the API
+  uses and that this reads public ledger data only.
 
 ## [0.2.0] - 2026-09-06
 

@@ -37,6 +37,7 @@ from xrpl.core.binarycodec import encode, encode_for_multisigning
 from xrpl.models.amounts import IssuedCurrencyAmount
 from xrpl.models.requests import AccountTx, Ledger, Subscribe, Tx
 from xrpl.models.requests.subscribe import StreamParameter
+from xrpl.models.response import Response
 from xrpl.models.transactions import Memo, Payment, Signer
 from xrpl.utils import xrp_to_drops
 from xrpl.wallet import Wallet
@@ -335,39 +336,8 @@ class XrplSettlementAdapter:
 
     async def history(self, treasury: str, since: str) -> Sequence[Outflow]:
         """Validated outflows from ``account_tx`` (plan D2 and D17)."""
-        response = await self._client.request(
-            AccountTx(account=treasury, ledger_index_min=-1, ledger_index_max=-1, limit=200)
-        )
-        outflows: list[Outflow] = []
-        for entry in response.result.get("transactions", []):
-            tx = entry.get("tx_json") or entry.get("tx") or {}
-            meta = entry.get("meta") or {}
-            if tx.get("TransactionType") != "Payment" or tx.get("Account") != treasury:
-                continue
-            if meta.get("TransactionResult") != "tesSUCCESS":
-                continue
-            amount = meta.get("delivered_amount") or tx.get("DeliverMax") or tx.get("Amount")
-            value, asset = _read_amount(amount)
-            close = entry.get("close_time_iso")
-            date = tx.get("date") or entry.get("date")
-            close_time = (
-                format_instant(datetime.fromisoformat(close.replace("Z", "+00:00")))
-                if isinstance(close, str)
-                else ripple_time(int(date or 0))
-            )
-            outflows.append(
-                Outflow(
-                    tx_hash=str(entry.get("hash") or tx.get("hash", "")),
-                    treasury=treasury,
-                    destination=str(tx.get("Destination", "")),
-                    value=value,
-                    asset=asset,
-                    ledger_index=int(entry.get("ledger_index", 0)),
-                    close_time=close_time,
-                    anchor=_memo_anchor(tx.get("Memos") or []),
-                )
-            )
-        return [o for o in outflows if o.close_time >= since]
+        response = await _account_tx(self._client, treasury)
+        return _outflows_since(_outflows_from_response(response, treasury), since)
 
     async def close(self) -> None:
         await self._stop_validation_capture()
@@ -557,3 +527,73 @@ def _decode_currency(code: str) -> str:
     if len(code) != HEX_CODE_LENGTH:
         return code
     return bytes.fromhex(code).rstrip(b"\x00").decode(errors="replace") or code
+
+
+async def _account_tx(client: AsyncJsonRpcClient, treasury: str) -> Response:
+    return await client.request(
+        AccountTx(account=treasury, ledger_index_min=-1, ledger_index_max=-1, limit=200)
+    )
+
+
+def _outflows_from_response(response: Response, treasury: str) -> list[Outflow]:
+    """Every validated `Payment` *from* ``treasury`` in an ``account_tx`` response.
+
+    The one parsing of ``account_tx`` in this module — :meth:`XrplSettlementAdapter.history`
+    and the module-level :func:`history` both call this, so a read-only caller
+    and a wallet-holding one can never drift into reading the ledger two
+    different ways.
+    """
+    outflows: list[Outflow] = []
+    for entry in response.result.get("transactions", []):
+        tx = entry.get("tx_json") or entry.get("tx") or {}
+        meta = entry.get("meta") or {}
+        if tx.get("TransactionType") != "Payment" or tx.get("Account") != treasury:
+            continue
+        if meta.get("TransactionResult") != "tesSUCCESS":
+            continue
+        amount = meta.get("delivered_amount") or tx.get("DeliverMax") or tx.get("Amount")
+        value, asset = _read_amount(amount)
+        close = entry.get("close_time_iso")
+        date = tx.get("date") or entry.get("date")
+        close_time = (
+            format_instant(datetime.fromisoformat(close.replace("Z", "+00:00")))
+            if isinstance(close, str)
+            else ripple_time(int(date or 0))
+        )
+        outflows.append(
+            Outflow(
+                tx_hash=str(entry.get("hash") or tx.get("hash", "")),
+                treasury=treasury,
+                destination=str(tx.get("Destination", "")),
+                value=value,
+                asset=asset,
+                ledger_index=int(entry.get("ledger_index", 0)),
+                close_time=close_time,
+                anchor=_memo_anchor(tx.get("Memos") or []),
+            )
+        )
+    return outflows
+
+
+def _outflows_since(outflows: Sequence[Outflow], since: str) -> list[Outflow]:
+    return [o for o in outflows if o.close_time >= since]
+
+
+async def history(
+    treasury: str, since: str = "", *, json_rpc_url: str
+) -> Sequence[Outflow]:
+    """Read-only rail history for reconciliation (plan D17) — no wallet, no signing.
+
+    For a caller that must never hold a signing key — the notary, in
+    particular (`docs/INTERFACES-P4.md`, "Reconciliation: reading rail
+    history"). Builds its own throwaway :class:`AsyncJsonRpcClient` for
+    ``json_rpc_url`` and reads ``account_tx`` exactly the way
+    :meth:`XrplSettlementAdapter.history` does — :func:`_outflows_from_response`
+    is the one parser, not a second copy of it. Returns
+    :class:`~merkl.core.policy.state.Outflow` value objects: evidence for
+    ``SignerEngine.reconcile`` to compare against state it wrote itself, never
+    a decision this function or its caller gets to make.
+    """
+    client = AsyncJsonRpcClient(json_rpc_url)
+    response = await _account_tx(client, treasury)
+    return _outflows_since(_outflows_from_response(response, treasury), since)

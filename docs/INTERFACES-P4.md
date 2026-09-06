@@ -352,7 +352,62 @@ Ed25519 admin, since WebAuthn's ECDSA P-256 has no such gap.
 
 ---
 
-## 7. What did not change
+## 7. Reconciliation: reading rail history
+
+`SignerEngine.reconcile` (plan D17) compares its own state to the rail's
+validated history — but the notary is the party this design assumes may be
+compromised, and it must never hold a signing key, so it cannot construct an
+`XrplSettlementAdapter` (which needs an `agent_wallet`) just to read
+`account_tx`. `merkl.adapters.xrpl.history` is the read-only, wallet-free
+answer:
+
+```python
+from merkl.adapters.xrpl import history
+
+outflows = await history(treasury, since, json_rpc_url="https://s.altnet.rippletest.net:51234")
+```
+
+```
+async def history(treasury: str, since: str = "", *, json_rpc_url: str) -> Sequence[Outflow]
+```
+
+A module-level function, not a method — it builds its own throwaway
+`AsyncJsonRpcClient` for `json_rpc_url` and closes over nothing that could
+sign anything. It reads `account_tx` and parses the response through
+`_outflows_from_response`, the **one** parser
+`XrplSettlementAdapter.history` (the wallet-holding method, used by the SDK
+and the signer's own reconciliation) also calls — a notary reading the ledger
+and a signer reading the ledger read it the same way, by construction, not by
+convention.
+
+**How the API should call it.** Check by attribute rather than importing a
+name that might not exist in an older `merkl-sdk`:
+
+```python
+xrpl_history = getattr(merkl.adapters.xrpl, "history", None)
+if xrpl_history is not None:
+    outflows = await xrpl_history(treasury, since, json_rpc_url=configured_url)
+else:
+    outflows = uploaded_outflows  # whatever reconciliation source existed before
+```
+
+Absent on an older SDK, the notary falls back to whatever it already had
+(uploaded outflows) rather than failing — the same "extend, never replace in
+place" rule that governs every other production-facing change in this repo.
+
+**This reads public ledger data only.** `account_tx` against a `json_rpc_url`
+is a public JSON-RPC call any XRPL client can make; nothing about the
+treasury's signing keys, the agent's keys, or the policy's admin key is
+involved, and nothing here can produce a transaction, only read ones that
+already settled. The result is `Outflow` value objects — evidence for
+`SignerEngine.reconcile` to compare against state it wrote itself, never a
+decision this function or its caller gets to make (the same "evidence, not
+instruction" rule the Nitro parent proxy's own history channel follows,
+`docs/SIGNER-RPC.md` §6).
+
+---
+
+## 8. What did not change
 
 `merkl-leaf-v1`, `merkl-binding-v1`, `merkl-entry-v1`, `merkl-receipt-leaf-v1`
 and `merkl-receipt-v1` are untouched, byte for byte. Every bundle that verified
