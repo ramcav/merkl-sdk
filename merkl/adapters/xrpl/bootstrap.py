@@ -208,7 +208,9 @@ def _require_success(result: dict[str, Any], what: str) -> None:
 async def verify_treasury(treasury: str, json_rpc_url: str = TESTNET_JSON_RPC) -> dict[str, Any]:
     """Read an existing treasury's account flags. Used by ``merkl treasury verify``."""
     client = AsyncJsonRpcClient(json_rpc_url)
-    info = await client.request(AccountInfo(account=treasury, ledger_index="validated"))
+    info = await client.request(
+        AccountInfo(account=treasury, ledger_index="validated", signer_lists=True)
+    )
     data = info.result.get("account_data", {})
     master_disabled = bool(int(data.get("Flags", 0)) & LSF_DISABLE_MASTER)
     regular_key = data.get("RegularKey")
