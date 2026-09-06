@@ -46,7 +46,7 @@ class TestWritePages:
         assert (tmp_path / "out" / "README.txt").exists()
         readme = (tmp_path / "out" / "README.txt").read_text()
         assert "merkl verify" in readme
-        assert "@merkl/verify" in readme
+        assert "@merkl-ai/verify" in readme
 
     async def test_a_fake_rail_page_carries_pinnable_validator_keys(self, tmp_path: Path) -> None:
         env = FakeEnvironment(home=tmp_path / "rig")

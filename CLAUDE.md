@@ -97,8 +97,8 @@ merkl/core/
     render.py      render_verify_html(bundle) -> str, the page merkl-api calls
     verify.html    the standalone page: sentences first, hashes behind expanders
     js/            merkl-verify.js — the same algorithms in JavaScript, published
-                   as @merkl/verify. No dependencies, Web Crypto only.
-                   cli.mjs is its terminal entry point (npx @merkl/verify /
+                   as @merkl-ai/verify. No dependencies, Web Crypto only.
+                   cli.mjs is its terminal entry point (npx @merkl-ai/verify /
                    the merkl-verify bin), the same checks merkl verify runs
   vectors/       generate.py, fixtures.py + committed JSON fixtures
     attestation/   three documents AWS actually signed, and 17 cases over them
@@ -301,7 +301,7 @@ scenarios, `merkl demo`, the README rewrite); `pyproject.toml` and
 `merkl/core/verify/js/package.json` are still `0.1.1` until that bump actually
 happens — drafting the notes is not cutting the release.
 
-The tag is the release decision: `.github/workflows/release.yml` refuses a tag that disagrees with `pyproject.toml` **or** with `@merkl/verify`'s `package.json`, runs both suites and all three vector checks, builds, publishes to PyPI via Trusted Publishing (OIDC, gated by the `pypi` environment) and `@merkl/verify` to npm with provenance (gated by the `npm` environment), and creates a GitHub Release from the matching CHANGELOG section. The two packages are versioned in lockstep because they are two implementations of one spec (plan D19): a reader holding one has to be able to assume the other agrees with it. `examples/` holds runnable demo agents against a local notary; `docs/adr/` records the shared-kernel design decisions.
+The tag is the release decision: `.github/workflows/release.yml` refuses a tag that disagrees with `pyproject.toml` **or** with `@merkl-ai/verify`'s `package.json`, runs both suites and all three vector checks, builds, publishes to PyPI via Trusted Publishing (OIDC, gated by the `pypi` environment) and `@merkl-ai/verify` to npm with provenance (gated by the `npm` environment), and creates a GitHub Release from the matching CHANGELOG section. The two packages are versioned in lockstep because they are two implementations of one spec (plan D19): a reader holding one has to be able to assume the other agrees with it. `examples/` holds runnable demo agents against a local notary; `docs/adr/` records the shared-kernel design decisions.
 
 ## Guidelines
 

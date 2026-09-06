@@ -17,7 +17,7 @@ Sold as an AI accountability product; the rail is a detail.
 | D4 | No second chain. A receipt is a 7-leaf tree whose envelope hash is committed as one action leaf in the enclosing session (`action_type=transaction`). It inherits log inclusion, checkpoint signature and Bitcoin anchoring. No `previous_root`. No migration of existing data. |
 | D5 | Split tree. Leaves 0–3 (instruction, intent, policy_decision, signer_attestation) form LEFT, the authorization commitment, which goes in the rail memo and is what the policy key signs. Leaves 4–6 (settlement, result, reasoning) form RIGHT, appended after settlement. `ROOT = H(LEFT ‖ RIGHT)`. |
 | D6 | Canonicalization stays v1 (`merkl.shared.hashing.canonical_bytes`). The receipt schema forbids fractional JSON numbers: amounts are strings (drops, minor units, decimals). JCS is a possible v2 tag, not now. |
-| D7 | Verification = one normative spec + one vector set + two implementations (Python `merkl.core`, JS `@merkl/verify`) that must both pass every vector. verify.html template and JS move into the SDK; merkl-api renders by calling the SDK; the dashboard imports the npm package and deletes its own verifier. |
+| D7 | Verification = one normative spec + one vector set + two implementations (Python `merkl.core`, JS `@merkl-ai/verify`) that must both pass every vector. verify.html template and JS move into the SDK; merkl-api renders by calling the SDK; the dashboard imports the npm package and deletes its own verifier. |
 | D8 | One PyPI distribution `merkl-sdk` with subpackages `merkl.core`, `merkl.signer`, `merkl.adapters.*`, `merkl.sdk`, and extras `[xrpl] [signer] [nitro] [dev]`. Core has no I/O and no new deps. Signer, adapters and merkl-api depend on core only. |
 | D9 | Layers are agnostic in code and trust, joined in evidence. A receipt verifies with the signer public key, the rail, and the local trace alone (level 1). Joining the session/log adds completeness, notary signature and Bitcoin (level 2). The join is optional and one-way. |
 | D10 | Settlement verdict is two lines: transaction authorization (`verified` from the signed blob / `absent`) and ledger inclusion (`proven-offline` via inclusion proof against pinned validators / `verified-live` / `supplied-unverified` / `unchecked`). Never a single PASS that hides the level. |
@@ -29,7 +29,7 @@ Sold as an AI accountability product; the rail is a detail.
 | D16 | Policy is a signed document. Changes are signed by the admin key or an approver quorum, recorded by the signer as a change entry (old hash, new hash, who, when) that flows into the log. |
 | D17 | Reconciliation: treasury outflows ↔ receipts, both directions, in the dashboard and `merkl reconcile`. |
 | D18 | Topology: one signer process per treasury, many agents. Signer-list weights: any one agent key + the policy key reaches quorum; no set of agent keys alone does. State keyed by (treasury, agent). |
-| D19 | Vector generator in the SDK repo; Node test job in SDK CI; `@merkl/verify` published from the same release tag as PyPI. |
+| D19 | Vector generator in the SDK repo; Node test job in SDK CI; `@merkl-ai/verify` published from the same release tag as PyPI. |
 | D20 | Settlement-proof capture at settlement time (SHAMap path + ledger header + validator quorum from the validations stream) is a hard requirement of the XRPL adapter. |
 
 Small decisions made in this plan (object if wrong):
@@ -53,7 +53,7 @@ Duplication to consolidate (brief Step 0 asks for this):
 | `merkl_api/merkle/{tree,proof}.py` | `merkl.core.merkle`; API re-exports |
 | `merkl_api/action/hashing.py` bound to `ActionRecord` | `merkl.core.leaf.action_leaf(fields)`; API wraps |
 | JS verifier string in `html_verifier.py` | `merkl/core/verify/merkl-verify.js` + `verify.html` template in the SDK; API calls `merkl.core.verify.render(bundle)` |
-| dashboard `src/verification/verify.ts` | deleted; imports `@merkl/verify` |
+| dashboard `src/verification/verify.ts` | deleted; imports `@merkl-ai/verify` |
 | `CreateActionRequest.action_type` literal in `app/schemas.py` | built from `merkl.shared.enums.ActionType` |
 | Python log-tree/checkpoint *verification* in merkl-api | `merkl.core.verify.log` (Python), used by `merkl verify`; signing stays in the API |
 
@@ -150,7 +150,7 @@ Payment in XRP and issued currencies (RLUSD). Amounts as drops or decimal string
 
 - `merkl verify <receipt|bundle>`: Python, offline, structured verdict.
 - `verify.html`: rendered locally by the SDK (`merkl disclose`) or by merkl-api; same JS; verdict in plain language per check, with the levels and states of D9/D10.
-- Dashboard: imports `@merkl/verify`; receipt rows in the Story expand into the seven leaves and the verdict.
+- Dashboard: imports `@merkl-ai/verify`; receipt rows in the Story expand into the seven leaves and the verdict.
 - Pinned roots the verifier needs: policy public key(s), Merkl checkpoint key, AWS Nitro root + PCR allowlist, XRPL validator keys (UNL). Distributed the same way the checkpoint key is today.
 
 ## 9. merkl-api changes
@@ -159,7 +159,7 @@ Tables (each with RLS and a downgrade): `receipts` (envelope JSON, root, session
 
 ## 10. Dashboard changes
 
-Receipt view inside the Story; approvals queue with WebAuthn (app-level `navigator.credentials`, independent of Supabase MFA); passkey registration in settings; policy view (hash, version, approvers, change history); reconciliation view; `@merkl/verify` replaces `verify.ts`. Palette and tokens unchanged.
+Receipt view inside the Story; approvals queue with WebAuthn (app-level `navigator.credentials`, independent of Supabase MFA); passkey registration in settings; policy view (hash, version, approvers, change history); reconciliation view; `@merkl-ai/verify` replaces `verify.ts`. Palette and tokens unchanged.
 
 ## 11. What stays untouched
 
@@ -172,7 +172,7 @@ Receipt view inside the Story; approvals queue with WebAuthn (app-level `navigat
 | 1 | `merkl-sdk` `phase-1/receipt-core` | `merkl.core.{merkle, leaf, receipt, intent}`, `docs/RECEIPT-SPEC.md`, vector generator + fixtures (roots, proofs, tampered leaves, split-tree cases), tests. merkl-api switches to `merkl.core.merkle` (path override in dev, PyPI on release). |
 | 2 | `merkl-sdk` `phase-2/policy-signer-xrpl` | policy engine, ports, `merkl.signer` (dev keystore), `adapters.fake`, `adapters.xrpl` incl. bootstrap and settlement proofs, `ReceiptBuilder`, agent-signed requests, scenario suite green on fake and XRPL testnet. |
 | 3 | `merkl-sdk` `phase-3/nitro-signer` | enclave image, parent proxy, KMS sealing, attestation in leaf 3, Terraform, attestation verification in Python and JS. |
-| 4 | `merkl-sdk` `phase-4/verification`; `merkl-api` `phase-4/receipts`; `merkl-dashboard` `phase-4/receipts` | Python + JS verifiers, verify.html moved, `@merkl/verify` published, CLI (`verify`, `receipt show`, `disclose --leaves`, `approve`, `reconcile`); API tables/routes/bundle v1.2; dashboard receipt view, approvals with passkeys, policy and reconciliation views. |
+| 4 | `merkl-sdk` `phase-4/verification`; `merkl-api` `phase-4/receipts`; `merkl-dashboard` `phase-4/receipts` | Python + JS verifiers, verify.html moved, `@merkl-ai/verify` published, CLI (`verify`, `receipt show`, `disclose --leaves`, `approve`, `reconcile`); API tables/routes/bundle v1.2; dashboard receipt view, approvals with passkeys, policy and reconciliation views. |
 | 5 | all, `phase-5/scenarios-docs` | five scenarios (benign, injection drain, over-threshold + M-of-N approval, structuring, reference mismatch) on both rails; README with architecture, trust model, receipt spec, how to add a rail; landing rewrite (separate brief). |
 
 Each phase ends with a report: what shipped, what is stubbed, which vectors exist, any core/adapter boundary bent and why. verify.html must verify at the end of every phase.

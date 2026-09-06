@@ -186,7 +186,7 @@ threshold that needs two of three approvers; small payments structured to
 duck under a cap, caught by a sliding window; and a payment for the right
 supplier but the wrong invoice, refused, followed by the right one, which
 settles. Every page is a self-contained `verify.html` that `merkl verify` and
-`npx @merkl/verify` both check — two implementations that share no code,
+`npx @merkl-ai/verify` both check — two implementations that share no code,
 agreeing on the same bytes. `merkl/demo/scenarios.py` is the source; run
 `pytest tests/demo/ tests/scenarios/` to see the same claims as tests.
 
@@ -253,11 +253,11 @@ merkl xrpl pin-unl https://vl.ripple.com -o pinned.json   # audit a validator li
 ```
 
 ```js
-import { verifyReceipt } from '@merkl/verify';   // no dependencies, Web Crypto only
+import { verifyReceipt } from '@merkl-ai/verify';   // no dependencies, Web Crypto only
 ```
 
 Two implementations, one spec, one set of published test vectors: `merkl.core.verify`
-in Python and `@merkl/verify` in JavaScript both run against
+in Python and `@merkl-ai/verify` in JavaScript both run against
 `merkl/core/vectors/`, so if they ever disagreed one of them would be wrong — and
 you can check that too. `docs/RECEIPT-SPEC.md` specifies every byte.
 

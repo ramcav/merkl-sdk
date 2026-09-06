@@ -1,7 +1,7 @@
 """Committed test vectors for the Merkl receipt format.
 
 Plain JSON, hex strings, no Python-specific types: every fixture in this package
-is meant to be loaded and checked by a second implementation (``@merkl/verify``
+is meant to be loaded and checked by a second implementation (``@merkl-ai/verify``
 in JavaScript) as well as by ``tests/core/test_vectors.py``.
 
 Regenerate with ``python -m merkl.core.vectors.generate``; check without writing

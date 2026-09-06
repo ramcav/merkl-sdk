@@ -349,7 +349,7 @@ def test_a_nonsense_trust_anchor_is_refused_at_construction(
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
 def test_every_committed_case_reproduces(case: dict[str, Any]) -> None:
-    """The contract with ``@merkl/verify``: same bytes in, same statuses out."""
+    """The contract with ``@merkl-ai/verify``: same bytes in, same statuses out."""
     root_pem = (ATTESTATION_DIR / case["trust"]["root_pem_file"]).read_text(encoding="utf-8")
     trust = AttestationTrust(
         pcrs={int(i): v for i, v in case["trust"]["pcrs"].items()},

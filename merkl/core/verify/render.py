@@ -47,7 +47,7 @@ def verify_js(*, as_module: bool = True) -> str:
     page must never depend on is being served: an auditor opens it from a USB
     stick, offline, or the whole design is theatre. Stripping the keyword is a
     one-line transformation with no other effect — the file itself stays a real
-    ES module, which is what ``@merkl/verify`` publishes and what the Node suite
+    ES module, which is what ``@merkl-ai/verify`` publishes and what the Node suite
     imports.
     """
     source = VERIFY_JS_PATH.read_text(encoding="utf-8")

@@ -1,5 +1,5 @@
 {
-  "name": "@merkl/verify",
+  "name": "@merkl-ai/verify",
   "version": "0.1.1",
   "description": "Verify Merkl receipts and proof bundles offline. No dependencies, Web Crypto only.",
   "type": "module",

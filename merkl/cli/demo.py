@@ -153,7 +153,7 @@ def demo_command(*, out: Path | None = None, xrpl: bool = False, node: bool = Tr
     print(f"pages written to {out.resolve()}")
     print("open index.html, or check any page yourself, two ways:")
     print(f"  merkl verify {out / 'fake' / '1-benign-payment.html'} --all")
-    print(f"  npx @merkl/verify {out / 'fake' / '1-benign-payment.html'} --all")
+    print(f"  npx @merkl-ai/verify {out / 'fake' / '1-benign-payment.html'} --all")
     if not ok:
         print(
             "\nat least one page did not verify cleanly on both implementations",

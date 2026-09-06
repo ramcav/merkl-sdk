@@ -1,4 +1,4 @@
-# @merkl/verify
+# @merkl-ai/verify
 
 Verify a Merkl receipt or proof bundle yourself, offline, with nothing installed
 but a JavaScript runtime.
@@ -13,7 +13,7 @@ No dependencies. Web Crypto only, so the same file runs in a browser opening a
 `verify.html` with no network and under `node --test` in CI.
 
 ```js
-import { verifyBundle, verifyReceipt } from '@merkl/verify';
+import { verifyBundle, verifyReceipt } from '@merkl-ai/verify';
 
 const verdict = await verifyReceipt(bundle.receipts[0], {
   policyDocument: bundle.receipts[0].policy_document,

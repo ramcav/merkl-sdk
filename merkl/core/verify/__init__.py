@@ -17,7 +17,7 @@ moment inside a certificate's validity window instead of racing it.
   and for merkl-api
 
 ``js/merkl-verify.js`` is the same algorithms again in JavaScript, published as
-``@merkl/verify``. ``docs/RECEIPT-SPEC.md`` and ``docs/ATTESTATION-VERIFY.md``
+``@merkl-ai/verify``. ``docs/RECEIPT-SPEC.md`` and ``docs/ATTESTATION-VERIFY.md``
 specify both byte by byte, and ``merkl/core/vectors/`` holds the fixtures they
 must agree on — a divergence between the two is a bug in one of them.
 """

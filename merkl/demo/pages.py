@@ -32,7 +32,7 @@ from merkl.demo.scenarios import ScenarioResult
 from merkl.sdk.receipts import ReceiptOutcome
 
 NODE_CLI: Path = VERIFY_JS_PATH.parent / "cli.mjs"
-"""``@merkl/verify``'s command line, inside the wheel next to the module."""
+"""``@merkl-ai/verify``'s command line, inside the wheel next to the module."""
 
 
 # -- material --------------------------------------------------------------- #
@@ -154,7 +154,7 @@ def verify_with_node(path: Path, *, validators: dict[str, str], quorum: int) -> 
     node = shutil.which("node")
     if node is None:
         return VerifierReading(
-            verifier="@merkl/verify",
+            verifier="@merkl-ai/verify",
             ok=False,
             complete=False,
             detail="node is not on PATH",
@@ -168,7 +168,7 @@ def verify_with_node(path: Path, *, validators: dict[str, str], quorum: int) -> 
     proc = subprocess.run(argv, capture_output=True, text=True, check=False)
     if proc.returncode == 2:
         return VerifierReading(
-            verifier="@merkl/verify",
+            verifier="@merkl-ai/verify",
             ok=False,
             complete=False,
             detail=proc.stderr.strip()[:200],
@@ -192,7 +192,7 @@ def verify_with_node(path: Path, *, validators: dict[str, str], quorum: int) -> 
         }
     )
     return VerifierReading(
-        verifier="@merkl/verify",
+        verifier="@merkl-ai/verify",
         ok=bool(report["ok"]),
         complete=bool(report["complete"]),
         detail=", ".join(failures) if failures else ", ".join(unchecked),
@@ -299,7 +299,7 @@ def readme(reports: Sequence[PageReport], *, rail: str) -> str:
         "Check them yourself, two ways:",
         "",
         "  merkl verify 1-benign-payment.html --all",
-        "  npx @merkl/verify 1-benign-payment.html --all",
+        "  npx @merkl-ai/verify 1-benign-payment.html --all",
         "",
         "The two implementations share no code. If they ever disagreed, one of them",
         "would be wrong, and you would be the one who found out.",
@@ -355,7 +355,7 @@ def render_index(reports: Sequence[PageReport], *, rail: str) -> str:
         "<ol>" + "".join(items) + "</ol>"
         "<footer>Every page was also checked from a terminal by both implementations "
         "of the verifier — <code>merkl verify</code> in Python and "
-        "<code>@merkl/verify</code> in JavaScript — over these same files.</footer>"
+        "<code>@merkl-ai/verify</code> in JavaScript — over these same files.</footer>"
         "</body></html>\n"
     )
 

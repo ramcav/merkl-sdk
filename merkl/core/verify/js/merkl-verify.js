@@ -1,5 +1,5 @@
 /**
- * @merkl/verify — the JavaScript half of Merkl's verification.
+ * @merkl-ai/verify — the JavaScript half of Merkl's verification.
  *
  * One normative spec, one vector set, two implementations (plan D7). Everything
  * here has a counterpart in `merkl.core.verify`, computes the same bytes, reports

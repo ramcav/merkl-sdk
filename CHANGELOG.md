@@ -37,7 +37,7 @@ Releases are cut by pushing a `v<version>` tag; see
   both admins and approvers, no second WebAuthn parser. `merkl policy sign
   <document.json> --key <ed25519>` is the non-browser path; `merkl policy
   show` renders a document — rules, tiers, approvers, admin — in words.
-  `verifyPolicySignature` is the `@merkl/verify` mirror
+  `verifyPolicySignature` is the `@merkl-ai/verify` mirror
   (`docs/INTERFACES-P4.md` §6, "Policy signing for the dashboard", has the
   exact WebAuthn challenge and the POST body the API relays to
   `policy_update`). `PolicyChange` gains `credential_type`, naming which kind
@@ -53,7 +53,7 @@ Releases are cut by pushing a `v<version>` tag; see
   reading rail history", documents the attribute-checked fallback the API
   uses and that this reads public ledger data only.
 - **XRPL offline ledger inclusion is real: `proven-offline` means what it
-  says.** `merkl.core.verify.xrpl` (Python) and its `@merkl/verify` mirror (a
+  says.** `merkl.core.verify.xrpl` (Python) and its `@merkl-ai/verify` mirror (a
   hand-written, zero-dependency secp256k1 ECDSA verifier included — Web
   Crypto has no secp256k1) build and fold the real transaction SHAMap (16-ary
   radix trie, `MIN\0`/`SND\0` prefixes), verify `STValidation` signatures
@@ -80,7 +80,7 @@ Releases are cut by pushing a `v<version>` tag; see
 
 - **`merkl demo`** — runs the five scenarios end to end and writes each as a
   self-contained `verify.html`, checked by both `merkl verify` and the new
-  `@merkl/verify` CLI over the same file before either is written to disk. The
+  `@merkl-ai/verify` CLI over the same file before either is written to disk. The
   fake rail always runs; `--xrpl-testnet` (or `MERKL_XRPL_TESTNET=1`) also runs
   the same five stories against the real network, reusing the treasury cached
   under `~/.merkl` (the same wallet files `merkl treasury init` and the pytest
@@ -92,8 +92,8 @@ Releases are cut by pushing a `v<version>` tag; see
   same five stories run unmodified against either rail. A scenario's claim
   about itself raises `ScenarioError` rather than asserting, so it cannot
   silently disappear under `python -O`.
-- **`@merkl/verify`'s CLI** (`merkl/core/verify/js/cli.mjs`, reachable as
-  `npx @merkl/verify` or the `merkl-verify` bin once installed) — the same
+- **`@merkl-ai/verify`'s CLI** (`merkl/core/verify/js/cli.mjs`, reachable as
+  `npx @merkl-ai/verify` or the `merkl-verify` bin once installed) — the same
   checks `merkl verify` runs, over a receipt, a bundle, or a rendered
   `verify.html`, in the other implementation. A scenario page that only
   `merkl verify` had checked would have been checked once; checked by both, it
@@ -124,7 +124,7 @@ page, including the ones built from real testnet transactions.
 ### Added
 
 - **Verification is now two implementations of one spec (plan D7).**
-  `merkl.core.verify.receipt.verify_receipt` and `@merkl/verify`'s
+  `merkl.core.verify.receipt.verify_receipt` and `@merkl-ai/verify`'s
   `verifyReceipt` compute the same bytes, report the same check names with the
   same statuses, and reach the same verdict from the same material — down to the
   plain-language summary a reader sees. `merkl/core/vectors/verdicts.json`
@@ -168,7 +168,7 @@ page, including the ones built from real testnet transactions.
   testimony, names every check it could not run, and keeps the evidence
   drop-zone. It is one self-contained file that opens from a USB stick with no
   network.
-- **`@merkl/verify`** — the same algorithms in JavaScript, no dependencies, Web
+- **`@merkl-ai/verify`** — the same algorithms in JavaScript, no dependencies, Web
   Crypto only: canonicalization ported escape for escape, the frozen leaf
   encodings, the receipt tree, WebAuthn and Ed25519 approvals, a CBOR reader
   restricted to the attestation profile, an X.509 reader for the four fields a
@@ -190,7 +190,7 @@ page, including the ones built from real testnet transactions.
   about whether anybody looked at it.
 - **`docs/INTERFACES-P4.md`** — the contract merkl-api and merkl-dashboard build
   against: the renderer's name and signature, the bundle v1.2 members the
-  verifier reads, the `@merkl/verify` API, the fixtures, and which files in
+  verifier reads, the `@merkl-ai/verify` API, the fixtures, and which files in
   merkl-api become deletable.
 - **New fixtures.** `verdicts.json` (4), `bundles/` (three real merkl-api exports
   plus 9 mutations), and a fourth receipt settled on the fake rail so

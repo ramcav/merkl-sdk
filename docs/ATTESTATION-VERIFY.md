@@ -1,7 +1,7 @@
 # Verifying an AWS Nitro attestation document
 
 Normative for receipt check 8, `signer.attestation`. Two implementations must
-agree: `merkl.core.verify.attestation` (Python, phase 3) and `@merkl/verify`
+agree: `merkl.core.verify.attestation` (Python, phase 3) and `@merkl-ai/verify`
 (JavaScript, phase 4). Both must reproduce every case in
 `merkl/core/vectors/attestation/cases.json` — every check's *status*, not just
 the overall verdict.

@@ -2,7 +2,7 @@
 
 Normative for the two repositories that consume this one. Everything here ships
 in the next `merkl-sdk` release — the Unreleased section of `CHANGELOG.md`, which
-is 0.2.0 content — and in `@merkl/verify` at the same version, published from the
+is 0.2.0 content — and in `@merkl-ai/verify` at the same version, published from the
 same tag (plan D19). `release.yml` refuses a tag where the two versions disagree,
 because a reader holding one implementation has to be able to assume the other
 agrees with it.
@@ -121,14 +121,14 @@ rather than a re-serialization from your own ORM, or the hash will not match.
 
 ---
 
-## 3. `@merkl/verify` — merkl-dashboard
+## 3. `@merkl-ai/verify` — merkl-dashboard
 
 ```bash
-npm i @merkl/verify
+npm i @merkl-ai/verify
 ```
 
 ```js
-import { verifyBundle, verifyReceipt, verifyDisclosure } from '@merkl/verify';
+import { verifyBundle, verifyReceipt, verifyDisclosure } from '@merkl-ai/verify';
 ```
 
 No dependencies, Web Crypto only, ES module. `src/verification/verify.ts`'s
@@ -347,7 +347,7 @@ document could nominate anything).
 ### Verifying it — `verifyPolicySignature`
 
 ```js
-import { verifyPolicySignature } from '@merkl/verify';
+import { verifyPolicySignature } from '@merkl-ai/verify';
 
 const result = await verifyPolicySignature(signedPolicy, { admin: pinnedAdminCredential });
 // { valid: boolean, detail: string, unsupported?: true }
