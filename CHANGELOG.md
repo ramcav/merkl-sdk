@@ -52,6 +52,27 @@ Releases are cut by pushing a `v<version>` tag; see
   parser, not two copies of it. `docs/INTERFACES-P4.md` §7, "Reconciliation:
   reading rail history", documents the attribute-checked fallback the API
   uses and that this reads public ledger data only.
+- **XRPL offline ledger inclusion is real: `proven-offline` means what it
+  says.** `merkl.core.verify.xrpl` (Python) and its `@merkl/verify` mirror (a
+  hand-written, zero-dependency secp256k1 ECDSA verifier included — Web
+  Crypto has no secp256k1) build and fold the real transaction SHAMap (16-ary
+  radix trie, `MIN\0`/`SND\0` prefixes), verify `STValidation` signatures
+  against the raw blob the `validations` stream publishes, and verify
+  manifests (master key signs ephemeral key). A validation counts as one
+  pinned master key's agreement only when its manifest verifies and names the
+  key that actually signed. The XRPL adapter now captures a real `tx_path`
+  from the ledger's full binary transaction set at settlement time (was
+  always `missing` before this phase) and the manifest in effect for each
+  validator that signed, both self-checked before publishing. `merkl xrpl
+  pin-unl <url|file>` turns a published validator list (`vl.ripple.com`,
+  `vl.xrplf.org`, testnet's own) into the pinned master-key set a verifier
+  trusts without re-fetching it — auditing the publisher's manifest chain,
+  the list's own signature, and every validator's manifest inside it.
+  `merkl demo --xrpl-testnet` pins the real testnet UNL and reaches
+  `proven-offline` on real settled transactions; `docs/RECEIPT-SPEC.md` §7.2
+  has every byte, and `merkl/core/vectors/xrpl/` carries real testnet
+  fixtures — a ledger, two validators' validations and manifests, the
+  testnet UNL — with tamper cases for both implementations.
 
 ## [0.2.0] - 2026-09-06
 

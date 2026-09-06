@@ -219,12 +219,27 @@ All inside the wheel, under `merkl/core/vectors/`:
 | `merkle.json`, `action_leaf.json`, `receipt_leaf.json` | 8 / 10 / 21 | the frozen encodings |
 | `bundles/cases.json` | 12 | real merkl-api exports (v1.1, continuation, v1.2) and mutations of them |
 | `attestation/cases.json` | 17 | three documents AWS actually signed |
+| `xrpl/cases.json` | 12 | a real testnet ledger's SHAMap, two real validators' `STValidation`/manifests, the real testnet UNL — tamper cases for each |
 
 The Node suite in `tests/js/` reads exactly these. Copy its loaders
 (`tests/js/vectors.mjs`) rather than writing new ones.
 
 Regenerate with `python -m merkl.core.vectors.generate`,
-`… .attestation.generate`, `… .bundles.generate`; each takes `--check`.
+`… .attestation.generate`, `… .bundles.generate`, `… .xrpl.generate`; each
+takes `--check`.
+
+**`validatorTrust` for XRPL is keyed by master key, not by name.** The fake
+rail's example above (`{name: pubkeyHex}`) is a display name to an Ed25519 key
+that exists only in one test process; XRPL's pinned set is `{masterKeyHex:
+masterKeyHex}` — the master key is both the identifier and (mirrored) the
+value, because the material actually needed to check a signature (the current
+*ephemeral* key) comes from the manifest inside the proof, verified against
+that master key, not from anything the verifier pins directly. Produce this
+set with `merkl xrpl pin-unl <url|file> -o pinned.json` (or
+`merkl.core.verify.xrpl.pin_validator_list` directly) — it audits a published
+list (`vl.ripple.com`, `vl.xrplf.org`, `vl.altnet.rippletest.net`) once, offline,
+and prints exactly which validators were pinned and which were skipped, and
+why. Never take this set from a receipt or a settlement proof.
 
 ---
 

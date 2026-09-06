@@ -403,16 +403,70 @@ that is `SHA-512Half("LWR\0" ‖ ledger_index(4) ‖ total_coins(8) ‖ parent_h
 transaction-set root to the identity validators sign.
 `settlement.validator_quorum` counts *distinct* pinned validators whose
 validation names that hash. And `settlement.ledger_inclusion` needs one more
-link: `tx_path`, siblings and directions folding the transaction id into the
-header's `transaction_hash`, with the same `SHA-256(left ‖ right)` fold used
-everywhere else here.
+link: `tx_path` folding the transaction into the header's `transaction_hash`.
 
-XRPL captures do not carry that path (`shamap_path` is in the proof's own
-`missing` list), and XRPL's validation stream publishes secp256k1 validator keys
-without republishing the serialized `STValidation` that was signed — so on XRPL
-the quorum is counted, not verified, and the check says exactly that rather than
-passing. The fake rail carries both, under two tags of its own that are **not**
-any real rail's encoding:
+The fake rail's path is a plain binary Merkle tree, `SHA-256(left ‖ right)` at
+every level, `{"siblings": [...], "directions": ["left"|"right", ...]}`. XRPL's
+is the real thing — a 16-ary radix trie (rippled's SHAMap), and both
+implementations build and fold it byte for byte
+(`merkl.core.verify.xrpl`, `merkl-verify.js`'s XRPL primitives):
+
+```
+tx leaf hash    = SHA-512Half("SND\0" ‖ VL(tx_blob) ‖ VL(meta_blob) ‖ tx_id)
+inner node hash = SHA-512Half("MIN\0" ‖ child[0] ‖ child[1] ‖ ... ‖ child[15])
+                  (empty branch = 32 zero bytes; an inner node with no branches
+                  at all hashes to the all-zero value, XRPL's empty-tree root)
+```
+
+`VL(bytes)` is XRPL's variable-length prefix (1, 2 or 3 bytes depending on
+length, XRPL's standard binary-format encoding). A branch is selected by one
+nibble (4 bits) of the 256-bit transaction id per level, most significant
+nibble first; a subtree collapses to a leaf directly wherever only one
+transaction lives under a given prefix, so a path is one step per level the
+tree actually materializes, not 64. `tx_path` for XRPL is
+`{"tx_blob": hex, "tx_meta": hex, "steps": [{"nibble": 0-15, "siblings": [15
+hex hashes, branches 0-15 excluding "nibble", in order]}, ...]}`, leaf-to-root.
+The verifier recomputes the leaf from `tx_blob`/`tx_meta` themselves — the path
+is tied to this transaction's actual bytes, never to a hash the proof merely
+hands over — and folds `steps` in order; the result must equal the header's own
+`transaction_hash`.
+
+Validator quorum on XRPL is verified, not counted. Each `validations` entry
+carries the raw `STValidation` blob the `validations` stream publishes (`data`,
+hex) and the manifest in effect for that validator when it signed (`manifest`,
+base64, fetched separately by the adapter via the `manifest` RPC). Verifying
+one entry:
+
+```
+validation signing hash = SHA-512Half("VAL\0" ‖ every STValidation field except
+                                       Signature, in canonical field order)
+manifest signing hash   = SHA-512Half("MAN\0" ‖ every manifest field except
+                                       Signature and MasterSignature)
+```
+
+secp256k1 signatures are ECDSA over that digest (DER-encoded, the compressed
+SEC1 public key — `0x02`/`0x03` ‖ X); Ed25519 signatures (`0xED` ‖ key) are
+verified over the preimage directly, no extra hashing. Fields are read with a
+minimal STObject walker: a field header (1-2 bytes: type nibble, field nibble,
+or a following byte when either is zero), then a fixed width for integers and
+hashes or a `VL`-prefixed blob — the same field types (`Sequence`, `PublicKey`,
+`SigningPubKey`, `Signature`, `MasterSignature`, `Domain`, `LedgerHash`,
+`LedgerSequence`) both a `Validation` and a `Manifest` object use, per
+rippled's own templates for each. A validation counts as one pinned validator's
+agreement only when: its manifest verifies (both signatures), the manifest's
+`SigningPubKey` is the exact key that signed *this* validation, the manifest's
+`PublicKey` (the master key) is in the verifier's pinned set, and the
+validation's own `LedgerHash` matches the recomputed ledger hash. The master-key
+set is pinned in advance — never taken from the proof — the same way a
+published validator list (`vl.ripple.com`, `vl.xrplf.org`,
+`vl.altnet.rippletest.net`) is audited offline into a pinned form (`merkl xrpl
+pin-unl`, `merkl.core.verify.xrpl.pin_validator_list`): the publisher's own
+manifest chain, the top-level signature over the raw `blob` bytes (made with
+the publisher's ephemeral key), and every validator's own manifest inside it.
+
+The fake rail plays the same two roles under tags of its own that are **not**
+any real rail's encoding, so `proven-offline` is a state both implementations
+reach and both test suites assert on a rail that needs no network:
 
 ```
 fake ledger hash = SHA-256("merkl-fake-ledger-v1" ‖ NUL ‖ ledger_index(8, BE)
@@ -420,9 +474,6 @@ fake ledger hash = SHA-256("merkl-fake-ledger-v1" ‖ NUL ‖ ledger_index(8, BE
 fake validation  = Ed25519 over "merkl-fake-validation-v1" ‖ NUL
                                 ‖ ledger_hash(32) ‖ ledger_index(8, BE)
 ```
-
-They exist so `proven-offline` is a state both implementations reach and both
-test suites assert, instead of a branch nobody has ever run.
 
 A disclosure is verified with the same names plus `disclosure.root` (the
 disclosure's root equals the one the reader pinned) and `proof.<name>` (the

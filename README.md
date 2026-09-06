@@ -108,6 +108,18 @@ did the policy key sign the bytes that actually settled, and is that
 transaction in a ledger anyone can check — because collapsing them would hide
 which half was established.
 
+"In a ledger anyone can check" means `proven-offline`: on XRPL, the transaction
+SHAMap path from the transaction to the ledger header's own `transaction_hash`
+(rebuilt from the ledger's full binary transaction set, folded back by the
+verifier from the transaction's own bytes — never trusted as a bare hash), and
+a quorum of validators the *verifier* pinned in advance whose signatures the
+verifier checks itself, against the manifest that authorized the key that
+actually signed. `merkl xrpl pin-unl <url>` turns a published validator list
+(`vl.ripple.com`, `vl.xrplf.org`, testnet's own) into that pinned set, auditing
+the whole chain — the publisher's manifest, the list's own signature, every
+validator's manifest inside it — and printing exactly what it trusted and what
+it skipped.
+
 Approvals, when a policy sends a payment to a human tier, are passkey
 (WebAuthn) or Ed25519 signatures over the exact payment, M of N, checked by the
 signer — never by Merkl. A rejection is signed too, for the same reason a
@@ -237,6 +249,7 @@ a network. There are three ways in, and they are the same checks:
 merkl verify disclosure-abc123/verify.html    # the page an auditor was emailed
 merkl verify bundle.json --all                # every check, and what it compared
 merkl receipt show <id> --leaves              # one receipt, read out loud
+merkl xrpl pin-unl https://vl.ripple.com -o pinned.json   # audit a validator list once
 ```
 
 ```js

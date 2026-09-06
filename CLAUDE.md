@@ -84,6 +84,12 @@ merkl/core/
     settlement.py  what a settlement capture proves: the proof is about this tx,
                    the header hashes to its ledger hash, a pinned validator
                    quorum signed it, and only then offline inclusion
+    xrpl.py        the real XRPL primitives settlement.py's xrpl rail dispatches
+                   to: the transaction SHAMap (build + fold), STValidation and
+                   manifest verification (secp256k1 and Ed25519), and
+                   pin_validator_list (a published UNL -> a pinned master-key
+                   set — merkl xrpl pin-unl's engine). No xrpl-py; pure stdlib
+                   plus merkl.core.crypto
     log.py         sessions, action leaves, the merkl-entry-v1 chain, RFC 6962
                    log inclusion, checkpoints, continuations, evidence records
     receipt.py     the whole verdict: every check, the two settlement lines of
@@ -97,6 +103,9 @@ merkl/core/
   vectors/       generate.py, fixtures.py + committed JSON fixtures
     attestation/   three documents AWS actually signed, and 17 cases over them
     bundles/       real merkl-api exports, and mutations of them that must fail
+    xrpl/          a real testnet ledger, two validators' real STValidation
+                   messages and manifests, the real testnet UNL — and tamper
+                   cases over each, for both implementations
 ```
 
 `merkl/signer/` depends on `merkl.core` and `merkl.shared` alone — no rail
@@ -232,6 +241,9 @@ merkl/demo/
   rendered in words)
 - `merkl/cli/signer.py` — `merkl signer serve` (loads `relay-tokens.json` from
   `--home` if present) and `merkl signer token add|revoke|list`
+- `merkl/cli/xrpl_unl.py` — `merkl xrpl pin-unl <url|file>`: audits a published
+  validator list and writes the pinned master-key set (§ verify.py's
+  `--validator`, `merkl.core.verify.xrpl.pin_validator_list`)
 - `merkl/cli/receipt.py`, `merkl/cli/approve.py`, `merkl/cli/reconcile.py`
 - `merkl/demo/scenarios.py`, `merkl/demo/pages.py`, `merkl/demo/xrpl_env.py` —
   the five scenarios, the page-writer, and the XRPL testnet environment
@@ -256,13 +268,15 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # 1325 tests, 9 skipped
-npm test                                        # 195 JS tests, node --test, no bundler
+pytest                                          # see current count in CI; growing
+npm test                                        # see current count in CI; growing, node --test, no bundler
 mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py nitro merkl/demo merkl/cli
-ruff check merkl/core merkl/signer merkl/adapters nitro tests/core tests/signer merkl/demo merkl/cli tests/demo
+ruff check merkl/ tests/
+ruff format --check merkl/ tests/
 python -m merkl.core.vectors.generate --check              # fixtures are current
 python -m merkl.core.vectors.attestation.generate --check  # and the attestation ones
 python -m merkl.core.vectors.bundles.generate --check      # and the bundle ones
+python -m merkl.core.vectors.xrpl.generate --check          # and the xrpl ones
 
 # the five scenarios, rendered and double-verified, on the fake rail
 merkl demo
