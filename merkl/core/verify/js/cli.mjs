@@ -147,13 +147,19 @@ function printVerdict(verdict, showAll) {
     const text = verdict.summary[key];
     const body = text ? wrap(text).join(`\n${' '.repeat(14)}`) : '(the receipt does not say)';
     console.log(`${pad(label)}  ${body}`);
+    // The agent's own note sits under the sentence about it, never in it.
+    if (key === 'testimony' && verdict.summary.testimony_note) {
+      const note = wrap(`\u201c${verdict.summary.testimony_note}\u201d`).join(`\n${' '.repeat(14)}`);
+      console.log(`${pad('')}  ${note}`);
+    }
   }
   console.log('');
   console.log(`${pad('Authorization')}  ${verdict.settlement.transaction_authorization}`);
   console.log(`${pad('')}  ${verdict.settlement.transaction_authorization_detail}`);
   console.log(`${pad('Ledger')}  ${verdict.settlement.ledger_inclusion}`);
   console.log(`${pad('')}  ${verdict.settlement.ledger_inclusion_detail}`);
-  console.log(`${pad('Level')}  ${verdict.level} — ${verdict.level_detail}`);
+  // level_detail already names its level; printing the number too said it twice.
+  console.log(`${pad('Level')}  ${wrap(verdict.level_detail).join(`\n${' '.repeat(14)}`)}`);
   console.log('');
   let passed = 0;
   for (const c of verdict.checks) {
@@ -255,11 +261,18 @@ export async function main(argv) {
     }
     console.log('');
     console.log(whole.ok ? 'nothing was contradicted' : 'SOMETHING WAS CONTRADICTED');
-    console.log(
-      whole.complete
-        ? 'every check ran'
-        : 'some checks did not run — listed above with --, and none of them is a pass',
-    );
+    if (whole.complete) {
+      console.log('every check ran');
+    } else {
+      // Name them rather than describe them. "Some checks did not run" is true
+      // of every unchecked receipt and says nothing about this one.
+      for (const verdict of whole.receipts) {
+        for (const entry of verdict.not_checked) {
+          console.log(wrap(`not checked — ${entry.label}: ${entry.reason}`, 78).map((l, i) => (i ? `  ${l}` : `  ${l}`)).join('\n'));
+        }
+      }
+      console.log('  none of them is a pass, and none of them is a failure');
+    }
   }
 
   if (!whole.ok) return 1;
