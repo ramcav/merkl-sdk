@@ -53,6 +53,28 @@ MEMO_TYPE: Final = "merkl/receipt-v1"
 RAIL_XRPL: Final = "xrpl"
 RAIL_FAKE: Final = "fake"
 
+NETWORK_XRPL_MAINNET: Final = "xrpl-mainnet"
+NETWORK_XRPL_TESTNET: Final = "xrpl-testnet"
+
+NETWORKS_BY_RAIL: Final[dict[str, tuple[str, ...]]] = {
+    RAIL_XRPL: (NETWORK_XRPL_MAINNET, NETWORK_XRPL_TESTNET),
+    RAIL_FAKE: (),
+}
+"""Which chains each rail has. A rail is a *family*; a network is one ledger in it.
+
+`rail` alone does not say which ledger a treasury lives on, and every address,
+issuer and validator set differs between them. An `rXXX` on testnet and the same
+`rXXX` on mainnet are unrelated accounts, so a policy that only says "xrpl" can be
+pointed at either — which is the one confusion that turns a rehearsal into a
+payment. `PolicyDocument.network` is optional so every policy signed before it
+existed keeps its hash; when set it must be one of these.
+"""
+
+
+def networks_for(rail: str) -> tuple[str, ...]:
+    """The networks this rail has, or ``()`` for a rail with none (or an unknown one)."""
+    return NETWORKS_BY_RAIL.get(rail, ())
+
 
 class RailError(ContentError):
     """Raised when rail-facing data is not well formed."""

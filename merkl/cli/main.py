@@ -337,6 +337,15 @@ def main() -> None:
     serve_p.add_argument(
         "--blocklist", nargs="*", default=[], help="Destinations the risk scorer refuses"
     )
+    serve_p.add_argument(
+        "--rail-endpoint",
+        default=None,
+        help=(
+            "The rail JSON-RPC URL this deployment settles through ($MERKL_RAIL_ENDPOINT). "
+            "The signer never calls it; it refuses to start if the URL names a different "
+            "chain than the policy's network."
+        ),
+    )
 
     token_p = signer_sub.add_parser(
         "token", help='Manage relay bearer tokens (docs/SIGNER-RPC.md, "Who may call what")'
@@ -505,6 +514,7 @@ def main() -> None:
                     host=args.host,
                     port=args.port,
                     blocklist=tuple(args.blocklist),
+                    rail_endpoint=args.rail_endpoint,
                 )
             )
         if args.signer_command == "token":

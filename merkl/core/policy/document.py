@@ -39,6 +39,7 @@ from merkl.core.canonical import (
 )
 from merkl.core.crypto import tagged
 from merkl.core.intent import CurrencyRef, currency_content, currency_from_content
+from merkl.core.rail import networks_for
 from merkl.shared.hashing import SHA256Hash, canonical_bytes
 
 POLICY_TAG: Final = b"merkl-policy-v1"
@@ -699,12 +700,22 @@ class PolicyDocument:
     resolves its payload codec from it at boot and refuses to start without one,
     so a policy cannot put a signer in the position of signing bytes it cannot
     read. A policy update may not change it (that would be a different treasury).
+
+    ``network`` names *which ledger in that family* — ``xrpl-testnet`` or
+    ``xrpl-mainnet`` (:data:`merkl.core.rail.NETWORKS_BY_RAIL`). Optional, and
+    **omitted entirely from the content when unset**, so every policy_hash signed
+    before this field existed is unchanged to the byte. When set, the signer holds
+    its configured rail endpoint against it at boot and refuses to serve a policy
+    for one chain from a node on another, and the rail codec holds the payload
+    against it — an rXXX on testnet and the same rXXX on mainnet are unrelated
+    accounts, so "xrpl" alone is not enough to know where the money goes.
     """
 
     version: str
     treasury: str
     rail: str
     agents: tuple[AgentSection, ...]
+    network: str | None = None
     admin_public_key: str | None = None
     admin: AdminCredential | None = None
     tiers: Tiers = dataclasses.field(default_factory=Tiers)
@@ -716,6 +727,13 @@ class PolicyDocument:
         token(self.version, "policy.version", max_length=64)
         token(self.treasury, "policy.treasury", max_length=128)
         token(self.rail, "policy.rail", max_length=64)
+        if self.network is not None:
+            allowed = networks_for(self.rail)
+            if self.network not in allowed:
+                raise PolicyError(
+                    f"policy.network must be one of {list(allowed)} for rail {self.rail!r}, "
+                    f"got {self.network!r}"
+                )
         if self.admin_public_key is not None and self.admin is not None:
             raise PolicyError(
                 "policy.admin_public_key and policy.admin are mutually exclusive; a document "
@@ -786,6 +804,11 @@ class PolicyDocument:
             "approvers": [approver.to_content() for approver in self.approvers],
             "risk": self.risk.to_content(),
         }
+        # Only when set. An absent network leaves the content byte-identical to
+        # the shape every policy signed before this field used, so their hashes
+        # and their admin signatures still verify.
+        if self.network is not None:
+            content["network"] = self.network
         # The legacy field, when set, is emitted exactly as it always was — no
         # "admin" member alongside it — so `policy_hash()` over a legacy
         # document is byte-identical to every document signed before this
@@ -808,6 +831,7 @@ class PolicyDocument:
                 "version",
                 "treasury",
                 "rail",
+                "network",
                 "agents",
                 "tiers",
                 "approvers",
@@ -827,6 +851,7 @@ class PolicyDocument:
             version=_required(obj, "version", "policy"),
             treasury=_required(obj, "treasury", "policy"),
             rail=_required(obj, "rail", "policy"),
+            network=obj.get("network"),
             agents=tuple(AgentSection.from_content(a) for a in agents),
             tiers=Tiers.from_content(obj.get("tiers", {})),
             approvers=tuple(ApproverCredential.from_content(a) for a in approvers),

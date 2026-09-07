@@ -31,10 +31,15 @@ codec module for the configured rail imports anything else.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Final, Protocol
 
 from merkl.core.intent import Intent
-from merkl.core.rail import RAIL_FAKE, RAIL_XRPL
+from merkl.core.rail import (
+    NETWORK_XRPL_MAINNET,
+    NETWORK_XRPL_TESTNET,
+    RAIL_FAKE,
+    RAIL_XRPL,
+)
 from merkl.shared.errors import MerklError
 
 RULE_PAYLOAD_ENCODES_INTENT = "rail.payload_encodes_intent"
@@ -68,11 +73,13 @@ class RailCodec(Protocol):
 _EXTRAS = {RAIL_XRPL: "signer-xrpl"}
 
 
-def codec_for(rail: str) -> RailCodec:
+def codec_for(rail: str, network: str | None = None) -> RailCodec:
     """The codec for one rail, or a refusal naming the extra that provides it.
 
     Imported lazily so a signer only ever loads the rail library it was
-    configured for.
+    configured for. ``network`` is ``PolicyDocument.network`` when the document
+    names one; a codec that is told which chain it serves refuses a payload that
+    names another.
     """
     if rail == RAIL_XRPL:
         try:
@@ -81,7 +88,7 @@ def codec_for(rail: str) -> RailCodec:
             raise CodecUnavailable(
                 f"the {rail} payload codec needs xrpl-py: pip install 'merkl-sdk[{_EXTRAS[rail]}]'"
             ) from exc
-        return XrplPayloadCodec()
+        return XrplPayloadCodec(network)
     if rail == RAIL_FAKE:
         from merkl.signer.rails.fake import FakePayloadCodec
 
@@ -92,6 +99,49 @@ def codec_for(rail: str) -> RailCodec:
     )
 
 
+XRPL_OTHER_CHAIN: Final = "xrpl-other"
+"""A recognised XRPL endpoint that is neither network a policy may name.
+
+Devnet and the side chains. Named rather than folded into "unknown" so pointing
+a testnet policy at a devnet node is a refusal instead of a shrug.
+"""
+
+XRPL_ENDPOINT_NETWORKS: Final[tuple[tuple[str, str], ...]] = (
+    ("altnet.rippletest.net", NETWORK_XRPL_TESTNET),
+    ("testnet.xrpl-labs.com", NETWORK_XRPL_TESTNET),
+    ("devnet.rippletest.net", XRPL_OTHER_CHAIN),
+    ("sidechain-net", XRPL_OTHER_CHAIN),
+    ("xrplcluster.com", NETWORK_XRPL_MAINNET),
+    ("s1.ripple.com", NETWORK_XRPL_MAINNET),
+    ("s2.ripple.com", NETWORK_XRPL_MAINNET),
+    ("xrpl.ws", NETWORK_XRPL_MAINNET),
+)
+"""Host substrings that name a chain.
+
+Deliberately a *recognition* table and not a validation one: an operator running
+their own rippled gets ``None`` and no boot-time opinion, because refusing to
+start on an unrecognised host would make a private node unusable while proving
+nothing at all.
+"""
+
+
+def network_of_endpoint(rail: str, endpoint: str) -> str | None:
+    """Which chain a configured rail endpoint talks to, or ``None`` when unknown.
+
+    A pure function of a string: the signer holds no rail client and makes no
+    call here (charter). This is the boot-time agreement check, and the only
+    place testnet and mainnet can actually be told apart — the two chains differ
+    in their validator sets, not in anything inside a signed Payment.
+    """
+    if rail != RAIL_XRPL:
+        return None
+    host = endpoint.lower()
+    for fragment, network in XRPL_ENDPOINT_NETWORKS:
+        if fragment in host:
+            return network
+    return None
+
+
 def available_rails() -> tuple[str, ...]:
     """Rails this build can decode, in the order a caller should prefer them."""
     return (RAIL_XRPL, RAIL_FAKE)
@@ -99,8 +149,11 @@ def available_rails() -> tuple[str, ...]:
 
 __all__ = [
     "RULE_PAYLOAD_ENCODES_INTENT",
+    "XRPL_ENDPOINT_NETWORKS",
+    "XRPL_OTHER_CHAIN",
     "CodecUnavailable",
     "RailCodec",
     "available_rails",
     "codec_for",
+    "network_of_endpoint",
 ]

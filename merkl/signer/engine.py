@@ -135,7 +135,7 @@ class SignerEngine:
             raise SignerError("the policy document's admin signature does not verify")
         # Resolved at boot, not per request: a signer that cannot read its rail's
         # bytes must refuse to start rather than discover it mid-payment.
-        self._codec = codec or codec_for(policy.document.rail)
+        self._codec = codec or codec_for(policy.document.rail, policy.document.network)
         self._policy = policy
         self._admin = pinned
         self._keystore = keystore

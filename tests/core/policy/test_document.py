@@ -407,3 +407,37 @@ class TestUnenforceableRules:
             )
         )
         assert document.agents[0].cap_for(other) is not None
+
+
+class TestNetwork:
+    """`network` narrows `rail` to one chain, and is absent from a document without one."""
+
+    def test_omitting_it_leaves_the_content_and_the_hash_untouched(self) -> None:
+        document = make_document()
+        assert "network" not in document.to_content()
+        assert document.policy_hash() == make_document(network=None).policy_hash()
+
+    def test_naming_one_changes_the_hash(self) -> None:
+        """It is part of what the admin signs, so it cannot be added after the fact."""
+        assert make_document().policy_hash() != make_document(network="xrpl-testnet").policy_hash()
+
+    def test_testnet_and_mainnet_are_different_documents(self) -> None:
+        assert (
+            make_document(network="xrpl-testnet").policy_hash()
+            != make_document(network="xrpl-mainnet").policy_hash()
+        )
+
+    def test_a_network_the_rail_does_not_have_is_refused(self) -> None:
+        with pytest.raises(PolicyError, match="policy.network must be one of"):
+            make_document(network="xrpl-devnet")
+
+    def test_a_rail_with_no_networks_may_not_name_one(self) -> None:
+        with pytest.raises(PolicyError, match=r"must be one of \[\] for rail 'fake'"):
+            make_document(rail="fake", network="xrpl-testnet")
+
+    def test_it_survives_a_round_trip(self) -> None:
+        document = make_document(network="xrpl-mainnet")
+        assert PolicyDocument.from_content(document.to_content()).network == "xrpl-mainnet"
+
+    def test_a_document_without_one_round_trips_to_none(self) -> None:
+        assert PolicyDocument.from_content(make_document().to_content()).network is None

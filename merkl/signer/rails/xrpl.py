@@ -37,12 +37,38 @@ from xrpl.utils import xrp_to_drops
 
 from merkl.core.canonical import parse_decimal
 from merkl.core.intent import Intent, IssuedCurrency
-from merkl.core.rail import ANCHOR_PLACEHOLDER_HEX, MEMO_TYPE, RAIL_XRPL
+from merkl.core.rail import (
+    ANCHOR_PLACEHOLDER_HEX,
+    MEMO_TYPE,
+    NETWORK_XRPL_MAINNET,
+    NETWORK_XRPL_TESTNET,
+    RAIL_XRPL,
+)
 
 MULTISIGN_PREFIX: Final = bytes.fromhex("534D5400")
 ACCOUNT_ID_BYTES: Final = 20
 
 PAYMENT: Final = "Payment"
+
+NETWORK_IDS: Final[dict[str, int]] = {
+    NETWORK_XRPL_MAINNET: 0,
+    NETWORK_XRPL_TESTNET: 1,
+}
+"""rippled's chain ids for the two networks a policy may name."""
+
+NETWORK_ID_FLOOR: Final = 1024
+"""Below this, rippled *rejects* a transaction that carries ``NetworkID`` at all.
+
+That is the honest limit of what a payload can prove about its chain. Mainnet is
+network 0 and testnet is network 1, so neither carries the field, and the same
+signed bytes are valid on both — the two chains differ in their validator sets,
+not in anything inside a Payment. So the codec's rule is only "a NetworkID, if
+present, must not contradict the policy", and the real agreement between a
+treasury and a chain is made at boot, where the signer holds its configured rail
+endpoint against ``policy.network`` (``merkl.signer.rails.network_of_endpoint``)
+and refuses to serve a testnet policy from a mainnet node. Documented rather than
+papered over: a verifier reading a receipt cannot tell the chains apart either,
+which is exactly why the policy has to name one."""
 
 ALLOWED_FIELDS: Final[frozenset[str]] = frozenset(
     {
@@ -82,6 +108,11 @@ class XrplPayloadCodec:
 
     rail = RAIL_XRPL
 
+    def __init__(self, network: str | None = None) -> None:
+        if network is not None and network not in NETWORK_IDS:
+            raise ValueError(f"unknown xrpl network {network!r}")
+        self._network = network
+
     def decode_payload(self, payload: bytes) -> dict[str, Any]:
         """The transaction inside a multisigning payload, as plain JSON."""
         if not payload.startswith(MULTISIGN_PREFIX):
@@ -117,10 +148,38 @@ class XrplPayloadCodec:
 
         found.extend(self._amount_problems(tx.get("Amount"), intent))
         found.extend(self._flag_problems(tx.get("Flags")))
+        found.extend(self._network_problems(tx.get("NetworkID")))
         found.extend(self._memo_problems(tx.get("Memos"), commitment))
         return found
 
     # -- pieces ------------------------------------------------------------ #
+
+    def _network_problems(self, network_id: Any) -> list[str]:
+        """Whether ``NetworkID`` contradicts the chain the policy governs.
+
+        See :data:`NETWORK_ID_FLOOR`: on mainnet and testnet the field must be
+        absent, so its *presence* is the finding, and its absence proves nothing.
+        """
+        if self._network is None:
+            return []
+        expected = NETWORK_IDS[self._network]
+        if network_id is None:
+            return []
+        if isinstance(network_id, bool) or not isinstance(network_id, int):
+            return [f"NetworkID is {network_id!r}, which is not an integer"]
+        if network_id != expected:
+            return [
+                f"NetworkID is {network_id}, but this policy governs {self._network}, "
+                f"which is network {expected}"
+            ]
+        if expected < NETWORK_ID_FLOOR:
+            return [
+                f"the transaction carries NetworkID {network_id}; {self._network} is "
+                f"network {expected}, below the {NETWORK_ID_FLOOR} at which rippled "
+                "expects the field, so these bytes would be rejected by the chain the "
+                "policy names"
+            ]
+        return []
 
     def _amount_problems(self, amount: Any, intent: Intent) -> list[str]:
         currency = intent.amount.currency

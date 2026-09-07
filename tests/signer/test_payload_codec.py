@@ -23,7 +23,13 @@ from merkl.core.canonical import shift_instant
 from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference
 from merkl.core.rail import ANCHOR_BYTES, ANCHOR_PLACEHOLDER_HEX, MEMO_TYPE, UnsignedTx
 from merkl.core.receipt import PolicyDecision, PolicyOutcome
-from merkl.signer.rails import RULE_PAYLOAD_ENCODES_INTENT, CodecUnavailable, codec_for
+from merkl.signer.rails import (
+    RULE_PAYLOAD_ENCODES_INTENT,
+    XRPL_OTHER_CHAIN,
+    CodecUnavailable,
+    codec_for,
+    network_of_endpoint,
+)
 from merkl.signer.rails.fake import FAKE_TX_TAG
 from tests.scenarios.harness import AGENT, INVOICE_HASH, build_rig
 from tests.signer.test_signer import request_for
@@ -353,3 +359,67 @@ class TestCodecResolution:
 
         for rail in available_rails():
             assert codec_for(rail).rail == rail
+
+
+class TestXrplNetwork:
+    """`policy.network` names one chain, and the codec refuses another's bytes.
+
+    Mainnet is network 0 and testnet is network 1, and rippled rejects a
+    NetworkID below 1024 — so neither chain's Payments carry the field, and its
+    *absence* proves nothing. What the codec can do is refuse bytes that name a
+    chain the policy does not govern; the rest is the boot-time check in
+    `merkl.cli.signer`.
+    """
+
+    async def test_a_payload_with_no_network_id_is_the_normal_case(self) -> None:
+        intent = xrpl_intent()
+        codec = codec_for("xrpl", "xrpl-testnet")
+        assert codec.problems(xrpl_payload(intent), intent, None) == []
+
+    async def test_a_network_id_for_another_chain_is_a_finding(self) -> None:
+        intent = xrpl_intent()
+        payload = xrpl_payload(intent, network_id=21337)
+        problems = codec_for("xrpl", "xrpl-testnet").problems(payload, intent, None)
+        assert problems == [
+            "NetworkID is 21337, but this policy governs xrpl-testnet, which is network 1"
+        ]
+
+    async def test_a_network_id_matching_a_chain_that_forbids_it_is_a_finding(self) -> None:
+        intent = xrpl_intent()
+        payload = xrpl_payload(intent, network_id=1)
+        problems = codec_for("xrpl", "xrpl-testnet").problems(payload, intent, None)
+        assert len(problems) == 1
+        assert "below the 1024" in problems[0]
+
+    async def test_without_a_network_the_codec_has_no_opinion(self) -> None:
+        intent = xrpl_intent()
+        payload = xrpl_payload(intent, network_id=21337)
+        assert codec_for("xrpl").problems(payload, intent, None) == []
+
+    async def test_an_unknown_network_is_refused_at_construction(self) -> None:
+        with pytest.raises(ValueError, match="unknown xrpl network"):
+            codec_for("xrpl", "xrpl-devnet")
+
+
+class TestEndpointNetwork:
+    """The only place testnet and mainnet can actually be told apart."""
+
+    @pytest.mark.parametrize(
+        ("endpoint", "expected"),
+        [
+            ("https://s.altnet.rippletest.net:51234", "xrpl-testnet"),
+            ("https://testnet.xrpl-labs.com", "xrpl-testnet"),
+            ("https://xrplcluster.com", "xrpl-mainnet"),
+            ("https://s1.ripple.com:51234", "xrpl-mainnet"),
+            ("https://s.devnet.rippletest.net:51234", XRPL_OTHER_CHAIN),
+            ("http://localhost:5005", None),
+            ("https://rippled.internal.example.com", None),
+        ],
+    )
+    async def test_recognises_the_public_endpoints(
+        self, endpoint: str, expected: str | None
+    ) -> None:
+        assert network_of_endpoint("xrpl", endpoint) == expected
+
+    async def test_another_rail_has_no_endpoint_opinion(self) -> None:
+        assert network_of_endpoint("fake", "https://s.altnet.rippletest.net:51234") is None

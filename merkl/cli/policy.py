@@ -141,7 +141,9 @@ def show_command(path: Path, *, as_json: bool = False) -> int:
     admin = document.effective_admin
     print(f"policy {document.version}  ({document.policy_hash()[:16]}…)")
     print(f"  treasury   {document.treasury}")
+    network = document.network or "(none named — this policy does not say which chain)"
     print(f"  rail       {document.rail}")
+    print(f"  network    {network}")
     origin_note = f"  origins={list(admin.origins)}" if admin.origins else ""
     print(f"  admin      {admin.credential_type} {admin.public_key[:16]}…{origin_note}")
     if signed is not None:
