@@ -17,9 +17,11 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
   `account_tx` with no wallet, bounded below by `ledger_index_min` — the
   notary's reconciliation path),
   `signer_dev` / `signer_nitro` (SignerPort clients), `nitro` (KMS sealing and
-  the CMS envelope it answers with)
+  the CMS envelope it answers with), `notary` (`HttpNotary`: files a receipt and
+  its settlement capture with merkl-api, afterwards and never on the decision path)
 - `ReceiptBuilder` (`merkl/sdk/receipts.py`) — propose → route → co-sign →
-  settle → attest, joining the enclosing session as one `transaction` action
+  settle → attest, joining the enclosing session as one `transaction` action and
+  filing the receipt with its `SettlementProof` to the local store and the notary
 - `merkl.demo` — the five scenarios end to end (benign, prompt-injection drain,
   over-threshold with 2-of-3 approval, structuring, reference mismatch),
   rail-agnostic (`FakeEnvironment`, `XrplEnvironment`), rendered to a folder of
@@ -62,7 +64,8 @@ merkl/core/
   intent.py      Intent v1 (payment), Amount, IssuedCurrency, Reference
   rail.py        UnsignedTx / SignedTx / SettlementRef / SettlementProof,
                  the 32-byte anchor placeholder, per-rail tx-id rules
-  ports.py       SettlementPort, SignerPort, ReceiptStorePort, ApprovalPort,
+  ports.py       SettlementPort, SignerPort, ReceiptStorePort,
+                 SettlementProofStorePort, NotaryPort, ApprovalPort,
                  RiskPort, ClockPort (Protocols only)
   policy/
     document.py  PolicyDocument v1, SignedPolicy (merkl-policy-v1), approvers,
@@ -233,6 +236,14 @@ merkl/demo/
 - `merkl/sdk/client.py` — `MerklClient`: creates sessions, holds transport
 - `merkl/sdk/session_context.py` — `SessionContext`: async with, `record_action()`, auto-close; binds itself to the `_current_session` contextvar on enter
 - `merkl/sdk/transport.py` — `AsyncTransport`: httpx with retry + buffering
+- `merkl/sdk/receipt_store.py` — `LocalReceiptStore`: `~/.merkl/receipts/{id}.json`
+  (`$MERKL_RECEIPT_DIR`), the receipt *and* its settlement proof in one file, in
+  the shape `merkl disclose` and `merkl receipt show` read. A `ReceiptStorePort`
+  and a `SettlementProofStorePort`; the latter is probed for, never assumed, so
+  an older store keeps working
+- `merkl/adapters/notary.py` — `HttpNotary`: `POST /v1/receipts` with
+  `settlement_proof` inline, and `POST /v1/receipts/{id}/settlement-proof` for a
+  capture that completed late. Filing never raises at the payer
 - `merkl/sdk/decorators.py` — `@trace`, `@guardrail` + `set_current_session` / `reset_current_session` backed by `contextvars`
 - `merkl/integrations/_common.py` — `record_tool_call()` shared by every framework adapter
 - `merkl/integrations/` — langchain.py, openai.py, google_adk.py, crewai.py
@@ -281,9 +292,9 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # 1437 tests, 10 skipped
-npm test                                        # 230 JS tests, node --test, no bundler
-mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py nitro merkl/demo merkl/cli
+pytest                                          # 1474 tests, 10 skipped
+npm test                                        # 236 JS tests, node --test, no bundler
+mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py merkl/sdk/receipt_store.py nitro merkl/demo merkl/cli
 ruff check merkl/ tests/
 ruff format --check merkl/ tests/
 python -m merkl.core.vectors.generate --check              # fixtures are current
