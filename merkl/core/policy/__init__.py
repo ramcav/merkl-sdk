@@ -44,6 +44,8 @@ from merkl.core.policy.document import (
     Tiers,
     WindowRule,
     asset_key,
+    content_asset_key,
+    unenforceable_rules,
 )
 from merkl.core.policy.engine import (
     RULE_ORDER,
@@ -108,9 +110,11 @@ __all__ = [
     "WindowRule",
     "assertions_from_content",
     "asset_key",
+    "content_asset_key",
     "evaluate",
     "outflows_from_content",
     "reconcile",
+    "unenforceable_rules",
     "verify_assertion",
     "verify_policy_signature",
     "verify_quorum",

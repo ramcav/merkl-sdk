@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 
 from merkl.core.checks import CheckStatus
+from merkl.core.receipt import PADDED_LEAF_COUNT, Envelope
 from merkl.core.vectors import VECTORS_DIR
 from merkl.core.vectors.bundles import BUNDLES_DIR
 from merkl.core.verify.receipt import (
@@ -17,6 +18,7 @@ from merkl.core.verify.receipt import (
     AUTHORIZATION_VERIFIED,
     LEVEL_RECEIPT,
     LEVEL_SESSION,
+    _policy_document_check,
     receipt_from_content,
     verify_receipt,
 )
@@ -26,6 +28,7 @@ from merkl.core.verify.settlement import (
     LEDGER_UNCHECKED,
     ValidatorTrust,
 )
+from merkl.shared.hashing import SHA256Hash
 
 VERDICTS: dict[str, Any] = json.loads((VECTORS_DIR / "verdicts.json").read_text())
 RECEIPTS: dict[str, Any] = json.loads((VECTORS_DIR / "receipts.json").read_text())
@@ -186,3 +189,39 @@ class TestPlainLanguage:
         verdict = _run(_case("deny-not-submitted"))
         assert "refused" in (verdict.summary.rule or "")
         assert "Nothing settled" in (verdict.summary.settled or "")
+
+
+POLICY_VECTORS: dict[str, Any] = json.loads((VECTORS_DIR / "policies.json").read_text())
+
+
+@pytest.mark.parametrize(
+    "case",
+    [c for c in POLICY_VECTORS["document_cases"] if c["expected_findings"]],
+    ids=lambda c: c["name"],
+)
+def test_a_signed_policy_with_a_dead_rule_is_a_finding(case: dict[str, Any]) -> None:
+    """Parity with `@merkl-ai/verify`'s policyDocumentCheck: same detail, same nothing.
+
+    Every one of these documents carries a valid admin signature over a hash that
+    matches, so the only thing left to notice is that the rule cannot run. The
+    check reports the sentence `merkl.core` would have refused the document with,
+    and hands back no policy — a document this broken says nothing about who may
+    approve either.
+    """
+    envelope = Envelope(
+        receipt_id="rcp_0000000000000000000000000",
+        root=SHA256Hash(bytes.fromhex("22" * 32)),
+        left=SHA256Hash(bytes.fromhex("00" * 32)),
+        leaf_hashes=tuple(SHA256Hash(bytes.fromhex("33" * 32)) for _ in range(PADDED_LEAF_COUNT)),
+        rail="xrpl",
+        treasury="rADMINVECTORTREASURY0000000000000000",
+        agent_id="agent-admin-vector",
+        policy_hash=case["policy_hash"],
+        signer_public_key="ab" * 32,
+    )
+    check, policy = _policy_document_check(
+        envelope, case["signed_policy"], case["signed_policy"]["signer_public_key"]
+    )
+    assert check.status is CheckStatus.FAIL
+    assert check.detail == case["expected_findings"][0]
+    assert policy is None

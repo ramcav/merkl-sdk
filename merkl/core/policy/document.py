@@ -75,18 +75,22 @@ class EscalationTier(enum.StrEnum):
 IMPLEMENTED_TIERS: Final = (EscalationTier.INSTANT, EscalationTier.HUMAN)
 
 
-def asset_key(currency: CurrencyRef) -> str:
-    """A stable string key for one asset, used to match rules and window state.
+def content_asset_key(content: Any) -> str:
+    """The stable key for one asset, from its already-serialised content.
 
     Native codes are ``[A-Z0-9]{1,20}`` so they never contain ``.``; an issued
     currency is ``code.issuer``. Two different assets can never collide.
     """
-    content = currency_content(currency)
     if isinstance(content, str):
         return content
-    if not isinstance(content, dict):  # pragma: no cover - currency_content guarantees this
+    if not isinstance(content, Mapping):
         raise PolicyError(f"currency must be a code or an object, got {type(content).__name__}")
     return f"{content['code']}.{content['issuer']}"
+
+
+def asset_key(currency: CurrencyRef) -> str:
+    """A stable string key for one asset, used to match rules and window state."""
+    return content_asset_key(currency_content(currency))
 
 
 def _members(data: Any, allowed: set[str], owner: str) -> Mapping[str, Any]:
@@ -116,6 +120,85 @@ def _strings(values: Any, field: str, *, max_length: int = 256) -> tuple[str, ..
     if not isinstance(values, (list, tuple)):
         raise PolicyError(f"{field} must be an array")
     return tuple(token(v, f"{field}[]", max_length=max_length) for v in values)
+
+
+def _rule_list(owner: Mapping[str, Any], key: str) -> list[Any]:
+    value = owner.get(key, [])
+    return list(value) if isinstance(value, list) else []
+
+
+def unenforceable_rules(content: Mapping[str, Any]) -> list[str]:
+    """Every rule in a policy document's content the engine would sign but never run.
+
+    The engine reads ``per_tx_cap`` and ``tiers.human.thresholds`` as *first match
+    per asset* and ``windows`` as *all matches per asset*, and it only ever asks
+    about the asset the intent names. So a second cap for one asset, a second
+    window over the same (asset, seconds), or a limit for an asset the agent may
+    not move at all is a rule that gets hashed into ``policy_hash``, signed by the
+    admin and read by a human as protection — and is then never run. That gap is
+    the finding: an operator who tightens a cap by *appending* a second one would
+    believe the tighter number applies, and the signature would agree with them.
+
+    Takes the document's content rather than the value object so the Python
+    constructor, a verifier reading JSON off the wire and ``@merkl-ai/verify``
+    all judge the same bytes and produce the same sentences. Returned as a list
+    rather than raised for the same reason: the constructor refuses on the first,
+    a verifier reports it. Order is the document's own.
+    """
+    problems: list[str] = []
+    movable: set[str] = set()
+    for section in _rule_list(content, "agents"):
+        if not isinstance(section, Mapping):
+            continue
+        agent_id = section.get("agent_id")
+        allowed = {content_asset_key(a) for a in _rule_list(section, "allowlist_assets")}
+        movable |= allowed
+        seen_caps: set[str] = set()
+        for cap in _rule_list(section, "per_tx_cap"):
+            key = content_asset_key(cap.get("asset"))
+            if key not in allowed:
+                problems.append(
+                    f"agent {agent_id!r} has a per_tx_cap for {key}, which is not in its "
+                    "allowlist_assets, so that cap cannot be enforced"
+                )
+            elif key in seen_caps:
+                problems.append(
+                    f"agent {agent_id!r} names more than one per_tx_cap for {key}; the engine "
+                    "enforces the first, so the rest cannot be enforced"
+                )
+            seen_caps.add(key)
+        seen_windows: set[tuple[str, Any]] = set()
+        for window in _rule_list(section, "windows"):
+            key = content_asset_key(window.get("asset"))
+            seconds = window.get("seconds")
+            if key not in allowed:
+                problems.append(
+                    f"agent {agent_id!r} has a window for {key}, which is not in its "
+                    "allowlist_assets, so that window cannot be enforced"
+                )
+            elif (key, seconds) in seen_windows:
+                problems.append(
+                    f"agent {agent_id!r} names more than one window for {key} over {seconds}s; "
+                    "the engine enforces one per (asset, seconds), so the rest cannot be enforced"
+                )
+            seen_windows.add((key, seconds))
+    tiers = content.get("tiers")
+    human = tiers.get("human") if isinstance(tiers, Mapping) else None
+    seen_thresholds: set[str] = set()
+    for threshold in _rule_list(human, "thresholds") if isinstance(human, Mapping) else []:
+        key = content_asset_key(threshold.get("asset"))
+        if key not in movable:
+            problems.append(
+                f"tiers.human.thresholds has a threshold for {key}, which no agent in this "
+                "policy may move, so that threshold cannot be enforced"
+            )
+        elif key in seen_thresholds:
+            problems.append(
+                f"tiers.human.thresholds names more than one threshold for {key}; the engine "
+                "enforces the first, so the rest cannot be enforced"
+            )
+        seen_thresholds.add(key)
+    return problems
 
 
 # --------------------------------------------------------------------------- #
@@ -659,6 +742,9 @@ class PolicyDocument:
                 f"quorum {self.tiers.human.quorum} exceeds the {len(self.approvers)} "
                 "approvers the document names"
             )
+        dead = unenforceable_rules(self.to_content())
+        if dead:
+            raise PolicyError(dead[0])
 
     def agent(self, agent_id: str) -> AgentSection | None:
         """The section for one agent, or None when the policy does not know it."""

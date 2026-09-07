@@ -2158,6 +2158,84 @@ export async function policyHash(document) {
   return toHex(await sha256(concatBytes([POLICY_TAG, NUL_BYTE, utf8(canonicalJson(document))])));
 }
 
+const listOf = (owner, key) => (Array.isArray(owner?.[key]) ? owner[key] : []);
+
+/**
+ * Every rule in this policy document the engine would sign but never run.
+ *
+ * The engine reads `per_tx_cap` and `tiers.human.thresholds` as first-match-per-
+ * asset and `windows` as all-matches-per-asset, and only ever asks about the
+ * asset the intent names. So a second cap for one asset, a second window over the
+ * same (asset, seconds), or a limit for an asset the agent may not move is a rule
+ * that is hashed into `policy_hash`, signed by the admin, read by a human as
+ * protection — and never run. The Python core refuses to *construct* such a
+ * document; a verifier meets one that was signed before that rule existed, or by
+ * something else entirely, so it reports the same sentences as a finding.
+ *
+ * Same sentences, deliberately: `merkl/core/vectors/policies.json`'s
+ * `document_cases` pin them for both implementations.
+ */
+export function unenforceableRules(document) {
+  const problems = [];
+  const movable = new Set();
+  for (const section of listOf(document, 'agents')) {
+    if (!section || typeof section !== 'object') continue;
+    const agent = `'${section.agent_id}'`;
+    const allowed = new Set(listOf(section, 'allowlist_assets').map(currencyKey));
+    for (const key of allowed) movable.add(key);
+    const seenCaps = new Set();
+    for (const cap of listOf(section, 'per_tx_cap')) {
+      const key = currencyKey(member(cap, 'asset'));
+      if (!allowed.has(key)) {
+        problems.push(
+          `agent ${agent} has a per_tx_cap for ${key}, which is not in its ` +
+            'allowlist_assets, so that cap cannot be enforced',
+        );
+      } else if (seenCaps.has(key)) {
+        problems.push(
+          `agent ${agent} names more than one per_tx_cap for ${key}; the engine ` +
+            'enforces the first, so the rest cannot be enforced',
+        );
+      }
+      seenCaps.add(key);
+    }
+    const seenWindows = new Set();
+    for (const window of listOf(section, 'windows')) {
+      const key = currencyKey(member(window, 'asset'));
+      const seconds = member(window, 'seconds');
+      if (!allowed.has(key)) {
+        problems.push(
+          `agent ${agent} has a window for ${key}, which is not in its ` +
+            'allowlist_assets, so that window cannot be enforced',
+        );
+      } else if (seenWindows.has(`${key} ${seconds}`)) {
+        problems.push(
+          `agent ${agent} names more than one window for ${key} over ${seconds}s; ` +
+            'the engine enforces one per (asset, seconds), so the rest cannot be enforced',
+        );
+      }
+      seenWindows.add(`${key} ${seconds}`);
+    }
+  }
+  const seenThresholds = new Set();
+  for (const threshold of listOf(member(document, 'tiers')?.human, 'thresholds')) {
+    const key = currencyKey(member(threshold, 'asset'));
+    if (!movable.has(key)) {
+      problems.push(
+        `tiers.human.thresholds has a threshold for ${key}, which no agent in this ` +
+          'policy may move, so that threshold cannot be enforced',
+      );
+    } else if (seenThresholds.has(key)) {
+      problems.push(
+        `tiers.human.thresholds names more than one threshold for ${key}; the engine ` +
+          'enforces the first, so the rest cannot be enforced',
+      );
+    }
+    seenThresholds.add(key);
+  }
+  return problems;
+}
+
 const ADMIN_APPROVER_ID = 'admin';
 
 function effectiveAdmin(document) {
@@ -2498,7 +2576,7 @@ async function signedBlobCheck(settlement) {
 
 // -- the checks that need material the verifier brought --------------------
 
-async function policyDocumentCheck(envelope, supplied, adminPublicKey) {
+export async function policyDocumentCheck(envelope, supplied, adminPublicKey) {
   if (supplied === null || supplied === undefined) {
     return [
       noData(
@@ -2510,6 +2588,14 @@ async function policyDocumentCheck(envelope, supplied, adminPublicKey) {
   }
   const signed = member(supplied, 'document') ? supplied : null;
   const document = signed ? signed.document : supplied;
+  // Before the signature and before the hash, because neither says anything
+  // about whether a rule can run: a dead rule is signed and hashed exactly as
+  // faithfully as a live one. `merkl.core` refuses to build such a document, so
+  // a verifier that reads one has been handed rules the engine never applied.
+  // Returns no policy for the same reason `merkl.core` returns none: a document
+  // that cannot be parsed cannot say whose approval counts either.
+  const dead = unenforceableRules(document);
+  if (dead.length) return [check(CHECK_POLICY_DOCUMENT, FAIL, dead[0]), null];
   let note = '';
   if (signed) {
     if (adminPublicKey) {

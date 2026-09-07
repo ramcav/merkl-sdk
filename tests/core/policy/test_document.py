@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 
 import pytest
 
@@ -18,14 +19,18 @@ from merkl.core.policy.document import (
     ApproverCredential,
     AssetLimit,
     EscalationTier,
+    HumanTier,
     PolicyChange,
     PolicyDocument,
     PolicyError,
     ReferenceBinding,
     SignedPolicy,
+    Tiers,
+    WindowRule,
     asset_key,
+    unenforceable_rules,
 )
-from merkl.core.vectors import fixtures
+from merkl.core.vectors import VECTORS_DIR, fixtures
 from merkl.shared.hashing import SHA256Hash, canonical_bytes
 
 ADMIN = fixtures.ed25519_key("test-admin")
@@ -228,3 +233,177 @@ class TestAssetKeys:
 def test_the_tier_vocabulary_is_fixed_even_where_it_is_unimplemented() -> None:
     """NOTIFY and DELAY exist so a later phase does not change what a verifier reads."""
     assert [t.value for t in EscalationTier] == ["instant", "human", "notify", "delay"]
+
+
+# --------------------------------------------------------------------------- #
+# Rules the engine would sign but never run
+# --------------------------------------------------------------------------- #
+
+POLICY_VECTORS = json.loads((VECTORS_DIR / "policies.json").read_text())
+
+
+@pytest.mark.parametrize("case", POLICY_VECTORS["document_cases"], ids=lambda c: c["name"])
+def test_document_rule_vectors(case: dict) -> None:
+    """The committed contract with @merkl-ai/verify: same document, same sentences."""
+    content = case["signed_policy"]["document"]
+    assert unenforceable_rules(content) == case["expected_findings"]
+    if case["expected_findings"]:
+        with pytest.raises(PolicyError) as raised:
+            PolicyDocument.from_content(content)
+        assert str(raised.value) == case["expected_findings"][0]
+    else:
+        assert PolicyDocument.from_content(content).policy_hash() == case["policy_hash"]
+
+
+@pytest.mark.parametrize("case", POLICY_VECTORS["document_cases"], ids=lambda c: c["name"])
+def test_a_dead_rule_is_signed_and_hashed_all_the_same(case: dict) -> None:
+    """Every one of these documents has a valid admin signature over a valid hash.
+
+    That is the finding, not an accident of the fixture: signature and hash say
+    nothing about whether a rule can run, so refusing the document is the only
+    place the gap can be closed.
+    """
+    signed = case["signed_policy"]
+    pre_image = POLICY_TAG + b"\x00" + canonical_bytes(signed["document"])
+    assert SHA256Hash.from_bytes(pre_image).hex() == case["policy_hash"]
+    fixtures.ed25519_key("admin-vector-legacy-admin").public_key().verify(
+        bytes.fromhex(signed["signature"]), pre_image
+    )
+
+
+class TestUnenforceableRules:
+    def test_a_second_cap_for_one_asset_is_refused(self) -> None:
+        with pytest.raises(PolicyError, match="more than one per_tx_cap"):
+            make_document(
+                agents=(
+                    AgentSection(
+                        agent_id="agent-ap",
+                        public_key=AGENT_KEY,
+                        allowlist_assets=(RLUSD,),
+                        per_tx_cap=(
+                            AssetLimit(asset=RLUSD, amount="1000.00"),
+                            AssetLimit(asset=RLUSD, amount="10.00"),
+                        ),
+                    ),
+                )
+            )
+
+    def test_a_cap_for_an_asset_the_agent_may_not_move_is_refused(self) -> None:
+        with pytest.raises(PolicyError, match="not in its allowlist_assets"):
+            make_document(
+                agents=(
+                    AgentSection(
+                        agent_id="agent-ap",
+                        public_key=AGENT_KEY,
+                        allowlist_assets=(RLUSD,),
+                        per_tx_cap=(AssetLimit(asset="XRP", amount="10.00"),),
+                    ),
+                )
+            )
+
+    def test_two_windows_over_the_same_asset_and_length_are_refused(self) -> None:
+        with pytest.raises(PolicyError, match="more than one window"):
+            make_document(
+                agents=(
+                    AgentSection(
+                        agent_id="agent-ap",
+                        public_key=AGENT_KEY,
+                        allowlist_assets=(RLUSD,),
+                        per_tx_cap=(AssetLimit(asset=RLUSD, amount="1000.00"),),
+                        windows=(
+                            WindowRule(asset=RLUSD, amount="5000.00", seconds=86400),
+                            WindowRule(asset=RLUSD, amount="50.00", seconds=86400),
+                        ),
+                    ),
+                )
+            )
+
+    def test_two_windows_over_different_lengths_are_both_kept(self) -> None:
+        """The engine runs every window that matches the asset, so both apply."""
+        document = make_document(
+            agents=(
+                AgentSection(
+                    agent_id="agent-ap",
+                    public_key=AGENT_KEY,
+                    allowlist_assets=(RLUSD,),
+                    per_tx_cap=(AssetLimit(asset=RLUSD, amount="1000.00"),),
+                    windows=(
+                        WindowRule(asset=RLUSD, amount="5000.00", seconds=86400),
+                        WindowRule(asset=RLUSD, amount="500.00", seconds=3600),
+                    ),
+                ),
+            )
+        )
+        assert len(document.agents[0].windows_for(RLUSD)) == 2
+
+    def test_a_window_for_an_asset_the_agent_may_not_move_is_refused(self) -> None:
+        with pytest.raises(PolicyError, match="window for XRP"):
+            make_document(
+                agents=(
+                    AgentSection(
+                        agent_id="agent-ap",
+                        public_key=AGENT_KEY,
+                        allowlist_assets=(RLUSD,),
+                        per_tx_cap=(AssetLimit(asset=RLUSD, amount="1000.00"),),
+                        windows=(WindowRule(asset="XRP", amount="5.00", seconds=60),),
+                    ),
+                )
+            )
+
+    def test_a_second_threshold_for_one_asset_is_refused(self) -> None:
+        with pytest.raises(PolicyError, match="more than one threshold"):
+            make_document(
+                tiers=Tiers(
+                    human=HumanTier(
+                        thresholds=(
+                            AssetLimit(asset=RLUSD, amount="500.00"),
+                            AssetLimit(asset=RLUSD, amount="5.00"),
+                        )
+                    )
+                )
+            )
+
+    def test_a_threshold_for_an_asset_nobody_may_move_is_refused(self) -> None:
+        with pytest.raises(PolicyError, match="no agent in this policy may move"):
+            make_document(
+                tiers=Tiers(human=HumanTier(thresholds=(AssetLimit(asset="XRP", amount="5.00"),)))
+            )
+
+    def test_a_threshold_is_kept_when_any_agent_may_move_the_asset(self) -> None:
+        """The tier table is document-wide: one agent's allowlist is enough."""
+        document = make_document(
+            agents=(
+                AgentSection(
+                    agent_id="agent-ap",
+                    public_key=AGENT_KEY,
+                    allowlist_assets=(RLUSD,),
+                    per_tx_cap=(AssetLimit(asset=RLUSD, amount="1000.00"),),
+                ),
+                AgentSection(
+                    agent_id="agent-ops",
+                    public_key=fixtures.ed25519_public_hex(fixtures.ed25519_key("test-agent-2")),
+                    allowlist_assets=("XRP",),
+                    per_tx_cap=(AssetLimit(asset="XRP", amount="5.00"),),
+                ),
+            ),
+            tiers=Tiers(human=HumanTier(thresholds=(AssetLimit(asset="XRP", amount="1.00"),))),
+        )
+        assert document.tiers.human.threshold_for("XRP") is not None
+
+    def test_the_same_code_from_two_issuers_is_two_assets(self) -> None:
+        """Not a duplicate: the key carries the issuer, so both caps run."""
+        other = IssuedCurrency(code="RLUSD", issuer="rSOMEONEELSE000000000000000000000")
+        document = make_document(
+            agents=(
+                AgentSection(
+                    agent_id="agent-ap",
+                    public_key=AGENT_KEY,
+                    allowlist_assets=(RLUSD, other),
+                    per_tx_cap=(
+                        AssetLimit(asset=RLUSD, amount="1000.00"),
+                        AssetLimit(asset=other, amount="10.00"),
+                    ),
+                ),
+            )
+        )
+        assert document.agents[0].cap_for(other) is not None

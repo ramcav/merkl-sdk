@@ -28,6 +28,7 @@ from collections.abc import Iterable
 from typing import Any, cast
 
 from merkl.core.canonical import JSONObject, JSONValue
+from merkl.core.crypto import tagged
 from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference
 from merkl.core.leaf import action_leaf, receipt_leaf
 from merkl.core.merkle import MerkleProof, MerkleTree
@@ -40,6 +41,7 @@ from merkl.core.policy.approvals import (
 )
 from merkl.core.policy.document import (
     CREDENTIAL_ED25519,
+    POLICY_TAG,
     AdminCredential,
     AgentSection,
     ApproverCredential,
@@ -50,6 +52,7 @@ from merkl.core.policy.document import (
     SignedPolicy,
     Tiers,
     WindowRule,
+    unenforceable_rules,
 )
 from merkl.core.rail import RAIL_FAKE, fake_tx_id, xrpl_tx_id
 from merkl.core.receipt import (
@@ -83,7 +86,7 @@ from merkl.core.verify.settlement import (
     fake_ledger_hash,
     xrpl_ledger_hash,
 )
-from merkl.shared.hashing import SHA256Hash
+from merkl.shared.hashing import SHA256Hash, canonical_bytes
 
 SEED = 20260905
 SPEC = "docs/RECEIPT-SPEC.md"
@@ -576,6 +579,198 @@ def _policy_signature_case(
     return case
 
 
+def _rule_check_document() -> PolicyDocument:
+    """A small, wholly enforceable document: one agent, one cap, one window, one tier.
+
+    Every ``document_cases`` entry is this document with one rule appended, so the
+    finding is always the appended rule and never something else about the shape.
+    """
+    rlusd = IssuedCurrency(code="RLUSD", issuer=fixtures.ADMIN_VECTOR_ISSUER)
+    return PolicyDocument(
+        version="2026.03.0",
+        treasury=fixtures.ADMIN_VECTOR_TREASURY,
+        rail="xrpl",
+        admin_public_key=fixtures.ed25519_public_hex(
+            fixtures.ed25519_key("admin-vector-legacy-admin")
+        ),
+        agents=(
+            AgentSection(
+                agent_id="agent-admin-vector",
+                public_key=fixtures.ed25519_public_hex(fixtures.ed25519_key("admin-vector-agent")),
+                allowlist_destinations=(fixtures.ADMIN_VECTOR_DESTINATION,),
+                allowlist_assets=(rlusd,),
+                per_tx_cap=(AssetLimit(asset=rlusd, amount="500.00"),),
+                windows=(WindowRule(asset=rlusd, amount="2000.00", seconds=86400),),
+            ),
+        ),
+        tiers=Tiers(human=HumanTier(thresholds=(AssetLimit(asset=rlusd, amount="250.00"),))),
+    )
+
+
+def _document_case(
+    name: str,
+    description: str,
+    content: JSONObject,
+    *,
+    expected_findings: list[str],
+) -> JSONObject:
+    """One policy document, signed by a real admin key, and what it cannot enforce.
+
+    The signature is made over the *mutated* content, so every case here is a
+    document whose admin signature verifies and whose ``policy_hash`` matches —
+    the rule is dead anyway. A verifier that only checked the signature would
+    report nothing wrong.
+    """
+    findings = unenforceable_rules(content)
+    if findings != expected_findings:
+        raise AssertionError(f"{name}: expected {expected_findings}, the checker said {findings}")
+    admin = fixtures.ed25519_key("admin-vector-legacy-admin")
+    pre_image = tagged(POLICY_TAG, canonical_bytes(content))
+    return {
+        "name": name,
+        "description": description,
+        "signed_policy": {
+            "document": content,
+            "signature": admin.sign(pre_image).hex(),
+            "signer_public_key": fixtures.ed25519_public_hex(admin),
+        },
+        "policy_hash": SHA256Hash.from_bytes(pre_image).hex(),
+        "expected_findings": list(expected_findings),
+    }
+
+
+def _rule_check_cases() -> list[JSONValue]:
+    """Documents whose rules the engine would never run (the phase-9 finding).
+
+    ``per_tx_cap`` and ``tiers.human.thresholds`` are read first-match-per-asset
+    and ``windows`` all-matches-per-asset, so a duplicate is signed and ignored.
+    A limit for an asset outside the agent's ``allowlist_assets`` is the same
+    problem from the other end: the asset rule denies first, so the limit never
+    runs. Both implementations must refuse to construct such a document and must
+    report the same sentence when one arrives already signed.
+    """
+    base = _rule_check_document().to_content()
+    agent_id = "agent-admin-vector"
+    asset: JSONObject = {"code": "RLUSD", "issuer": fixtures.ADMIN_VECTOR_ISSUER}
+    xrp_cap: JSONObject = {"asset": "XRP", "amount": "1.00"}
+    xrp_window: JSONObject = {"asset": "XRP", "amount": "5.00", "seconds": 3600}
+
+    def with_agent_rule(field: str, rule: JSONObject) -> JSONObject:
+        """A copy of the base document with one more rule on its only agent."""
+        content: JSONObject = copy.deepcopy(base)
+        agent = cast(dict[str, Any], cast(list[Any], content["agents"])[0])
+        cast(list[Any], agent[field]).append(rule)
+        return content
+
+    def with_threshold(rule: JSONObject) -> JSONObject:
+        """A copy of the base document with one more human-approval threshold."""
+        content: JSONObject = copy.deepcopy(base)
+        human = cast(dict[str, Any], cast(dict[str, Any], content["tiers"])["human"])
+        cast(list[Any], human["thresholds"]).append(rule)
+        return content
+
+    duplicate_cap = with_agent_rule("per_tx_cap", {"asset": asset, "amount": "100.00"})
+    foreign_cap = with_agent_rule("per_tx_cap", xrp_cap)
+    duplicate_window = with_agent_rule(
+        "windows", {"asset": asset, "amount": "100.00", "seconds": 86400}
+    )
+    second_window = with_agent_rule(
+        "windows", {"asset": asset, "amount": "100.00", "seconds": 3600}
+    )
+    foreign_window = with_agent_rule("windows", xrp_window)
+    duplicate_threshold = with_threshold({"asset": asset, "amount": "10.00"})
+    foreign_threshold = with_threshold({"asset": "XRP", "amount": "10.00"})
+
+    return [
+        _document_case(
+            "enforceable-document",
+            "The base document every case below is a copy of: one cap, one window "
+            "and one threshold, all for the one asset the agent may move.",
+            base,
+            expected_findings=[],
+        ),
+        _document_case(
+            "two-windows-different-lengths-are-both-enforced",
+            "A second window over the same asset but a different length is not a "
+            "duplicate — the engine runs every window that matches the asset, so "
+            "both an hourly and a daily limit apply. This case exists to stop the "
+            "duplicate check from being over-eager.",
+            second_window,
+            expected_findings=[],
+        ),
+        _document_case(
+            "duplicate-per-tx-cap",
+            "An operator 'tightens' a cap by appending a second one for the same "
+            "asset. The admin signs it, policy_hash covers it, and the engine "
+            "takes the first cap only — so the payment the tighter number was "
+            "meant to stop still settles.",
+            duplicate_cap,
+            expected_findings=[
+                f"agent {agent_id!r} names more than one per_tx_cap for "
+                f"RLUSD.{fixtures.ADMIN_VECTOR_ISSUER}; the engine enforces the first, so "
+                "the rest cannot be enforced"
+            ],
+        ),
+        _document_case(
+            "per-tx-cap-for-an-asset-the-agent-may-not-move",
+            "A cap for XRP on an agent whose allowlist_assets is RLUSD only. The "
+            "asset rule denies XRP before the cap is ever consulted, so the cap "
+            "reads as a limit and is a decoration.",
+            foreign_cap,
+            expected_findings=[
+                f"agent {agent_id!r} has a per_tx_cap for XRP, which is not in its "
+                "allowlist_assets, so that cap cannot be enforced"
+            ],
+        ),
+        _document_case(
+            "duplicate-window",
+            "Two windows over the same asset and the same length. The engine "
+            "evaluates both, so the pair is not silently ignored the way a "
+            "duplicate cap is — but nothing says which of two contradictory "
+            "limits an operator meant, and the receipt would carry two "
+            "window_cap rules for one asset.",
+            duplicate_window,
+            expected_findings=[
+                f"agent {agent_id!r} names more than one window for "
+                f"RLUSD.{fixtures.ADMIN_VECTOR_ISSUER} over 86400s; the engine enforces one "
+                "per (asset, seconds), so the rest cannot be enforced"
+            ],
+        ),
+        _document_case(
+            "window-for-an-asset-the-agent-may-not-move",
+            "A rolling limit on an asset the agent's allowlist_assets does not "
+            "name. Same shape as the foreign cap: the asset rule fires first.",
+            foreign_window,
+            expected_findings=[
+                f"agent {agent_id!r} has a window for XRP, which is not in its "
+                "allowlist_assets, so that window cannot be enforced"
+            ],
+        ),
+        _document_case(
+            "duplicate-human-threshold",
+            "Two human-approval thresholds for one asset. tiers.human.threshold_for "
+            "returns the first match, so a lower second threshold never escalates "
+            "anything — the payment that should have gone to people settles instantly.",
+            duplicate_threshold,
+            expected_findings=[
+                "tiers.human.thresholds names more than one threshold for "
+                f"RLUSD.{fixtures.ADMIN_VECTOR_ISSUER}; the engine enforces the first, so "
+                "the rest cannot be enforced"
+            ],
+        ),
+        _document_case(
+            "human-threshold-for-an-asset-nobody-may-move",
+            "An escalation threshold for an asset no agent in the document is "
+            "allowed to move at all. Nothing can ever reach it.",
+            foreign_threshold,
+            expected_findings=[
+                "tiers.human.thresholds has a threshold for XRP, which no agent in this "
+                "policy may move, so that threshold cannot be enforced"
+            ],
+        ),
+    ]
+
+
 def policy_vectors() -> JSONObject:
     """Admin signatures over a policy document (plan D16, extended).
 
@@ -743,6 +938,16 @@ def policy_vectors() -> JSONObject:
         "spec": SPEC,
         "admin_challenge": "the 32-byte policy_hash, not the legacy pre-image and not LEFT_pre",
         "cases": cases,
+        "document_rules": (
+            "A document may only carry rules the engine would actually run: one "
+            "per_tx_cap per asset per agent, one window per (asset, seconds) per "
+            "agent, one tiers.human threshold per asset, and no cap, window or "
+            "threshold for an asset nobody may move. Construction refuses such a "
+            "document; a verifier handed one already signed reports the same "
+            "sentence as a finding, because the admin signature and the "
+            "policy_hash are both perfectly valid over a rule that is dead."
+        ),
+        "document_cases": _rule_check_cases(),
     }
 
 

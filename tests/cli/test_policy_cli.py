@@ -33,6 +33,7 @@ def _bare_document(admin_key_hex: str, **overrides: object) -> PolicyDocument:
             AgentSection(
                 agent_id="agent-cli",
                 public_key=fixtures.ed25519_public_hex(fixtures.ed25519_key("cli-test-agent")),
+                allowlist_assets=("XRP",),
                 per_tx_cap=(AssetLimit(asset="XRP", amount="100"),),
             ),
         ),
