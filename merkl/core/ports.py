@@ -122,6 +122,46 @@ class ReceiptStorePort(Protocol):
 
 
 @runtime_checkable
+class SettlementProofStorePort(Protocol):
+    """A store that also keeps the capture taken at settlement time (plan D20).
+
+    Its own port rather than a fourth argument to
+    :meth:`ReceiptStorePort.put`, so a store written against the older shape
+    keeps working untouched — the same downgrade rule every other extension in
+    this codebase follows. A store that implements only ``put`` still records
+    receipts; it simply records them without their proofs, and callers probe for
+    this method rather than assuming it.
+    """
+
+    async def put_settlement_proof(self, receipt_id: str, proof: SettlementProof) -> None: ...
+
+
+@runtime_checkable
+class NotaryPort(Protocol):
+    """Where a receipt is filed *after* the fact.
+
+    Never on the decision path (plan D12): nothing here is consulted before money
+    moves, and a notary that is down cannot stop a payment or suppress the
+    receipt for one — the local store already has it.
+
+    Two methods because a proof does not always exist when the receipt does.
+    Filing them together is one round trip and the ordinary case; the second
+    method is for a capture completed afterwards, such as validations collected
+    late, which must still be able to reach the receipt it belongs to.
+    """
+
+    async def file_receipt(
+        self,
+        envelope: Envelope,
+        leaves: ReceiptLeaves,
+        *,
+        settlement_proof: SettlementProof | None = None,
+    ) -> None: ...
+
+    async def file_settlement_proof(self, receipt_id: str, proof: SettlementProof) -> None: ...
+
+
+@runtime_checkable
 class ApprovalPort(Protocol):
     """The queue humans answer. The signer verifies; this only relays (plan D11)."""
 
@@ -150,8 +190,10 @@ __all__ = [
     "ApprovalPort",
     "ClockPort",
     "Decision",
+    "NotaryPort",
     "ReceiptStorePort",
     "RiskPort",
     "SettlementPort",
+    "SettlementProofStorePort",
     "SignerPort",
 ]

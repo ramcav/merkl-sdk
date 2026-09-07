@@ -13,6 +13,7 @@ prepare(placeholder) → propose → ┬ deny     → receipt, nothing submitted
         prepare(LEFT) → check it equals what the signer signed → agent_sign
                       → attach policy signature → submit → capture proof
                       → append leaves 4-6 → envelope → record in the session
+                      → file receipt + proof (local store, then notary)
 ```
 
 Two checks in that chain are the reason it is not simply glue:
@@ -27,8 +28,15 @@ A denial produces a receipt (plan D14). A receipt exists whether or not money
 moved, because "we refused" is a fact worth being able to prove — and an agent
 that can silently produce nothing is an agent whose refusals cannot be audited.
 
-merkl-api is never on this path (plan D12). Receipts reach the notary through the
-buffered transport the SDK already has, afterwards.
+merkl-api is never on this *decision* path (plan D12): nothing is asked of it
+before money moves, and a notary that is down cannot stop a payment or delay one.
+Filing is the last step rather than a step, and it carries the whole record —
+the seven leaves *and* the settlement capture, which lives only here. Leaf 4
+commits a short ``settlement_proof_ref``; the ledger header, the transaction and
+the validators' signatures a reader needs to establish inclusion offline are what
+the rail adapter captured at submit time, and a flow that held them in memory and
+dropped them would leave every reader of that receipt with
+``ledger inclusion: unchecked``.
 """
 
 from __future__ import annotations
@@ -99,6 +107,15 @@ class ReceiptOutcome:
     proof: SettlementProof | None = None
     action_id: str | None = None
     reason: str = ""
+    notary_error: str | None = None
+    """Why the receipt did not reach the notary, when it did not.
+
+    A payment that has already settled cannot be undone by a witness being down,
+    so a filing failure never raises here (plan D12) — but it is never silent
+    either. The local store still has the receipt and its proof; this says the
+    notary does not yet, so a caller can retry rather than discover the gap at
+    audit time."""
+
     pending_escalation: JSONObject | None = None
     """``{challenge, expires_at, quorum}`` when this decision is still
     ``escalate``. The signer's ``propose`` response carries these at the top
@@ -140,6 +157,7 @@ class ReceiptBuilder:
         clock: Any | None = None,
         approvals: Any | None = None,
         receipt_store: Any | None = None,
+        notary: Any | None = None,
         rail: str | None = None,
     ) -> None:
         self._signer = signer
@@ -152,6 +170,8 @@ class ReceiptBuilder:
         """The queue humans answer. Swappable after construction: the approval
         route is a deployment choice, not a property of the flow."""
         self._store = receipt_store
+        self._notary = notary
+        """Where the finished receipt is filed, afterwards and never before."""
         self._rail_name = rail
 
     # -- the flow ---------------------------------------------------------- #
@@ -289,6 +309,7 @@ class ReceiptBuilder:
         receipt = self._build(receipt_id, leaves, response)
         receipt, action_id = await self._join_session(receipt, response, depends_on)
         await self._store_receipt(receipt)
+        notary_error = await self._file_with_notary(receipt, None)
         pending_escalation: JSONObject | None = (
             {
                 "challenge": str(response["challenge"]),
@@ -303,6 +324,7 @@ class ReceiptBuilder:
             decision=decision,
             action_id=action_id,
             reason=reason,
+            notary_error=notary_error,
             pending_escalation=pending_escalation,
         )
 
@@ -381,7 +403,13 @@ class ReceiptBuilder:
         receipt = self._build(receipt_id, leaves, response)
         await self._signer.settle(reservation_id, ref.tx_hash)
         receipt, action_id = await self._join_session(receipt, response, depends_on)
-        await self._store_receipt(receipt)
+        # The capture goes with the receipt, to both places. Leaf 4 commits only
+        # a `settlement_proof_ref`; the header, the transaction and the
+        # validators' signatures that establish ledger inclusion offline exist
+        # nowhere but here, and a flow that dropped them would leave every
+        # reader of this receipt unable to check the one thing it is about.
+        await self._store_receipt(receipt, proof)
+        notary_error = await self._file_with_notary(receipt, proof)
         return ReceiptOutcome(
             receipt=receipt,
             decision=decision,
@@ -389,6 +417,7 @@ class ReceiptBuilder:
             proof=proof,
             action_id=action_id,
             reason=str(response.get("reason", "")),
+            notary_error=notary_error,
         )
 
     async def _failed(
@@ -415,8 +444,13 @@ class ReceiptBuilder:
         receipt = self._build(receipt_id, leaves, response)
         receipt, action_id = await self._join_session(receipt, response, depends_on)
         await self._store_receipt(receipt)
+        notary_error = await self._file_with_notary(receipt, None)
         return ReceiptOutcome(
-            receipt=receipt, decision=decision, action_id=action_id, reason=str(error)
+            receipt=receipt,
+            decision=decision,
+            action_id=action_id,
+            reason=str(error),
+            notary_error=notary_error,
         )
 
     # -- plumbing ---------------------------------------------------------- #
@@ -433,9 +467,61 @@ class ReceiptBuilder:
         with contextlib.suppress(Exception):  # the signer may already have released it
             await self._signer.release(reservation_id)
 
-    async def _store_receipt(self, receipt: Receipt) -> None:
+    async def _store_receipt(self, receipt: Receipt, proof: SettlementProof | None = None) -> None:
+        """Write the receipt — and the capture taken with it — to the local store.
+
+        The proof goes through its own port method rather than a fourth argument
+        to ``put`` (``merkl.core.ports.SettlementProofStorePort``), so a store
+        written before this existed keeps working: it records the receipt and
+        simply does not record the proof. Probed for, never assumed.
+        """
+        if self._store is None:
+            return
+        await self._store.put(receipt.envelope, receipt.leaves)
+        put_proof = getattr(self._store, "put_settlement_proof", None)
+        if proof is not None and put_proof is not None:
+            await put_proof(receipt.envelope.receipt_id, proof)
+
+    async def _file_with_notary(
+        self, receipt: Receipt, proof: SettlementProof | None
+    ) -> str | None:
+        """File the receipt with the notary, proof included. Returns any error.
+
+        Never raises. The payment has settled, the local store has the record,
+        and a witness that is unreachable is not permitted to turn a completed
+        payment into a failed call (plan D12). The failure is returned so it can
+        be reported rather than lost.
+        """
+        if self._notary is None:
+            return None
+        try:
+            await self._notary.file_receipt(
+                receipt.envelope, receipt.leaves, settlement_proof=proof
+            )
+        except Exception as exc:  # noqa: BLE001 - a witness may be down; a payer may not care
+            return str(exc)
+        return None
+
+    async def attach_settlement_proof(self, receipt_id: str, proof: SettlementProof) -> str | None:
+        """File a capture that completed after its receipt was already filed.
+
+        The late path (``POST /v1/receipts/{id}/settlement-proof``): validations
+        collected after the fact, a header fetched on a retry. The evidence is
+        the same evidence and belongs on the same receipt, so it goes to the
+        local store as well as the notary. Returns the notary's error, if any,
+        on the same terms as filing a receipt does.
+        """
         if self._store is not None:
-            await self._store.put(receipt.envelope, receipt.leaves)
+            put_proof = getattr(self._store, "put_settlement_proof", None)
+            if put_proof is not None:
+                await put_proof(receipt_id, proof)
+        if self._notary is None:
+            return None
+        try:
+            await self._notary.file_settlement_proof(receipt_id, proof)
+        except Exception as exc:  # noqa: BLE001 - see _file_with_notary
+            return str(exc)
+        return None
 
     async def _join_session(
         self, receipt: Receipt, response: JSONObject, depends_on: str | None

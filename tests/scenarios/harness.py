@@ -270,6 +270,8 @@ def build_rig(
     blocklist: tuple[str, ...] = (),
     starting_balance: str = "100000.00",
     clock: FrozenClock | None = None,
+    receipt_store: Any | None = None,
+    notary: Any | None = None,
 ) -> Rig:
     """A signer, a keystore, sealed state and the in-memory rail, all real."""
     document = policy or build_policy()
@@ -296,6 +298,8 @@ def build_rig(
         agent_public_key=AGENT.public_key,
         agent_sign=AGENT.sign,
         clock=clock,
+        receipt_store=receipt_store,
+        notary=notary,
     )
     return Rig(
         clock=clock,
