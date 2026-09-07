@@ -9,6 +9,42 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+### Added — phase 14, the agent may trade
+
+- **Intent v1 gains `type: "swap"`.** A trade sells at most `sell.max_amount`
+  and buys exactly `buy.amount`, settling to the treasury itself. On XRPL that
+  is a cross-currency Payment to self — `Amount` is the buy side, `SendMax` the
+  sell ceiling, no `Paths`, no `DeliverMin`, no `tfPartialPayment` — so the
+  ledger delivers exactly what was asked for at most the ceiling or the
+  transaction fails, and the agent's limit price is enforced by the chain.
+  Additive: a payment intent is unchanged to the byte.
+- **The sold side is the outflow.** `per_tx_cap`, `windows` and
+  `tiers.human.thresholds` read `sell.max_amount`, both currencies must be on
+  the agent's `allowlist_assets`, and `allowlist_destinations` does not apply.
+  No new arithmetic — a trade is capped, windowed and escalated by exactly what
+  bounds a payment.
+- **`may_swap`**, a new agent-section member. False when absent and omitted from
+  the hashed content when false, so every `policy_hash` signed before this
+  release is unchanged. A trade by an agent without it is denied with
+  `may_swap: agent may not trade`. A `may_swap` agent must allowlist at least
+  two assets, or the grant is one of the rules a document may not carry.
+- **Leaf 5 gains `delivered` and `spent`** — what the rail's own metadata said
+  arrived and left, never the intent's numbers copied across. Check 9 holds a
+  trade to both: `delivered` must equal the buy side exactly, `spent` must stay
+  inside the ceiling. Either absent is reported by name as unchecked.
+- **The card reads a trade.** `Bought`, `Sold … (limit …)` and `Rate`, the rate
+  to six significant digits by integer arithmetic in both implementations. A
+  refused trade reads `Asked to buy X for up to Y`.
+- **`merkl treasury init --trust CODE.issuer`** sets trust lines before the
+  signer list is installed and the master key disabled, and `--xrpl-mainnet`
+  runs the bootstrap against mainnet: no faucet, wallets from the operator's own
+  0600 seed file, the network's own reserve arithmetic printed, a typed
+  confirmation, and `policy.network` recorded as `xrpl-mainnet`.
+- **`history()` reads a trade as a trade**: the outflow is what was spent, and
+  the delivered amount comes back on `Outflow.inflow_value`/`inflow_asset`.
+- **A sixth demo scenario**: the agent trades inside its cap, is capped when it
+  sizes up, and is refused in an asset it may not hold.
+
 ## [0.2.0] - 2026-09-07
 
 ### Added — phase 11

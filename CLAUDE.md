@@ -22,8 +22,10 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
 - `ReceiptBuilder` (`merkl/sdk/receipts.py`) — propose → route → co-sign →
   settle → attest, joining the enclosing session as one `transaction` action and
   filing the receipt with its `SettlementProof` to the local store and the notary
-- `merkl.demo` — the five scenarios end to end (benign, prompt-injection drain,
-  over-threshold with 2-of-3 approval, structuring, reference mismatch),
+- `merkl.demo` — the six scenarios end to end (benign, prompt-injection drain,
+  over-threshold with 2-of-3 approval, structuring, reference mismatch, the
+  agent trades — the last needing a rail with a book, so it is skipped on XRPL
+  testnet, which has none),
   rail-agnostic (`FakeEnvironment`, `XrplEnvironment`), rendered to a folder of
   `verify.html` pages checked by both verifiers. `merkl demo` is the CLI entry
   point
@@ -31,7 +33,7 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
 - `SessionContext` — async context manager for session lifecycle
 - `@trace` and `@guardrail` decorators for auto-recording actions (concurrency-safe via `contextvars`)
 - `merkl` CLI — `merkl install --claude-code [--global]` writes hooks into
-  `settings.json`; `merkl demo [--xrpl-testnet]` runs the five scenarios;
+  `settings.json`; `merkl demo [--xrpl-testnet]` runs the scenarios;
   `merkl policy sign|show` and `merkl signer token add|revoke|list` manage
   policy admin signatures and relay bearer tokens
 - `HookState` (`merkl/hooks/claude_code.py`) — one tempfile-backed object per Claude Code session, owns session_id, turn rotation, dataflow snippets, sub-agent parent linkage
@@ -61,7 +63,8 @@ merkl/core/
                  the tagged pre-image shape
   merkle.py      MerkleTree, MerkleProof, subtree_root / subtree_proof
   leaf.py        action_leaf() (merkl-leaf-v1, frozen), receipt_leaf()
-  intent.py      Intent v1 (payment), Amount, IssuedCurrency, Reference
+  intent.py      Intent v1 (payment, swap), Amount, SwapSell/SwapBuy,
+                 IssuedCurrency, Reference
   rail.py        UnsignedTx / SignedTx / SettlementRef / SettlementProof,
                  the 32-byte anchor placeholder, per-rail tx-id rules
   ports.py       SettlementPort, SignerPort, ReceiptStorePort,
@@ -208,7 +211,7 @@ against. Rules:
   merkl-api's own code (`tests/core/reference/gen_merkl_api_reference.py`, run
   with merkl-api's interpreter). The SDK test must never import `merkl_api`.
 
-## merkl/demo — the five scenarios, as pages
+## merkl/demo — the six scenarios, as pages
 
 Not a mock of anything: a real `SignerEngine`, a real encrypted keystore, real
 signed approvals, against a swappable rail. Ships in the wheel — `merkl demo`
@@ -219,13 +222,14 @@ merkl/demo/
   rig.py         one signer, one keystore, one policy, wired the way a real
                  deployment is; every key derived from a public label so a run
                  replays byte-identically
-  scenarios.py   the five scenarios, rail-agnostic over an Environment
+  scenarios.py   the six scenarios, rail-agnostic over an Environment
                  (FakeEnvironment, XrplEnvironment); require() raises
                  ScenarioError rather than asserting, so a claim can't
                  disappear under python -O
   pages.py       scenario -> verify.html -> both verifiers, to a folder;
                  PageReport.agreed is true only when both ran and both passed
-  xrpl_env.py    the same five scenarios against XRPL testnet; bootstrap is
+  xrpl_env.py    the same scenarios against XRPL testnet (all but the trade,
+                 which needs a book the public testnet does not have); bootstrap is
                  cached under ~/.merkl (same wallet files merkl treasury init
                  and tests/scenarios/test_xrpl_testnet.py use) so a second run
                  does not re-drain the faucet
@@ -250,7 +254,7 @@ merkl/demo/
 - `merkl/hooks/claude_code.py` — Claude Code PostToolUse + SessionEnd hook; `HookState` class owns all per-session scratch state
 - `merkl/cli/main.py` — the CLI: `verify`, `receipt show`, `disclose`, `approve`,
   `reject`, `reconcile`, `install`, `signer serve|token`, `policy sign|show`,
-  `treasury`, `demo`
+  `treasury init --xrpl-testnet|--xrpl-mainnet [--trust CODE.issuer]`, `demo`
 - `merkl/cli/verify.py` — `merkl verify` over a receipt, a bundle or a rendered
   verify.html; exit 0 nothing contradicted, 1 contradicted, 2 unreadable
 - `merkl/cli/demo.py` — `merkl demo`: fake rail always, XRPL testnet with
@@ -270,7 +274,7 @@ merkl/demo/
   `--validator`, `merkl.core.verify.xrpl.pin_validator_list`)
 - `merkl/cli/receipt.py`, `merkl/cli/approve.py`, `merkl/cli/reconcile.py`
 - `merkl/demo/scenarios.py`, `merkl/demo/pages.py`, `merkl/demo/xrpl_env.py` —
-  the five scenarios, the page-writer, and the XRPL testnet environment
+  the six scenarios, the page-writer, and the XRPL testnet environment
 - `merkl/shared/hashing.py` — `SHA256Hash`, `canonical_hash()`, `canonical_bytes()` (deterministic JSON-sorted-keys hashing shared by SDK, hook, and server-side leaf verification)
 - `merkl/core/verify/attestation.py` — the attestation verifier and the embedded AWS Nitro root
 - `merkl/signer/vsock.py` — the length-prefixed JSON framing the enclave speaks
@@ -292,8 +296,8 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # 1474 tests, 10 skipped
-npm test                                        # 236 JS tests, node --test, no bundler
+pytest                                          # 1598 tests, 10 skipped
+npm test                                        # 257 JS tests, node --test, no bundler
 mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py merkl/sdk/receipt_store.py nitro merkl/demo merkl/cli
 ruff check merkl/ tests/
 ruff format --check merkl/ tests/
