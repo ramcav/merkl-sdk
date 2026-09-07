@@ -10,7 +10,7 @@
     "./cli": "./cli.mjs"
   },
   "bin": {
-    "merkl-verify": "./cli.mjs"
+    "merkl-verify": "cli.mjs"
   },
   "files": [
     "merkl-verify.js",
