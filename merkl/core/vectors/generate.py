@@ -1679,30 +1679,104 @@ def verdict_vectors(built: dict[str, Receipt]) -> JSONObject:
     cases: list[JSONValue] = []
     for name, receipt in built.items():
         material = _material(name, receipt)
-        trust = cast("dict[str, Any] | None", material["validator_trust"])
-        verdict = verify_receipt(
-            receipt.envelope,
-            receipt.leaves,
-            settlement_proof=material["settlement_proof"],
-            validator_trust=(
-                ValidatorTrust(validators=trust["validators"], quorum=trust["quorum"])
-                if trust
-                else None
-            ),
-            policy_document=material["policy_document"],
-            admin_public_key=cast("str", material["admin_public_key"]),
-            session_bundle=cast("dict[str, Any] | None", material["session_bundle"]),
-        )
-        cases.append({"name": name, "material": material, "verdict": verdict.to_content()})
+        cases.append(_verdict_case(name, name, receipt, material))
+    cases.extend(_receipt_page_cases(built["allow-settled"]))
     return {
         "description": (
             "The complete verdict for each receipt in receipts.json, read with the "
             "material recorded beside it. Two settlement lines (plan D10) and one "
-            "level (plan D9), never a single boolean."
+            "level (plan D9), never a single boolean. `receipt` names the case in "
+            "receipts.json the leaves come from; it differs from `name` when two "
+            "cases read the same receipt against different material."
         ),
         "spec": SPEC,
         "cases": cases,
     }
+
+
+def _verdict_case(
+    name: str, receipt_name: str, receipt: Receipt, material: JSONObject
+) -> JSONObject:
+    trust = cast("dict[str, Any] | None", material["validator_trust"])
+    verdict = verify_receipt(
+        receipt.envelope,
+        receipt.leaves,
+        settlement_proof=material["settlement_proof"],
+        validator_trust=(
+            ValidatorTrust(validators=trust["validators"], quorum=trust["quorum"])
+            if trust
+            else None
+        ),
+        policy_document=material["policy_document"],
+        admin_public_key=cast("str", material["admin_public_key"]),
+        session_bundle=cast("dict[str, Any] | None", material["session_bundle"]),
+    )
+    return {
+        "name": name,
+        "receipt": receipt_name,
+        "material": material,
+        "verdict": verdict.to_content(),
+    }
+
+
+def _receipt_page_cases(receipt: Receipt) -> list[JSONValue]:
+    """The two bundles ``GET /v1/receipts/{id}/verify.html`` can hand a verifier.
+
+    A receipt page has no reason to ship a whole session, so it ships the join
+    *scoped* to this receipt: the one action whose ``input_hash`` is the envelope
+    hash, its proof to the session root, and the log material around it
+    (``merkl-api/docs/SPEC.md`` §9). Both implementations have to reach level 2
+    from that, which means locating the action by the leaf its proof names rather
+    than by its position — at position 0 in a one-row list, the position is a
+    lie about which leaf it is.
+
+    The second case is the same page before the session seals. It must say so:
+    an open session is a stage of the session's life, not a defect in the
+    receipt, and a bare level 1 with no explanation is what sent a reader asking.
+    """
+    locator = receipt.envelope.session_locator
+    assert locator is not None
+    full = _session_bundle(receipt)
+    rows = cast("list[JSONObject]", full["actions"])
+    scoped_actions = [
+        a for a in rows if cast("JSONObject", a["proof"])["leaf_index"] == locator.leaf_index
+    ]
+    assert len(scoped_actions) == 1
+    session = dict(cast("JSONObject", full["session"]))
+
+    scoped: JSONObject = {
+        **full,
+        "session": {**session, "sealed": True},
+        "actions": cast("list[JSONValue]", scoped_actions),
+        "scope": {
+            "kind": "receipt",
+            "receipt_id": receipt.envelope.receipt_id,
+            "session_id": locator.session_id,
+            "leaf_index": locator.leaf_index,
+            "actions_included": 1,
+            "action_count": len(rows),
+        },
+    }
+    unsealed: JSONObject = {
+        **scoped,
+        "session": {**session, "sealed": False, "status": "open"},
+        "actions": [],
+    }
+    base = _material("allow-settled", receipt)
+    return [
+        _verdict_case(
+            "receipt-page-scoped-join",
+            "allow-settled",
+            receipt,
+            {**base, "session_bundle": scoped},
+        ),
+        _verdict_case(
+            "receipt-page-session-open",
+            "allow-settled",
+            receipt,
+            {**base, "session_bundle": unsealed},
+        ),
+    ]
 
 
 def _with(content: JSONValue, key: str, value: JSONValue) -> JSONValue:

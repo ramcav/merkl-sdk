@@ -75,7 +75,9 @@ test('the escalation challenge recomputes from the finished receipt', async () =
 test('the verdict agrees with the Python one, check for check', async (t) => {
   for (const c of verdictVectors().cases) {
     await t.test(c.name, async () => {
-      const receipt = BY_NAME[c.name];
+      // Two cases may read one receipt against different material — the
+      // receipt page's scoped join is the same leaves, joined differently.
+      const receipt = BY_NAME[c.receipt ?? c.name];
       const got = await verifyReceipt(
         { envelope: receipt.envelope, leaves: receipt.leaves },
         material(c.material),

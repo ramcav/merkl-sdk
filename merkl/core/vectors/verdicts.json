@@ -427,6 +427,7 @@
         }
       },
       "name": "allow-settled",
+      "receipt": "allow-settled",
       "verdict": {
         "attested": null,
         "checks": [
@@ -896,6 +897,7 @@
         "validator_trust": null
       },
       "name": "deny-not-submitted",
+      "receipt": "deny-not-submitted",
       "verdict": {
         "attested": false,
         "checks": [
@@ -1295,6 +1297,7 @@
         }
       },
       "name": "escalated-approved-settled",
+      "receipt": "escalated-approved-settled",
       "verdict": {
         "attested": null,
         "checks": [
@@ -1655,6 +1658,7 @@
         }
       },
       "name": "allow-settled-fake-rail",
+      "receipt": "allow-settled-fake-rail",
       "verdict": {
         "attested": false,
         "checks": [
@@ -1855,8 +1859,958 @@
         },
         "verdict_line": "Nothing was contradicted. Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (leaf 3 is null: this receipt proves it was produced by an unattested signer), the session join (no session bundle was supplied, so this is a level-1 verdict)."
       }
+    },
+    {
+      "material": {
+        "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+        "attestation_trust": null,
+        "policy_document": {
+          "document": {
+            "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+            "agents": [
+              {
+                "agent_id": "agent-accounts-payable",
+                "allowlist_assets": [
+                  {
+                    "code": "RLUSD",
+                    "issuer": "rISSUER000000000000000000000000000"
+                  }
+                ],
+                "allowlist_destinations": [
+                  "rSUPPLIER0000000000000000000000000"
+                ],
+                "per_tx_cap": [
+                  {
+                    "amount": "10000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ],
+                "public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+                "reference_binding": {
+                  "allowed_kinds": [
+                    "invoice",
+                    "contract"
+                  ],
+                  "allowlist": [],
+                  "hashes": [],
+                  "required": true
+                },
+                "windows": [
+                  {
+                    "amount": "20000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    },
+                    "seconds": 86400
+                  }
+                ]
+              }
+            ],
+            "approvers": [
+              {
+                "credential_type": "ed25519",
+                "id": "alice@example.com",
+                "origins": [],
+                "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "bob@example.com",
+                "origins": [],
+                "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "carol@example.com",
+                "origins": [],
+                "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+                "user_verification": false
+              }
+            ],
+            "format": "merkl-policy-v1",
+            "rail": "xrpl",
+            "risk": {
+              "threshold": "1"
+            },
+            "tiers": {
+              "human": {
+                "expires_seconds": 3600,
+                "quorum": 2,
+                "thresholds": [
+                  {
+                    "amount": "1000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ]
+              },
+              "instant": {}
+            },
+            "treasury": "rTREASURY0000000000000000000000000",
+            "version": "2026.01.0"
+          },
+          "signature": "707a1a0db5a53de22a426650e06a68cf9af3aaac5d81bee59c6c36f251b23e2150e79eb195e4460e02e126c5e065c85bd6fd4ace6a550fde536b92b4a2b3f400",
+          "signer_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad"
+        },
+        "session_bundle": {
+          "actions": [
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000007",
+              "action_type": "transaction",
+              "category": "",
+              "depends_on": [],
+              "display_name": "",
+              "drift_score": 0,
+              "drift_score_str": "0.0",
+              "guardrail_result": "passed",
+              "input_hash": "6fa493a874ef14fc16ed998df97a1849781b435353e7cd07f8e53d5a7d9f54bb",
+              "leaf_hash": "bd3b44d5104a005af7e1f269860788879317ad59c3fc7e5880593a94fdcd8983",
+              "output_hash": "8fc4e9bfed067cc89c2f0258f2e0551a7bdaca1af92d2b304fe29648ef06e6bf",
+              "proof": {
+                "directions": [
+                  "left",
+                  "left",
+                  "left"
+                ],
+                "leaf_index": 7,
+                "root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+                "siblings": [
+                  "59e1349465b7c957962513c8f7244721eaad3b0f83e1069dfa7ee93ab050f205",
+                  "adbbc008218ac67b07f99d73ac353dcd5e8a438d6c246c81314450cace12fd14",
+                  "aa3d3955ad9b7b6405a8eca6599a951a4104c33878db153593cfb2cd63b7e02f"
+                ]
+              },
+              "receipt_id": "01936b2e-2222-7000-8000-000000000001",
+              "session_id": "01936b2e-1111-7000-8000-000000000001",
+              "status": "success",
+              "timestamp": "2026-01-02T03:04:07+00:00",
+              "tool_name": "xrpl_payment"
+            }
+          ],
+          "receipts": [],
+          "scope": {
+            "action_count": 8,
+            "actions_included": 1,
+            "kind": "receipt",
+            "leaf_index": 7,
+            "receipt_id": "01936b2e-2222-7000-8000-000000000001",
+            "session_id": "01936b2e-1111-7000-8000-000000000001"
+          },
+          "session": {
+            "action_count": 8,
+            "agent_id": "agent-accounts-payable",
+            "leaf_count": 8,
+            "root_hash": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+            "sealed": true,
+            "session_id": "01936b2e-1111-7000-8000-000000000001",
+            "status": "closed"
+          },
+          "version": "1.2"
+        },
+        "settlement_proof": {
+          "captured": [
+            "ledger_header",
+            "validated_transaction_with_metadata",
+            "validator_validations",
+            "signed_blob"
+          ],
+          "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+          "ledger_header": {
+            "account_hash": "14311e1371520b3d91998437c03622bb90fe2bdb7c43781dacb6b7ca69cff1b0",
+            "close_flags": 0,
+            "close_time": 792000010,
+            "close_time_resolution": 10,
+            "ledger_index": 94211337,
+            "parent_close_time": 792000000,
+            "parent_hash": "b6a77b431531b64a9beba5296de5880fd3d803575d7fcb0689fd30663f973c48",
+            "total_coins": "99988877766655544",
+            "transaction_hash": "e897e383ffd203f8545af9d38d7a233b56a8f3b4cd92362cb9c06fd4f9395c29"
+          },
+          "ledger_index": 94211337,
+          "missing": [
+            "shamap_path"
+          ],
+          "rail": "xrpl",
+          "transaction": {
+            "hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27",
+            "validated": true
+          },
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27",
+          "validations": [
+            {
+              "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+              "ledger_index": 94211337,
+              "validation_public_key": "nHUnvalidator1"
+            },
+            {
+              "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+              "ledger_index": 94211337,
+              "validation_public_key": "nHUnvalidator2"
+            },
+            {
+              "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+              "ledger_index": 94211337,
+              "validation_public_key": "nHUnvalidator3"
+            }
+          ]
+        },
+        "validator_trust": {
+          "quorum": 2,
+          "validators": {
+            "nHUnvalidator1": "",
+            "nHUnvalidator2": "",
+            "nHUnvalidator3": ""
+          }
+        }
+      },
+      "name": "receipt-page-scoped-join",
+      "receipt": "allow-settled",
+      "verdict": {
+        "attested": null,
+        "checks": [
+          {
+            "detail": "version 'merkl-receipt-v1'",
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "detail": "7 leaf contents",
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "detail": "['instruction', 'intent', 'policy_decision'] are present in every receipt",
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b vs committed 10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9 vs committed d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425 vs committed c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817 vs committed 9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997 vs committed d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d vs committed 7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670 vs committed b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "detail": "leaf 7 must repeat leaf 6",
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "detail": "LEFT over leaves 0-3 is 624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "detail": "the supplied policy hashes to the 4bc56bce57e996f2… the decision names and the pinned admin key signed it",
+            "name": "policy.document",
+            "status": "pass"
+          },
+          {
+            "detail": "this decision did not escalate, so nothing was signed",
+            "name": "policy.escalation_challenge",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "this decision did not escalate, so nobody approved",
+            "name": "policy.approval_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "the policy key signed a payload carrying LEFT",
+            "name": "policy.signature",
+            "status": "pass"
+          },
+          {
+            "detail": "no PCR allowlist and moment were pinned, so nothing says which enclave this is",
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "rSUPPLIER0000000000000000000000000 received 250.00 RLUSD",
+            "name": "intent.matches_settled_fields",
+            "status": "pass"
+          },
+          {
+            "detail": "the rail carried 624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e, LEFT is 624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+            "name": "settlement.anchor_equals_left",
+            "status": "pass"
+          },
+          {
+            "detail": "the blob hashes to AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27, the receipt names AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27",
+            "name": "settlement.signed_blob",
+            "status": "pass"
+          },
+          {
+            "detail": "the proof is about xrpl transaction AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27 in ledger 94211337",
+            "name": "settlement.proof_matches_receipt",
+            "status": "pass"
+          },
+          {
+            "detail": "the header hashes to 108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159, the proof names 108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+            "name": "settlement.ledger_header",
+            "status": "pass"
+          },
+          {
+            "detail": "0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved",
+            "name": "settlement.validator_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path",
+            "name": "settlement.ledger_inclusion",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "RIGHT over leaves 4-7 is b6eea93b79d26fddcac6a851b6feff2d7fbe680e25841baa416463d29b444b48",
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "detail": "SHA-256(LEFT || RIGHT) is d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope rail 'xrpl'",
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope treasury 'rTREASURY0000000000000000000000000'",
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope policy_hash 4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "detail": "the envelope hash is action 7 of session 01936b2e-1111-7000-8000-000000000001, and that action proves into the session root",
+            "name": "session.log_join",
+            "status": "pass"
+          }
+        ],
+        "complete": false,
+        "level": 2,
+        "level_detail": "Level 2: verified against the signer key, the ledger, and the notary's log (session sealed, checkpoint signed).",
+        "log": {
+          "actions": [
+            {
+              "action_id": "01936b2e-4444-7000-8000-000000000007",
+              "committed_leaf": "bd3b44d5104a005af7e1f269860788879317ad59c3fc7e5880593a94fdcd8983",
+              "computed_leaf": "bd3b44d5104a005af7e1f269860788879317ad59c3fc7e5880593a94fdcd8983",
+              "derived_root": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+              "index": 7,
+              "leaf_matches": true,
+              "ok": true,
+              "proof_ok": true,
+              "receipt_id": "01936b2e-2222-7000-8000-000000000001",
+              "tool_name": "xrpl_payment"
+            }
+          ],
+          "checks": [
+            {
+              "name": "log.actions",
+              "status": "pass"
+            },
+            {
+              "name": "log.session_root",
+              "status": "pass"
+            },
+            {
+              "name": "log.continuation",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.audit_entry",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.inclusion",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.checkpoint_body",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.checkpoint_signature",
+              "status": "not_implemented"
+            }
+          ],
+          "complete": false,
+          "evidence": [],
+          "ok": true
+        },
+        "not_checked": [
+          {
+            "label": "the escalation challenge",
+            "name": "policy.escalation_challenge",
+            "reason": "this decision did not escalate, so nothing was signed"
+          },
+          {
+            "label": "the approval quorum",
+            "name": "policy.approval_quorum",
+            "reason": "this decision did not escalate, so nobody approved"
+          },
+          {
+            "label": "enclave attestation",
+            "name": "signer.attestation",
+            "reason": "no PCR allowlist and moment were pinned, so nothing says which enclave this is"
+          },
+          {
+            "label": "the validator quorum",
+            "name": "settlement.validator_quorum",
+            "reason": "0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved"
+          },
+          {
+            "label": "ledger inclusion",
+            "name": "settlement.ledger_inclusion",
+            "reason": "supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path"
+          },
+          {
+            "label": "the continuation binding",
+            "name": "log.continuation",
+            "reason": "this session did not continue another one"
+          },
+          {
+            "label": "the audit-log entry",
+            "name": "log.audit_entry",
+            "reason": "this bundle carries no audit-log entry"
+          },
+          {
+            "label": "log inclusion",
+            "name": "log.inclusion",
+            "reason": "this bundle carries no log inclusion proof"
+          },
+          {
+            "label": "the checkpoint body",
+            "name": "log.checkpoint_body",
+            "reason": "this bundle carries no checkpoint"
+          },
+          {
+            "label": "the checkpoint signature",
+            "name": "log.checkpoint_signature",
+            "reason": "this bundle carries no checkpoint"
+          }
+        ],
+        "not_checked_line": "Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the continuation binding (this session did not continue another one), the audit-log entry (this bundle carries no audit-log entry), log inclusion (this bundle carries no log inclusion proof), the checkpoint body (this bundle carries no checkpoint), the checkpoint signature (this bundle carries no checkpoint).",
+        "ok": true,
+        "receipt_id": "01936b2e-2222-7000-8000-000000000001",
+        "settlement": {
+          "ledger_inclusion": "supplied-unverified",
+          "ledger_inclusion_detail": "the capture does not prove inclusion offline; missing: shamap_path",
+          "transaction_authorization": "verified",
+          "transaction_authorization_detail": "the policy key signed a payload carrying LEFT, and the transaction id re-derives from the blob that was submitted"
+        },
+        "summary": {
+          "approved": "No person was asked: the policy allowed it outright.",
+          "instructed": "The agent was told to make this payment — a person typed it. It traces back to 01936b2e-3333-7000-8000-000000000001.",
+          "rule": "The policy allowed it at the instant tier; 4 rules ran and all of them passed.",
+          "settled": "250.00 RLUSD went to rSUPPLIER0000000000000000000000000 on xrpl, transaction AE50AD5E28E9C337…",
+          "signer": "The signer published an enclave attestation for its policy key.",
+          "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "testimony_note": "Invoice matched the supplier on file; amount under the per-transaction cap.",
+          "when": "The ledger closed it at 2026-01-02T03:04:41Z."
+        },
+        "verdict_line": "Nothing was contradicted. Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the continuation binding (this session did not continue another one), the audit-log entry (this bundle carries no audit-log entry), log inclusion (this bundle carries no log inclusion proof), the checkpoint body (this bundle carries no checkpoint), the checkpoint signature (this bundle carries no checkpoint)."
+      }
+    },
+    {
+      "material": {
+        "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+        "attestation_trust": null,
+        "policy_document": {
+          "document": {
+            "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+            "agents": [
+              {
+                "agent_id": "agent-accounts-payable",
+                "allowlist_assets": [
+                  {
+                    "code": "RLUSD",
+                    "issuer": "rISSUER000000000000000000000000000"
+                  }
+                ],
+                "allowlist_destinations": [
+                  "rSUPPLIER0000000000000000000000000"
+                ],
+                "per_tx_cap": [
+                  {
+                    "amount": "10000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ],
+                "public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+                "reference_binding": {
+                  "allowed_kinds": [
+                    "invoice",
+                    "contract"
+                  ],
+                  "allowlist": [],
+                  "hashes": [],
+                  "required": true
+                },
+                "windows": [
+                  {
+                    "amount": "20000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    },
+                    "seconds": 86400
+                  }
+                ]
+              }
+            ],
+            "approvers": [
+              {
+                "credential_type": "ed25519",
+                "id": "alice@example.com",
+                "origins": [],
+                "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "bob@example.com",
+                "origins": [],
+                "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "carol@example.com",
+                "origins": [],
+                "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+                "user_verification": false
+              }
+            ],
+            "format": "merkl-policy-v1",
+            "rail": "xrpl",
+            "risk": {
+              "threshold": "1"
+            },
+            "tiers": {
+              "human": {
+                "expires_seconds": 3600,
+                "quorum": 2,
+                "thresholds": [
+                  {
+                    "amount": "1000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ]
+              },
+              "instant": {}
+            },
+            "treasury": "rTREASURY0000000000000000000000000",
+            "version": "2026.01.0"
+          },
+          "signature": "707a1a0db5a53de22a426650e06a68cf9af3aaac5d81bee59c6c36f251b23e2150e79eb195e4460e02e126c5e065c85bd6fd4ace6a550fde536b92b4a2b3f400",
+          "signer_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad"
+        },
+        "session_bundle": {
+          "actions": [],
+          "receipts": [],
+          "scope": {
+            "action_count": 8,
+            "actions_included": 1,
+            "kind": "receipt",
+            "leaf_index": 7,
+            "receipt_id": "01936b2e-2222-7000-8000-000000000001",
+            "session_id": "01936b2e-1111-7000-8000-000000000001"
+          },
+          "session": {
+            "action_count": 8,
+            "agent_id": "agent-accounts-payable",
+            "leaf_count": 8,
+            "root_hash": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+            "sealed": false,
+            "session_id": "01936b2e-1111-7000-8000-000000000001",
+            "status": "open"
+          },
+          "version": "1.2"
+        },
+        "settlement_proof": {
+          "captured": [
+            "ledger_header",
+            "validated_transaction_with_metadata",
+            "validator_validations",
+            "signed_blob"
+          ],
+          "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+          "ledger_header": {
+            "account_hash": "14311e1371520b3d91998437c03622bb90fe2bdb7c43781dacb6b7ca69cff1b0",
+            "close_flags": 0,
+            "close_time": 792000010,
+            "close_time_resolution": 10,
+            "ledger_index": 94211337,
+            "parent_close_time": 792000000,
+            "parent_hash": "b6a77b431531b64a9beba5296de5880fd3d803575d7fcb0689fd30663f973c48",
+            "total_coins": "99988877766655544",
+            "transaction_hash": "e897e383ffd203f8545af9d38d7a233b56a8f3b4cd92362cb9c06fd4f9395c29"
+          },
+          "ledger_index": 94211337,
+          "missing": [
+            "shamap_path"
+          ],
+          "rail": "xrpl",
+          "transaction": {
+            "hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27",
+            "validated": true
+          },
+          "tx_hash": "AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27",
+          "validations": [
+            {
+              "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+              "ledger_index": 94211337,
+              "validation_public_key": "nHUnvalidator1"
+            },
+            {
+              "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+              "ledger_index": 94211337,
+              "validation_public_key": "nHUnvalidator2"
+            },
+            {
+              "ledger_hash": "108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+              "ledger_index": 94211337,
+              "validation_public_key": "nHUnvalidator3"
+            }
+          ]
+        },
+        "validator_trust": {
+          "quorum": 2,
+          "validators": {
+            "nHUnvalidator1": "",
+            "nHUnvalidator2": "",
+            "nHUnvalidator3": ""
+          }
+        }
+      },
+      "name": "receipt-page-session-open",
+      "receipt": "allow-settled",
+      "verdict": {
+        "attested": null,
+        "checks": [
+          {
+            "detail": "version 'merkl-receipt-v1'",
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "detail": "7 leaf contents",
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "detail": "['instruction', 'intent', 'policy_decision'] are present in every receipt",
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b vs committed 10b4fc0171104375e252f17fd56ea390cad4dfbebaea892879261bf7a9aa335b",
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9 vs committed d4596ecdc2217ba9a9670acf10ce87ab41f61301173969c7a56fc08c686712a9",
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425 vs committed c2c9d1c7cb2aa7f8f90a985e2668a475959807c8772658919faf4f1df055c425",
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817 vs committed 9da7d78e73e0fc4c228c67d7d0c589c7c8bb9453ccf3462f758ebdb210545817",
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997 vs committed d6eecc07e9c121066607c7026c6a503cd14333a6dc3b91ea0b09e2e1e0b89997",
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d vs committed 7a34c411222d3b6969bfcbdc11265c24a028b2c611fa5919dc54788cc9816f7d",
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670 vs committed b01cc2d19935e511be53477abf4a9aeff1e430ea5e942660ae3fee2a2b2e3670",
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "detail": "leaf 7 must repeat leaf 6",
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "detail": "LEFT over leaves 0-3 is 624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "detail": "the supplied policy hashes to the 4bc56bce57e996f2… the decision names and the pinned admin key signed it",
+            "name": "policy.document",
+            "status": "pass"
+          },
+          {
+            "detail": "this decision did not escalate, so nothing was signed",
+            "name": "policy.escalation_challenge",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "this decision did not escalate, so nobody approved",
+            "name": "policy.approval_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "the policy key signed a payload carrying LEFT",
+            "name": "policy.signature",
+            "status": "pass"
+          },
+          {
+            "detail": "no PCR allowlist and moment were pinned, so nothing says which enclave this is",
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "rSUPPLIER0000000000000000000000000 received 250.00 RLUSD",
+            "name": "intent.matches_settled_fields",
+            "status": "pass"
+          },
+          {
+            "detail": "the rail carried 624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e, LEFT is 624feaa55b9b95eabcd26b47c86aa986546951fa118d8e31fa0b975401d8e35e",
+            "name": "settlement.anchor_equals_left",
+            "status": "pass"
+          },
+          {
+            "detail": "the blob hashes to AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27, the receipt names AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27",
+            "name": "settlement.signed_blob",
+            "status": "pass"
+          },
+          {
+            "detail": "the proof is about xrpl transaction AE50AD5E28E9C337C847A5AAEFAB60EAAA54BD493DA457B35A10BEC35E2D0B27 in ledger 94211337",
+            "name": "settlement.proof_matches_receipt",
+            "status": "pass"
+          },
+          {
+            "detail": "the header hashes to 108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159, the proof names 108f3adf6c87cf16d9561fc9083d62c40b2cac58a281b59cf2a3e2a56fb69159",
+            "name": "settlement.ledger_header",
+            "status": "pass"
+          },
+          {
+            "detail": "0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved",
+            "name": "settlement.validator_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path",
+            "name": "settlement.ledger_inclusion",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "RIGHT over leaves 4-7 is b6eea93b79d26fddcac6a851b6feff2d7fbe680e25841baa416463d29b444b48",
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "detail": "SHA-256(LEFT || RIGHT) is d6665f49faf43e38db1ed67d145276e56d35ee79e6ea984bf05169885489ee83",
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope rail 'xrpl'",
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope treasury 'rTREASURY0000000000000000000000000'",
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope policy_hash 4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "detail": "session 01936b2e-1111-7000-8000-000000000001 is not sealed yet; level 2 becomes available after sealing",
+            "name": "session.log_join",
+            "status": "not_implemented"
+          }
+        ],
+        "complete": false,
+        "level": 1,
+        "level_detail": "Level 1: verified against the signer key, the ledger and this receipt alone; no notary log was available to add completeness and an anchor.",
+        "log": {
+          "actions": [],
+          "checks": [
+            {
+              "name": "log.actions",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.session_root",
+              "status": "fail"
+            },
+            {
+              "name": "log.continuation",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.audit_entry",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.inclusion",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.checkpoint_body",
+              "status": "not_implemented"
+            },
+            {
+              "name": "log.checkpoint_signature",
+              "status": "not_implemented"
+            }
+          ],
+          "complete": false,
+          "evidence": [],
+          "ok": false
+        },
+        "not_checked": [
+          {
+            "label": "the escalation challenge",
+            "name": "policy.escalation_challenge",
+            "reason": "this decision did not escalate, so nothing was signed"
+          },
+          {
+            "label": "the approval quorum",
+            "name": "policy.approval_quorum",
+            "reason": "this decision did not escalate, so nobody approved"
+          },
+          {
+            "label": "enclave attestation",
+            "name": "signer.attestation",
+            "reason": "no PCR allowlist and moment were pinned, so nothing says which enclave this is"
+          },
+          {
+            "label": "the validator quorum",
+            "name": "settlement.validator_quorum",
+            "reason": "0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved"
+          },
+          {
+            "label": "ledger inclusion",
+            "name": "settlement.ledger_inclusion",
+            "reason": "supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path"
+          },
+          {
+            "label": "the session join",
+            "name": "session.log_join",
+            "reason": "session 01936b2e-1111-7000-8000-000000000001 is not sealed yet; level 2 becomes available after sealing"
+          },
+          {
+            "label": "the session actions",
+            "name": "log.actions",
+            "reason": "this bundle carries no actions"
+          },
+          {
+            "label": "the continuation binding",
+            "name": "log.continuation",
+            "reason": "this session did not continue another one"
+          },
+          {
+            "label": "the audit-log entry",
+            "name": "log.audit_entry",
+            "reason": "this bundle carries no audit-log entry"
+          },
+          {
+            "label": "log inclusion",
+            "name": "log.inclusion",
+            "reason": "this bundle carries no log inclusion proof"
+          },
+          {
+            "label": "the checkpoint body",
+            "name": "log.checkpoint_body",
+            "reason": "this bundle carries no checkpoint"
+          },
+          {
+            "label": "the checkpoint signature",
+            "name": "log.checkpoint_signature",
+            "reason": "this bundle carries no checkpoint"
+          }
+        ],
+        "not_checked_line": "Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the session join (session 01936b2e-1111-7000-8000-000000000001 is not sealed yet; level 2 becomes available after sealing), the session actions (this bundle carries no actions), the continuation binding (this session did not continue another one), the audit-log entry (this bundle carries no audit-log entry), log inclusion (this bundle carries no log inclusion proof), the checkpoint body (this bundle carries no checkpoint), the checkpoint signature (this bundle carries no checkpoint).",
+        "ok": false,
+        "receipt_id": "01936b2e-2222-7000-8000-000000000001",
+        "settlement": {
+          "ledger_inclusion": "supplied-unverified",
+          "ledger_inclusion_detail": "the capture does not prove inclusion offline; missing: shamap_path",
+          "transaction_authorization": "verified",
+          "transaction_authorization_detail": "the policy key signed a payload carrying LEFT, and the transaction id re-derives from the blob that was submitted"
+        },
+        "summary": {
+          "approved": "No person was asked: the policy allowed it outright.",
+          "instructed": "The agent was told to make this payment — a person typed it. It traces back to 01936b2e-3333-7000-8000-000000000001.",
+          "rule": "The policy allowed it at the instant tier; 4 rules ran and all of them passed.",
+          "settled": "250.00 RLUSD went to rSUPPLIER0000000000000000000000000 on xrpl, transaction AE50AD5E28E9C337…",
+          "signer": "The signer published an enclave attestation for its policy key.",
+          "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "testimony_note": "Invoice matched the supplier on file; amount under the per-transaction cap.",
+          "when": "The ledger closed it at 2026-01-02T03:04:41Z."
+        },
+        "verdict_line": "Something was contradicted. Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the session join (session 01936b2e-1111-7000-8000-000000000001 is not sealed yet; level 2 becomes available after sealing), the session actions (this bundle carries no actions), the continuation binding (this session did not continue another one), the audit-log entry (this bundle carries no audit-log entry), log inclusion (this bundle carries no log inclusion proof), the checkpoint body (this bundle carries no checkpoint), the checkpoint signature (this bundle carries no checkpoint)."
+      }
     }
   ],
-  "description": "The complete verdict for each receipt in receipts.json, read with the material recorded beside it. Two settlement lines (plan D10) and one level (plan D9), never a single boolean.",
+  "description": "The complete verdict for each receipt in receipts.json, read with the material recorded beside it. Two settlement lines (plan D10) and one level (plan D9), never a single boolean. `receipt` names the case in receipts.json the leaves come from; it differs from `name` when two cases read the same receipt against different material.",
   "spec": "docs/RECEIPT-SPEC.md"
 }

@@ -51,7 +51,9 @@ def verdict_detail(verdict: Any, name: str) -> str:
 
 def _run(case: dict[str, Any], **overrides: Any) -> Any:
     material = {**case["material"], **overrides}
-    receipt = BY_NAME[case["name"]]
+    # Two cases may read one receipt against different material — the receipt
+    # page's scoped join is the same `allow-settled` leaves, joined differently.
+    receipt = BY_NAME[case.get("receipt", case["name"])]
     envelope, leaves = receipt_from_content(receipt)
     trust = material["validator_trust"]
     return verify_receipt(
