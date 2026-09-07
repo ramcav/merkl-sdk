@@ -173,6 +173,36 @@ class ReceiptBuilder:
             )
         return await self._settle(receipt_id, instruction, intent, response, reasoning, depends_on)
 
+    async def resume(
+        self,
+        *,
+        instruction: Instruction,
+        intent: Intent,
+        decision: JSONObject,
+        receipt_id: str | None = None,
+        reasoning: Reasoning | None = None,
+        depends_on: str | None = None,
+    ) -> ReceiptOutcome:
+        """Finish a payment whose decision was already reached out of band.
+
+        ``approve``/``reject`` decide once (``docs/SIGNER-RPC.md`` §4): the
+        signer drops its pending escalation the instant one caller's assertion
+        completes the quorum, so whichever caller made that call is the only
+        one who ever sees the resulting ``allow``/``deny``. When that caller is
+        a notary relaying a human's approval rather than this process, this is
+        how the agent picks the flow back up: ``decision`` is the signer's raw
+        result — the same shape ``propose``/``approve`` return to
+        :meth:`execute` itself — and this runs exactly the tail ``execute``
+        would have run against it, co-signing and submitting on ``allow``,
+        filing a receipt either way.
+        """
+        receipt_id = receipt_id or str(ActionId.generate())
+        if decision["outcome"] != PolicyOutcome.ALLOW.value:
+            return await self._refused(
+                receipt_id, instruction, intent, decision, reasoning, depends_on
+            )
+        return await self._settle(receipt_id, instruction, intent, decision, reasoning, depends_on)
+
     # -- steps ------------------------------------------------------------- #
 
     def _request(self, intent: Intent, instruction: Instruction, unsigned: Any) -> Any:

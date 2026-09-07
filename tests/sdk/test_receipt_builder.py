@@ -9,11 +9,11 @@ from typing import Any
 import pytest
 
 from merkl.core.rail import ANCHOR_PLACEHOLDER_HEX
-from merkl.core.receipt import PolicyOutcome
+from merkl.core.receipt import PolicyOutcome, escalation_challenge
 from merkl.sdk.decorators import reset_current_session, set_current_session
 from merkl.sdk.receipts import ReceiptBuildError
 from merkl.shared.hashing import canonical_hash
-from tests.scenarios.harness import build_rig
+from tests.scenarios.harness import approvals_for, build_rig
 
 pytestmark = pytest.mark.asyncio
 
@@ -198,3 +198,87 @@ class TestSignerIsTheAuthority:
         rig.signer.propose = watching  # type: ignore[method-assign]
         await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
         assert seen == [ANCHOR_PLACEHOLDER_HEX]
+
+
+class TestResume:
+    """Picking a payment back up after its decision was reached elsewhere.
+
+    ``approve``/``reject`` decide once: the signer drops its pending
+    escalation the moment one caller's assertion completes the quorum
+    (docs/SIGNER-RPC.md §4), so a notary relaying a human's approval through
+    its own API is often that caller, not this process. ``resume()`` is how
+    the agent finishes the same flow ``execute()`` would have, from the raw
+    decision such a relay hands back.
+    """
+
+    async def test_an_out_of_band_allow_settles(self, tmp_path: Path) -> None:
+        rig = build_rig(tmp_path)
+        instruction = rig.instruction()
+        intent = rig.intent(value="600.00")  # over the 500.00 human threshold
+        pending = await rig.builder.execute(instruction=instruction, intent=intent)
+        assert pending.outcome == "escalate"
+
+        # The challenge is a pure function of the pending receipt's own
+        # leaves — a caller never needs the escalate response's own copy of
+        # it, which is exactly the position a resumed flow is in.
+        challenge = escalation_challenge(pending.receipt.leaves).hex()
+
+        # Someone else's relay reaches the signer directly; resume() never
+        # does, and gets nothing but the raw result to work from.
+        decision = await rig.signer.approve(
+            challenge, approvals_for(challenge, at=rig.clock.now())
+        )
+        assert decision["outcome"] == "allow"
+
+        outcome = await rig.builder.resume(
+            instruction=instruction, intent=intent, decision=decision
+        )
+        assert outcome.settled
+        assert outcome.receipt.leaves.result.outcome == "settled"
+        escalation = outcome.receipt.leaves.policy_decision.escalation
+        assert escalation is not None
+        assert len(escalation.approvals) == 2
+
+    async def test_an_out_of_band_deny_still_files_a_receipt(self, tmp_path: Path) -> None:
+        rig = build_rig(tmp_path)
+        instruction = rig.instruction()
+        intent = rig.intent(value="600.00")
+        pending = await rig.builder.execute(instruction=instruction, intent=intent)
+        challenge = escalation_challenge(pending.receipt.leaves).hex()
+
+        decision = await rig.signer.reject(
+            challenge, approvals_for(challenge, at=rig.clock.now())[:1]
+        )
+        assert decision["outcome"] == "deny"
+
+        outcome = await rig.builder.resume(
+            instruction=instruction, intent=intent, decision=decision
+        )
+        assert not outcome.settled
+        assert outcome.receipt.leaves.result.outcome == "denied"
+
+    async def test_resume_joins_the_session_the_same_way_execute_does(
+        self, tmp_path: Path
+    ) -> None:
+        rig = build_rig(tmp_path)
+        instruction = rig.instruction()
+        intent = rig.intent(value="600.00")
+        pending = await rig.builder.execute(instruction=instruction, intent=intent)
+        challenge = escalation_challenge(pending.receipt.leaves).hex()
+        decision = await rig.signer.approve(
+            challenge, approvals_for(challenge, at=rig.clock.now())
+        )
+
+        session = RecordingSession()
+        token = set_current_session(session)
+        try:
+            outcome = await rig.builder.resume(
+                instruction=instruction, intent=intent, decision=decision
+            )
+        finally:
+            reset_current_session(token)
+
+        assert len(session.actions) == 1
+        locator = outcome.receipt.envelope.session_locator
+        assert locator is not None
+        assert locator.session_id == session.session_id
