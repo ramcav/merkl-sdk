@@ -29,7 +29,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # `node --test` only takes a glob from 21 on; 20 read the pattern as a path.
+          node-version: "22"
       - name: Verify against the committed vectors
         run: npm test
 

@@ -43,6 +43,9 @@ dev = [
     "hypothesis>=6.0",
     "mypy>=1.8",
     "ruff>=0.3",
+    # The suite covers the XRPL adapter and the signer's XRPL codec, so a dev
+    # install carries the rail library the tests import.
+    "xrpl-py>=4.0",
 ]
 # The XRPL settlement adapter. Only merkl.adapters.xrpl imports xrpl-py.
 xrpl = [
