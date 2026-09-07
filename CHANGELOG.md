@@ -9,6 +9,8 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-07
+
 ### Added — phase 9
 
 - **`PolicyDocument.network`** — `xrpl-testnet` or `xrpl-mainnet`, optional,
@@ -138,7 +140,18 @@ Releases are cut by pushing a `v<version>` tag; see
   fixtures — a ledger, two validators' validations and manifests, the
   testnet UNL — with tamper cases for both implementations.
 
-## [0.2.0] - 2026-09-07
+### Fixed — integration run (phase 7)
+
+- Receipt envelopes now carry `session_locator` when a session is joined, so a
+  posted receipt links back to its session and action.
+- `ReceiptBuilder.resume()` finishes a payment whose escalation was approved or
+  rejected out of band (through the notary relay).
+- `ReceiptOutcome.pending_escalation` exposes challenge, expiry and quorum of a
+  still-escalating decision so a caller can hand it to a notary.
+- `SignerEngine.approve()` no longer double-counts the escalating payment's own
+  reservation against its window; a payment sized at the window's edge was
+  always denied on approval.
+
 
 ### Added — phase 5
 
