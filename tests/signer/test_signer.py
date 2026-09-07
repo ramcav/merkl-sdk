@@ -67,7 +67,7 @@ class TestKeystore:
 
     def test_the_wrong_passphrase_does_not_open_it(self, tmp_path: Path) -> None:
         DevKeystore(tmp_path, passphrase="right")
-        with pytest.raises(KeystoreError, match="passphrase is wrong"):
+        with pytest.raises(KeystoreError, match="did not open with"):
             DevKeystore(tmp_path, passphrase="wrong")
 
     def test_the_key_file_is_not_world_readable(self, tmp_path: Path) -> None:

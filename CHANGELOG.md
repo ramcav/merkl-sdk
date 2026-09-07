@@ -68,7 +68,10 @@ Releases are cut by pushing a `v<version>` tag; see
   passphrase file only when it is generating the key too, and otherwise raises
   naming what is missing; `serve` resolves the passphrase from
   `$MERKL_SIGNER_PASSPHRASE` or a terminal prompt, never by writing one, and
-  exits 5 with the precise message.
+  exits 5 with the precise message. A failure to decrypt now names *which*
+  passphrase was tried, and points at a stray file when that is what was tried —
+  the one case this fix cannot undo is a file an older signer already wrote, and
+  the old message sent people looking at the key file instead.
 
 ### Added — phase 6
 

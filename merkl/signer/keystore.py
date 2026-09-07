@@ -132,6 +132,7 @@ class DevKeystore:
         self._dir.mkdir(parents=True, exist_ok=True)
         os.chmod(self._dir, stat.S_IRWXU)
         self._path = self._dir / KEY_FILE
+        self._passphrase_source = "the passphrase given"
         self._passphrase = self._resolve_passphrase(passphrase)
         self._key, self._salt = self._load_or_create()
 
@@ -151,9 +152,11 @@ class DevKeystore:
             return given.encode()
         from_env = os.environ.get(PASSPHRASE_ENV)
         if from_env:
+            self._passphrase_source = f"${PASSPHRASE_ENV}"
             return from_env.encode()
         path = self._dir / PASSPHRASE_FILE
         if path.exists():
+            self._passphrase_source = f"the passphrase in {path}"
             return path.read_bytes().strip()
         if self._path.exists():
             raise KeystoreError(
@@ -212,8 +215,20 @@ class DevKeystore:
                 bytes.fromhex(document["nonce"]), bytes.fromhex(document["ciphertext"]), None
             )
         except Exception as exc:
+            # Name *which* passphrase failed. The common case is a stray
+            # passphrase file left behind by a signer that could not open this
+            # keystore in the first place (the bug fixed in 0.2.0): it opens
+            # nothing, and a message that did not name it sent people looking
+            # at the key file instead.
+            hint = ""
+            if self._passphrase_source.startswith("the passphrase in "):
+                hint = (
+                    f". If {self._dir / PASSPHRASE_FILE} was written beside a keystore it "
+                    f"never opened, delete it and set ${PASSPHRASE_ENV} instead"
+                )
             raise KeystoreError(
-                "the keystore passphrase is wrong, or the key file is damaged"
+                f"the keystore at {self._path} did not open with "
+                f"{self._passphrase_source}, or the key file is damaged{hint}"
             ) from exc
         key = ed25519.Ed25519PrivateKey.from_private_bytes(raw)
         if _public_hex(key) != document.get("public_key"):

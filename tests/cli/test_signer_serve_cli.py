@@ -180,7 +180,7 @@ class TestKeystorePassphrase:
         monkeypatch.setattr(signer_cli.getpass, "getpass", lambda _prompt: "not-it")
 
         assert serve_command(policy_path=signed_policy(tmp_path), home=home) == 5
-        assert "passphrase is wrong" in capsys.readouterr().err
+        assert "did not open with the passphrase given" in capsys.readouterr().err
 
     def test_a_first_boot_still_creates_both_files(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -209,3 +209,36 @@ def test_a_policy_carrying_an_unenforceable_rule_is_refused(
 
     assert serve_command(policy_path=path, home=tmp_path / "home") == 2
     assert "cannot be enforced" in capsys.readouterr().err
+
+
+class TestStrayPassphraseFile:
+    """The one this fix cannot undo: a stray file an earlier signer already wrote."""
+
+    def test_the_error_names_the_file_rather_than_blaming_the_key(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        home = tmp_path / "home"
+        DevKeystore(home / "keystore", passphrase="the-real-one")
+        # Exactly what a pre-0.2.0 `merkl signer serve` left behind.
+        (home / "keystore" / PASSPHRASE_FILE).write_text("a-generated-one-that-opens-nothing\n")
+        monkeypatch.delenv(PASSPHRASE_ENV, raising=False)
+
+        assert serve_command(policy_path=signed_policy(tmp_path), home=home) == 5
+
+        err = capsys.readouterr().err
+        assert str(home / "keystore" / PASSPHRASE_FILE) in err
+        assert "delete it" in err
+        assert PASSPHRASE_ENV in err
+
+    def test_the_environment_still_wins_over_a_stray_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from merkl.cli import signer as signer_cli
+
+        home = tmp_path / "home"
+        DevKeystore(home / "keystore", passphrase="the-real-one")
+        (home / "keystore" / PASSPHRASE_FILE).write_text("a-generated-one-that-opens-nothing\n")
+        monkeypatch.setenv(PASSPHRASE_ENV, "the-real-one")
+        monkeypatch.setattr(signer_cli, "serve", lambda *a, **k: None)
+
+        assert serve_command(policy_path=signed_policy(tmp_path), home=home) == 0
