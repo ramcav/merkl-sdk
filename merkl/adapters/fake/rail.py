@@ -315,9 +315,7 @@ class FakeSettlementAdapter:
 
     # -- helpers ----------------------------------------------------------- #
 
-    def _fill(
-        self, account: str, bought: Amount, send_max: object
-    ) -> tuple[Amount, Amount]:
+    def _fill(self, account: str, bought: Amount, send_max: object) -> tuple[Amount, Amount]:
         """What arrives and what leaves. For a payment they are the same amount.
 
         A trade is filled at the ledger's configured rate, all-or-nothing: the
@@ -335,8 +333,7 @@ class FakeSettlementAdapter:
         rate = self._ledger.rate(asset_key(ceiling.currency), asset_key(bought.currency))
         if rate is None:
             raise FakeRailError(
-                f"no book between {asset_key(ceiling.currency)} and "
-                f"{asset_key(bought.currency)}",
+                f"no book between {asset_key(ceiling.currency)} and {asset_key(bought.currency)}",
                 "tecPATH_DRY",
             )
         cost = Amount.from_decimal(bought.decimal * rate, ceiling.currency)

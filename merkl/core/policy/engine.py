@@ -477,8 +477,7 @@ def _cap_rule(intent: Intent, section: AgentSection) -> PolicyRule:
         RULE_PER_TX_CAP,
         RuleOutcome.FAIL if over else RuleOutcome.PASS,
         (
-            f"{outflow.value} exceeds the per-transaction cap {cap.amount} "
-            f"{_describe(cap.asset)}"
+            f"{outflow.value} exceeds the per-transaction cap {cap.amount} {_describe(cap.asset)}"
             if over
             else f"{outflow.value} is within the per-transaction cap {cap.amount} "
             f"{_describe(cap.asset)}"
@@ -525,8 +524,7 @@ def _tier_rule(intent: Intent, policy: PolicyDocument) -> tuple[PolicyRule, bool
             _rule(
                 RULE_TIER,
                 RuleOutcome.PASS,
-                f"no human-approval threshold for {_describe(outflow.currency)}; "
-                "instant tier",
+                f"no human-approval threshold for {_describe(outflow.currency)}; instant tier",
             ),
             False,
         )

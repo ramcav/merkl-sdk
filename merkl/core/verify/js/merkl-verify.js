@@ -2246,6 +2246,13 @@ export function unenforceableRules(document) {
     const agent = `'${section.agent_id}'`;
     const allowed = new Set(listOf(section, 'allowlist_assets').map(currencyKey));
     for (const key of allowed) movable.add(key);
+    if (member(section, 'may_swap') === true && allowed.size < 2) {
+      problems.push(
+        `agent ${agent} may_swap but names ${allowed.size} allowlist_assets; a ` +
+          'swap sells one asset and buys another, so no trade by this agent could ' +
+          'pass the asset_allowlist rule, and may_swap cannot be enforced',
+      );
+    }
     const seenCaps = new Set();
     for (const cap of listOf(section, 'per_tx_cap')) {
       const key = currencyKey(member(cap, 'asset'));
@@ -2572,12 +2579,64 @@ function currencyKey(currency) {
   return '?';
 }
 
+function decimalGreater(a, b) {
+  // Fixed-point comparison over the two decimal scales receipts use.
+  const [left, leftScale] = splitDecimal(a);
+  const [right, rightScale] = splitDecimal(b);
+  return left * 10n ** BigInt(rightScale) > right * 10n ** BigInt(leftScale);
+}
+
+/**
+ * Check 9 for a trade: the ledger bought what was asked, inside the ceiling.
+ *
+ * `delivered` must equal `buy` — the rail was asked all-or-nothing and a partial
+ * fill is a contradiction — and `spent` must not exceed `sell.max_amount`, the
+ * only number the policy ever bounded. Anything the metadata did not yield is
+ * reported by name as unchecked, never as agreement.
+ */
+function swapMatchesCheck(intent, settled) {
+  const name = CHECK_INTENT_MATCHES;
+  if (settled === null) {
+    return noData(name, 'the receipt records no result to compare the trade to');
+  }
+  const delivered = member(settled, 'delivered');
+  const spent = member(settled, 'spent');
+  const missing = [];
+  if (!delivered || typeof delivered !== 'object') missing.push('delivered');
+  if (!spent || typeof spent !== 'object') missing.push('spent');
+  if (missing.length) {
+    return noData(
+      name,
+      `the result leaf carries no ${missing.join(' and no ')}, so what the trade ` +
+        'actually moved cannot be compared to what it asked for',
+    );
+  }
+  const buy = member(intent, 'buy');
+  const sell = member(intent, 'sell');
+  const buyKey = currencyKey(member(buy, 'currency'));
+  const sellKey = currencyKey(member(sell, 'currency'));
+  if (currencyKey(delivered.currency) !== buyKey) {
+    return check(name, FAIL, `the trade delivered ${currencyKey(delivered.currency)}, the intent bought ${buyKey}`);
+  }
+  if (!decimalEqual(delivered.value, buy.amount)) {
+    return check(name, FAIL, `the trade delivered ${delivered.value}, the intent bought exactly ${buy.amount}`);
+  }
+  if (currencyKey(spent.currency) !== sellKey) {
+    return check(name, FAIL, `the trade spent ${currencyKey(spent.currency)}, the intent sold ${sellKey}`);
+  }
+  if (decimalGreater(spent.value, sell.max_amount)) {
+    return check(name, FAIL, `the trade spent ${spent.value}, above the ${sell.max_amount} ceiling the intent set`);
+  }
+  return outcome(name, true, `bought ${buy.amount} for ${spent.value}, within the ${sell.max_amount} ceiling`);
+}
+
 function intentMatchesCheck(intent, settlement, settled) {
   const name = CHECK_INTENT_MATCHES;
   if (settlement === null) {
     return noData(name, 'nothing settled, so there are no settled fields to compare');
   }
   if (intent === null) return check(name, FAIL, 'the intent leaf does not parse');
+  if (member(intent, 'type') === 'swap') return swapMatchesCheck(intent, settled);
   const deltas = member(settled, 'balance_deltas');
   if (!Array.isArray(deltas) || !deltas.length) {
     return noData(name, 'the receipt records no balance deltas to compare the intent to');
@@ -2862,14 +2921,102 @@ const SOURCE_WORDS = {
   system: 'a system triggered it',
 };
 
+function currencyWord(currency) {
+  if (typeof currency === 'string') return currency;
+  if (currency && typeof currency === 'object') return String(currency.code ?? '?');
+  return '?';
+}
+
 function amountWords(intent) {
+  if (member(intent, 'type') === 'swap') {
+    const sell = member(intent, 'sell');
+    return `up to ${member(sell, 'max_amount') || '?'} ${currencyWord(member(sell, 'currency'))}`;
+  }
   const amount = member(intent, 'amount');
   const value = member(amount, 'value') || '?';
-  const currency = member(amount, 'currency');
-  let code = '?';
-  if (typeof currency === 'string') code = currency;
-  else if (currency && typeof currency === 'object') code = String(currency.code ?? '?');
-  return `${value} ${code}`;
+  return `${value} ${currencyWord(member(amount, 'currency'))}`;
+}
+
+const RATE_DIGITS = 6;
+
+function splitDecimal(value) {
+  const text = String(value);
+  const dot = text.indexOf('.');
+  if (dot < 0) return [BigInt(text), 0];
+  return [BigInt(text.slice(0, dot) + text.slice(dot + 1)), text.length - dot - 1];
+}
+
+function roundHalfEven(numerator, denominator) {
+  const quotient = numerator / denominator;
+  const twice = (numerator % denominator) * 2n;
+  if (twice > denominator || (twice === denominator && quotient % 2n !== 0n)) return quotient + 1n;
+  return quotient;
+}
+
+/**
+ * `spent / bought` to at most six significant digits — the same digits
+ * `merkl.core.verify.card.rate_string` produces, by the same integer arithmetic.
+ * No float ever touches this number.
+ */
+export function rateString(spent, bought) {
+  let [numerator, spentScale] = splitDecimal(spent);
+  let [denominator, boughtScale] = splitDecimal(bought);
+  if (numerator <= 0n || denominator <= 0n) return null;
+  numerator *= 10n ** BigInt(boughtScale);
+  denominator *= 10n ** BigInt(spentScale);
+
+  let shift = RATE_DIGITS - (String(numerator).length - String(denominator).length);
+  let digits = 0n;
+  let settled = false;
+  for (let i = 0; i < 3; i += 1) {
+    digits =
+      shift >= 0
+        ? roundHalfEven(numerator * 10n ** BigInt(shift), denominator)
+        : roundHalfEven(numerator, denominator * 10n ** BigInt(-shift));
+    const length = String(digits).length;
+    if (length === RATE_DIGITS) {
+      settled = true;
+      break;
+    }
+    shift += RATE_DIGITS - length;
+  }
+  if (!settled) return null;
+
+  let text = String(digits);
+  if (shift <= 0) return text + '0'.repeat(-shift);
+  if (shift >= text.length) text = '0'.repeat(shift - text.length + 1) + text;
+  const whole = text.slice(0, text.length - shift);
+  const fraction = text.slice(text.length - shift).replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
+/** The lines a trade puts on a card, before the who and the when. */
+function swapLines(intent, result, settled) {
+  const sell = member(intent, 'sell');
+  const buy = member(intent, 'buy');
+  const sellCode = currencyWord(member(sell, 'currency'));
+  const buyCode = currencyWord(member(buy, 'currency'));
+  const ceiling = String(member(sell, 'max_amount') ?? '?');
+  const bought = String(member(buy, 'amount') ?? '?');
+  if (!settled) {
+    return [
+      { label: 'Asked', value: `to buy ${bought} ${buyCode} for up to ${ceiling} ${sellCode}` },
+    ];
+  }
+  const spent = member(result, 'spent');
+  const spentValue = spent && typeof spent === 'object' ? String(spent.value ?? '') : '';
+  const lines = [
+    { label: 'Bought', value: `${bought} ${buyCode}` },
+    {
+      label: 'Sold',
+      value: spentValue
+        ? `${spentValue} ${sellCode} (limit ${ceiling} ${sellCode})`
+        : `not stated (limit ${ceiling} ${sellCode})`,
+    },
+  ];
+  const rate = spentValue ? rateString(spentValue, bought) : null;
+  if (rate !== null) lines.push({ label: 'Rate', value: `${rate} ${sellCode}/${buyCode}` });
+  return lines;
 }
 
 /**
@@ -2932,7 +3079,18 @@ export function summarize(contents, envelope, approvedIds = []) {
   }
 
   let settledLine = null;
-  if (settlement && typeof settlement === 'object') {
+  if (settlement && typeof settlement === 'object' && member(intent, 'type') === 'swap') {
+    const buy = member(intent, 'buy');
+    const spent = member(settled, 'spent');
+    const cost =
+      spent && typeof spent === 'object'
+        ? `${spent.value} ${currencyWord(spent.currency)}`
+        : amountWords(intent);
+    settledLine =
+      `The treasury bought ${member(buy, 'amount') || '?'} ${currencyWord(member(buy, 'currency'))} ` +
+      `for ${cost} on ${settlement.rail ?? envelope.rail}, ` +
+      `transaction ${String(settlement.tx_hash ?? '').slice(0, 16)}…`;
+  } else if (settlement && typeof settlement === 'object') {
     const destination = member(intent, 'destination') || '?';
     settledLine =
       `${amountWords(intent)} went to ${destination} on ${settlement.rail ?? envelope.rail}, ` +
@@ -3048,7 +3206,10 @@ function statusMark(status) {
 function blockedRule(decision) {
   const rules = member(decision, 'rules');
   if (!Array.isArray(rules)) return null;
-  const blocked = rules.filter((r) => r && typeof r === 'object' && r.outcome !== 'pass' && r.outcome != null);
+  // A skipped rule did not apply, so it did not block anything.
+  const blocked = rules.filter(
+    (r) => r && typeof r === 'object' && (r.outcome === 'fail' || r.outcome === 'escalate'),
+  );
   if (!blocked.length) return null;
   const name = String(blocked[0].name ?? '');
   return CARD_RULE_NAMES[name] ?? name.replaceAll('_', ' ');
@@ -3115,21 +3276,19 @@ export function receiptCard(verdict, envelope, contents, options = {}) {
   const agent = envelope.agent_id;
   const when = cardWhen(settlement);
   const tx = String(member(settlement, 'tx_hash') ?? '');
+  const swap = member(intent, 'type') === 'swap';
   const body = [];
-  if (settled) {
-    body.push({ label: 'Paid', value: amount });
-    if (destination) body.push({ label: 'To', value: labelledAddress(destination, labels) });
-    body.push({ label: 'From', value: treasury ? labelledAddress(treasury, labels) : '?' });
-    body.push({ label: 'By', value: agent });
-    if (when) body.push({ label: 'On', value: when });
-    if (tx) body.push({ label: 'Ref', value: `tx ${shorten(tx, 8)}` });
+  if (swap) {
+    // A trade's destination is the treasury, so "To" would repeat "From".
+    body.push(...swapLines(intent, result, settled));
   } else {
-    body.push({ label: 'Asked', value: amount });
+    body.push({ label: settled ? 'Paid' : 'Asked', value: amount });
     if (destination) body.push({ label: 'To', value: labelledAddress(destination, labels) });
-    body.push({ label: 'From', value: treasury ? labelledAddress(treasury, labels) : '?' });
-    body.push({ label: 'By', value: agent });
-    if (when) body.push({ label: 'On', value: when });
   }
+  body.push({ label: 'From', value: treasury ? labelledAddress(treasury, labels) : '?' });
+  body.push({ label: 'By', value: agent });
+  if (when) body.push({ label: 'On', value: when });
+  if (settled && tx) body.push({ label: 'Ref', value: `tx ${shorten(tx, 8)}` });
   const approvedIds = [];
   const quorumCheck = verdict.result?.get?.('policy.approval_quorum');
   const escalation = member(decision, 'escalation');

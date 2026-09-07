@@ -758,9 +758,7 @@ def amount_from_xrpl(amount: Any) -> Amount | None:
     inventing a number.
     """
     if isinstance(amount, str) and amount.isdigit():
-        return Amount(
-            value=format_decimal(Decimal(amount) / Decimal(1_000_000)), currency=NATIVE
-        )
+        return Amount(value=format_decimal(Decimal(amount) / Decimal(1_000_000)), currency=NATIVE)
     if isinstance(amount, dict):
         code = str(amount.get("currency", ""))
         issuer = str(amount.get("issuer", ""))
