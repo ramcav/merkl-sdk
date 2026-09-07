@@ -63,6 +63,26 @@ Releases are cut by pushing a `v<version>` tag; see
   bundle's session is not sealed, `session.log_join` reports `not_implemented`
   with "session … is not sealed yet; level 2 becomes available after sealing".
 
+### Fixed — phase 10
+
+- **A session with no root yet reads as incomplete, not contradicted.** An
+  unsealed session states `root_hash: null`, and `str(None)` is the four
+  characters `"None"` — truthy, so `verify_log_bundle` held every inclusion
+  proof against it, found that none landed there, and failed
+  `log.session_root`. A receipt filed before its session sealed therefore read
+  as `SOMETHING WAS CONTRADICTED`, the loudest verdict the format has, about a
+  session that had simply not been sealed yet. The JS half already coalesced
+  the null correctly, so the two implementations disagreed and no vector had a
+  null root to catch it; `verdicts.json`'s `receipt-page-session-open` now
+  carries one.
+
+- **`@merkl-ai/verify`'s terminal entry point** (`cli.mjs`) prints the level
+  once, prints leaf 6's note under the testimony sentence, and names each
+  unchecked check with its reason — the same three corrections as `merkl
+  verify`, which it is supposed to agree with line for line.
+
+### Changed — phase 10 (continued)
+
 - **The plain summary carries leaf 6's `note` as its own member**
   (`summary.testimony_note`), rendered under the testimony sentence in a quieter
   style rather than run into it — one is the verifier speaking about what a
