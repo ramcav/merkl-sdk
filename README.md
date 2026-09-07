@@ -234,7 +234,18 @@ Two things a rail adapter must get right, because the signer depends on them:
 
 ### Deploy the signer
 
-**Dev**, for local testing — no attestation, and every receipt says so:
+**Dev**, as a container — no attestation, and every receipt says so. One
+volume holds the keystore, the sealed rule state, the relay tokens and the
+signed policy; the signer is the image plus that volume:
+
+```bash
+docker run --rm -it -v merkl-signer:/var/lib/merkl-signer ghcr.io/ramcav/merkl-signer:0.2.0 \
+  treasury init --xrpl-testnet --home /var/lib/merkl-signer   # keystore made where it is served
+docker run -d --name merkl-signer -v merkl-signer:/var/lib/merkl-signer \
+  -p 127.0.0.1:8787:8787 ghcr.io/ramcav/merkl-signer:0.2.0      # serves policy.signed.json from the volume
+```
+
+Or from a checkout, without Docker:
 
 ```bash
 merkl treasury init --xrpl-testnet     # fund and lock down a testnet treasury

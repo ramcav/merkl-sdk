@@ -148,6 +148,33 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
 
+  # The signer as an image, from the same tag. Pulled by anyone's compose file;
+  # our own production box runs it beside merkl-api.
+  publish-image:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.signer
+          push: true
+          tags: |
+            ghcr.io/ramcav/merkl-signer:${{ needs.build.outputs.version }}
+            ghcr.io/ramcav/merkl-signer:latest
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.build.outputs.version }}
+
   github-release:
     needs: [build, publish-pypi]
     runs-on: ubuntu-latest
