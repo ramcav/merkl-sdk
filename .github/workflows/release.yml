@@ -47,7 +47,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"  # node --test takes a glob only from 21 on
           registry-url: "https://registry.npmjs.org"
 
       # @merkl-ai/verify is versioned in lockstep with merkl-sdk: they are two
@@ -140,7 +140,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"  # node --test takes a glob only from 21 on
           registry-url: "https://registry.npmjs.org"
       - name: Publish @merkl-ai/verify
         working-directory: merkl/core/verify/js
