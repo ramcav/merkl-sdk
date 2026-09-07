@@ -678,6 +678,12 @@ def _account_number(address: str) -> int:
     return int.from_bytes(decode_classic_address(address), "big")
 
 
+def _observed_anchor(result: dict[str, Any]) -> str | None:
+    """The commitment memo read back from the settled transaction, if present."""
+    tx = result.get("tx_json") or result
+    return _memo_anchor(tx.get("Memos") or [])
+
+
 def _observed_memos(result: dict[str, Any]) -> tuple[JSONObject, ...] | None:
     tx = result.get("tx_json") or result
     raw = tx.get("Memos") or []

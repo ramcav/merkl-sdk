@@ -180,7 +180,8 @@ def show_command(path: Path, *, as_json: bool = False) -> int:
     for threshold in human.thresholds:
         if parse_decimal(threshold.amount, "threshold") == 0:
             print(
-                f"  {threshold.key}: every payment needs a person's approval until you set a threshold"
+                f"  {threshold.key}: every payment needs a person's approval "
+                "until you set a threshold"
             )
         else:
             print(f"  escalates at or above {threshold.amount} {threshold.key}")
