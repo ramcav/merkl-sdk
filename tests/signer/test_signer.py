@@ -14,7 +14,7 @@ from merkl.adapters.fake import FakeLedger, FakeSettlementAdapter
 from merkl.core.canonical import shift_instant
 from merkl.core.policy.document import CREDENTIAL_WEBAUTHN, AdminCredential, SignedPolicy
 from merkl.core.rail import ANCHOR_PLACEHOLDER_HEX
-from merkl.core.receipt import PolicyOutcome
+from merkl.core.receipt import PolicyOutcome, escalation_challenge
 from merkl.signer.auth import AuthError, SignedRequest, sign_request, verify_request
 from merkl.signer.binding import BindingError, decode_classic_address, missing_bindings
 from merkl.signer.engine import SignerEngine, SignerError
@@ -276,6 +276,32 @@ class TestEngineFlow:
         assert result["outcome"] == PolicyOutcome.DENY.value
         # one sequence step for the nonce, none for a reservation
         assert engine.health()["state_sequence"] == before + 1
+
+    @pytest.mark.asyncio
+    async def test_approving_its_own_reservation_does_not_double_count_the_window(
+        self, tmp_path: Path
+    ) -> None:
+        """Re-evaluating at approve time asks whether *other* activity has
+        filled the window since (SIGNER-RPC.md §4: "minutes have passed and
+        the window may have filled") — not whether this payment's own
+        still-open reservation, counted a second time on top of itself,
+        no longer fits. A payment sized to use the window right up to its cap
+        must still be approvable when nothing else has spent from it.
+        """
+        from tests.scenarios.harness import approvals_for, build_policy, build_rig
+
+        policy = build_policy(
+            per_tx_cap="1000.00", human_threshold="500.00", window=("1000.00", 86400)
+        )
+        rig = build_rig(tmp_path, policy=policy)
+        intent = rig.intent(value="1000.00")
+        pending = await rig.builder.execute(instruction=rig.instruction(), intent=intent)
+        assert pending.outcome == "escalate"
+        challenge = escalation_challenge(pending.receipt.leaves).hex()
+
+        assertions = [a.to_content() for a in approvals_for(challenge, at=rig.clock.now())]
+        decision = rig.engine.approve(challenge, assertions)
+        assert decision["outcome"] == "allow", decision.get("reason")
 
     def test_health_names_the_signer_unattested(self, tmp_path: Path) -> None:
         engine, _, _ = make_engine(tmp_path)

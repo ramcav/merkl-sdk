@@ -269,7 +269,7 @@ class SignerEngine:
         fresh = evaluate(
             pending.intent,
             self.document,
-            self._state.view(),
+            self._state.view().excluding_reservation(pending.reservation_id),
             self._risk(pending.intent.destination),
             now,
         )

@@ -185,6 +185,20 @@ class StateView:
                 total += entry.amount
         return total
 
+    def excluding_reservation(self, reservation_id: str) -> StateView:
+        """This view with one reservation removed, for re-evaluating its own intent.
+
+        Re-checking an escalation against the window means asking "has *other*
+        activity filled it since", not "does this payment's own still-open
+        reservation plus this payment's own amount fit" — ``spent_within``
+        already counts an unsettled reservation (that is the point of
+        reserving), so evaluating an intent against a view that still holds
+        that intent's own entry would add its amount twice.
+        """
+        return dataclasses.replace(
+            self, entries=tuple(e for e in self.entries if e.reservation_id != reservation_id)
+        )
+
     def nonce_seen(self, agent_id: str, nonce: str) -> bool:
         """True when this agent has already used this nonce."""
         return (agent_id, nonce) in self.nonces
