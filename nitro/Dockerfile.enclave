@@ -1,0 +1,82 @@
+# The enclave image. Every byte of this ends up in PCR0.
+#
+# The measurement is the security boundary, so the rules here are not style:
+#
+#   * pin everything by digest or exact version. A floating tag means PCR0 moves
+#     for reasons nobody chose, and the whole allowlist has to be re-pinned;
+#   * install the rail codec extra (signer-xrpl). The codec is what makes the
+#     policy signature *mean* something — it decodes the bytes the signer is
+#     about to sign and holds them against the intent — so it belongs inside the
+#     measurement, not in the parent (docs/SIGNER-RPC.md section 5);
+#   * bake the policy document in. A policy handed over by the parent at boot is
+#     a policy the parent chooses, and the attestation would be vouching for
+#     whatever the parent felt like enforcing;
+#   * no network anything. The enclave has no network device. A base image with a
+#     package manager that wants to phone home just fails slowly.
+#
+# Build reproducibly, or the PCRs differ between two builds of the same source
+# and nobody can check that the running enclave is the one they reviewed:
+#
+#   docker build --file nitro/Dockerfile.enclave --tag merkl-signer:<version> .
+#   nitro-cli build-enclave --docker-uri merkl-signer:<version> \
+#       --output-file merkl-signer.eif
+#
+# `nitro-cli build-enclave` prints PCR0, PCR1 and PCR2. Those go in the KMS key
+# policy and in the verifier's allowlist — see nitro/README.md.
+
+# ARM64 (Graviton) or x86-64: pick one and stay on it. PCR0 differs per
+# architecture, so switching is a re-pin of every allowlist.
+#
+# The digest below was read on 2026-09-06 with
+#   docker buildx imagetools inspect public.ecr.aws/amazonlinux/amazonlinux:2023
+# Re-read it, review what changed, and re-pin deliberately — never by moving the
+# tag, which would move PCR0 for reasons nobody chose.
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023@sha256:fb70bd54d4a849293bfef9785ce63aa1eac2557e0167af4f32f56286bd35d783 AS base
+
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False \
+        python3.11-3.11.* \
+        python3.11-pip \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+WORKDIR /app
+
+# The SDK, its signer extra, and the rail codec. Installed from a wheel built
+# from this repo rather than from PyPI, so what is measured is what was reviewed.
+COPY dist/merkl_sdk-*.whl /tmp/
+RUN python3.11 -m pip install --no-cache-dir --no-compile \
+        "$(ls /tmp/merkl_sdk-*.whl)[signer,signer-xrpl]" \
+    && rm -rf /tmp/*.whl /root/.cache
+
+# kmstool_enclave_cli from aws-nitro-enclaves-sdk-c. Copied from a builder stage
+# in a real pipeline; here it is COPYed from a directory the operator populates,
+# because vendoring a binary into git would be a binary nobody can review.
+# Skip this and the botocore backend (MERKL_KMS_BACKEND=botocore) instead.
+COPY nitro/vendor/kmstool_enclave_cli /app/kmstool_enclave_cli
+COPY nitro/vendor/libnsm.so /usr/lib64/libnsm.so
+RUN chmod 0500 /app/kmstool_enclave_cli
+
+# The signed policy document. Measured, so a policy change is a new PCR0 and a
+# deliberate re-pin — which is the point (plan D16).
+COPY nitro/policy.json /app/policy.json
+
+COPY nitro/enclave/main.py /app/main.py
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    MERKL_POLICY_PATH=/app/policy.json \
+    MERKL_STATE_DIR=/run/merkl \
+    MERKL_KMS_BACKEND=kmstool \
+    MERKL_VSOCK_PORT=5005 \
+    MERKL_CONTROL_PORT=5006
+
+# MERKL_KMS_KEY_ID and AWS_REGION are build arguments, not runtime ones: they
+# name the key this enclave is entitled to open, and a parent that could set them
+# could point the enclave at its own key.
+ARG MERKL_KMS_KEY_ID
+ARG AWS_REGION
+ENV MERKL_KMS_KEY_ID=${MERKL_KMS_KEY_ID} \
+    AWS_REGION=${AWS_REGION}
+
+CMD ["python3.11", "/app/main.py"]

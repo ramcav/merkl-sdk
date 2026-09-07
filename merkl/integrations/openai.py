@@ -37,6 +37,7 @@ def merkl_tool(session: SessionContext, **record_kwargs: Any) -> Callable[[F], F
             # Or wrap existing tools:
             wrapped = merkl_tool(session)(original_tool)
     """
+
     def decorator(fn: F) -> F:
         @functools.wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -67,7 +68,9 @@ def merkl_tool(session: SessionContext, **record_kwargs: Any) -> Callable[[F], F
                     status="failed",
                 )
                 raise
+
         return wrapper  # type: ignore[return-value]
+
     return decorator
 
 

@@ -1,0 +1,45 @@
+{
+  "description": "Index of the Merkl receipt test vectors.",
+  "files": [
+    {
+      "cases": 8,
+      "file": "merkle.json"
+    },
+    {
+      "cases": 10,
+      "file": "action_leaf.json"
+    },
+    {
+      "cases": 21,
+      "file": "receipt_leaf.json"
+    },
+    {
+      "cases": 10,
+      "file": "approvals.json"
+    },
+    {
+      "cases": 9,
+      "file": "policies.json"
+    },
+    {
+      "cases": 4,
+      "file": "receipts.json"
+    },
+    {
+      "cases": 6,
+      "file": "verdicts.json"
+    },
+    {
+      "cases": 4,
+      "file": "cards.json"
+    },
+    {
+      "cases": 28,
+      "file": "tampered.json"
+    }
+  ],
+  "generator": "python -m merkl.core.vectors.generate",
+  "seed": 20260905,
+  "spec": "docs/RECEIPT-SPEC.md",
+  "version": "merkl-receipt-v1"
+}

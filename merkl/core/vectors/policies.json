@@ -1,0 +1,1319 @@
+{
+  "admin_challenge": "the 32-byte policy_hash, not the legacy pre-image and not LEFT_pre",
+  "cases": [
+    {
+      "description": "The legacy scheme: a raw Ed25519 signature over the tagged pre-image, pinned to the admin key the operator actually trusts.",
+      "expected_valid": true,
+      "name": "legacy-ed25519-valid",
+      "pinned_admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": "62fd60f1b07de9629b3d3c436947c460b1fe44c173feabc3a79ca8dd28192f146f66807ea5dad66cd6aab5cd3f1f421f0a8acf96aa1242cc9d9804383a779106",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "With no admin pinned, the document's own admin_public_key is trusted — the same thing an unpinned check has always done.",
+      "expected_valid": true,
+      "name": "legacy-ed25519-unpinned-trusts-the-document",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": "62fd60f1b07de9629b3d3c436947c460b1fe44c173feabc3a79ca8dd28192f146f66807ea5dad66cd6aab5cd3f1f421f0a8acf96aa1242cc9d9804383a779106",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "A rogue document nominates its own admin and signs itself; the operator pins the real admin key instead. This is the whole point of pinning.",
+      "expected_valid": false,
+      "name": "wrong-admin",
+      "pinned_admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "8f4fb8555a615cb437d6e569dfd8c3129c361eea61775a7129ef762596e074e8",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": "a4f65c6127b80ea3963d1dab2807eea4e74c046c1d74dce75736a70f615182d0efb50fb6ee3d554e468c021d743e133b4432b6f5c4445d848463153da3b8ed02",
+        "signer_public_key": "8f4fb8555a615cb437d6e569dfd8c3129c361eea61775a7129ef762596e074e8"
+      }
+    },
+    {
+      "description": "The signature and signer_public_key are untouched, but the document attached to them was edited after signing (the per-tx cap's version bumped). The pre-image no longer matches what was actually signed.",
+      "expected_valid": false,
+      "name": "edited-rule-after-signing",
+      "pinned_admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.1"
+        },
+        "signature": "62fd60f1b07de9629b3d3c436947c460b1fe44c173feabc3a79ca8dd28192f146f66807ea5dad66cd6aab5cd3f1f421f0a8acf96aa1242cc9d9804383a779106",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "The newer wire shape: an ApprovalAssertion carrying a plain Ed25519 signature over policy_hash, not the legacy pre-image scheme — the same shape a WebAuthn admin's ceremony produces, just signed differently.",
+      "expected_valid": true,
+      "name": "ed25519-assertion-admin-valid",
+      "pinned_admin": {
+        "credential_type": "ed25519",
+        "origins": [],
+        "public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6",
+        "user_verification": false
+      },
+      "signed_policy": {
+        "document": {
+          "admin": {
+            "credential_type": "ed25519",
+            "origins": [],
+            "public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6",
+            "user_verification": false
+          },
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": {
+          "approver_id": "admin",
+          "credential_type": "ed25519",
+          "signature": "db6ce1ece204e7ca24db54ea57946ebc617148024a25029f7787443ed9897d8e0cea1f869aa70c4d7ee3133a37b0c621516d7848d9b6cdb84d669ec11b6c0f0c",
+          "signed_at": "2026-02-01T09:05:00Z"
+        },
+        "signer_public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6"
+      }
+    },
+    {
+      "description": "An org signs a policy change with a WebAuthn admin credential from the dashboard. The challenge is the 32-byte policy_hash, checked exactly the way an approver's assertion is checked.",
+      "expected_valid": true,
+      "name": "webauthn-admin-valid",
+      "pinned_admin": {
+        "credential_type": "webauthn",
+        "origins": [
+          "https://admin.merkl.ai"
+        ],
+        "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+        "rp_id": "admin.merkl.ai",
+        "user_verification": true
+      },
+      "signed_policy": {
+        "document": {
+          "admin": {
+            "credential_type": "webauthn",
+            "origins": [
+              "https://admin.merkl.ai"
+            ],
+            "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+            "rp_id": "admin.merkl.ai",
+            "user_verification": true
+          },
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": {
+          "approver_id": "admin",
+          "authenticator_data": "9591888391c5d0dc91276a0b419a67a0fbb20b6aea83c152fcc68698fe4cfe4d0500000001",
+          "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a2275663131644441734a6635766c45527938784d666a41745135594141776c444a58706469417a7743787573222c226f726967696e223a2268747470733a2f2f61646d696e2e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+          "credential_type": "webauthn",
+          "signature": "304502207e34f127e51e3965dc887437c12a776583b710241cfa24e241eb75ef7df7771b022100f3c697019a4ca0d16765a2db430dec1dccfca288270ba6c2406a44319433b94a",
+          "signed_at": "2026-02-01T09:00:00Z"
+        },
+        "signer_public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408"
+      }
+    },
+    {
+      "description": "The same valid assertion, but the operator pins an admin credential whose allowed origins do not include the one clientDataJSON names — a signature harvested from a phishing page must not count.",
+      "expected_valid": false,
+      "name": "webauthn-origin-not-allowed",
+      "pinned_admin": {
+        "credential_type": "webauthn",
+        "origins": [
+          "https://evil.example.com"
+        ],
+        "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+        "rp_id": "admin.merkl.ai",
+        "user_verification": true
+      },
+      "signed_policy": {
+        "document": {
+          "admin": {
+            "credential_type": "webauthn",
+            "origins": [
+              "https://admin.merkl.ai"
+            ],
+            "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+            "rp_id": "admin.merkl.ai",
+            "user_verification": true
+          },
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": {
+          "approver_id": "admin",
+          "authenticator_data": "9591888391c5d0dc91276a0b419a67a0fbb20b6aea83c152fcc68698fe4cfe4d0500000001",
+          "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a2275663131644441734a6635766c45527938784d666a41745135594141776c444a58706469417a7743787573222c226f726967696e223a2268747470733a2f2f61646d696e2e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+          "credential_type": "webauthn",
+          "signature": "304502207e34f127e51e3965dc887437c12a776583b710241cfa24e241eb75ef7df7771b022100f3c697019a4ca0d16765a2db430dec1dccfca288270ba6c2406a44319433b94a",
+          "signed_at": "2026-02-01T09:00:00Z"
+        },
+        "signer_public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408"
+      }
+    },
+    {
+      "description": "Same admin, same assertion, but the document was edited after signing: policy_hash no longer matches the challenge the passkey actually signed.",
+      "expected_valid": false,
+      "name": "webauthn-edited-rule-after-signing",
+      "pinned_admin": {
+        "credential_type": "webauthn",
+        "origins": [
+          "https://admin.merkl.ai"
+        ],
+        "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+        "rp_id": "admin.merkl.ai",
+        "user_verification": true
+      },
+      "signed_policy": {
+        "document": {
+          "admin": {
+            "credential_type": "webauthn",
+            "origins": [
+              "https://admin.merkl.ai"
+            ],
+            "public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408",
+            "rp_id": "admin.merkl.ai",
+            "user_verification": true
+          },
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.1"
+        },
+        "signature": {
+          "approver_id": "admin",
+          "authenticator_data": "9591888391c5d0dc91276a0b419a67a0fbb20b6aea83c152fcc68698fe4cfe4d0500000001",
+          "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a2275663131644441734a6635766c45527938784d666a41745135594141776c444a58706469417a7743787573222c226f726967696e223a2268747470733a2f2f61646d696e2e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+          "credential_type": "webauthn",
+          "signature": "304502207e34f127e51e3965dc887437c12a776583b710241cfa24e241eb75ef7df7771b022100f3c697019a4ca0d16765a2db430dec1dccfca288270ba6c2406a44319433b94a",
+          "signed_at": "2026-02-01T09:00:00Z"
+        },
+        "signer_public_key": "044eb59539ba940ea5ddc4efdcae4e2b359cfa1a6c47fd40620d4eac92b2bc8b2012ff40a23d9ea9cd40b80e65341379264d32c9744bb8b2a3feae3e8ab0c08408"
+      }
+    },
+    {
+      "description": "An otherwise-valid-looking assertion whose approver_id is not 'admin' — the fixed role every admin assertion must name.",
+      "expected_valid": false,
+      "name": "assertion-does-not-name-the-admin-role",
+      "pinned_admin": {
+        "credential_type": "ed25519",
+        "origins": [],
+        "public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6",
+        "user_verification": false
+      },
+      "signed_policy": {
+        "document": {
+          "admin": {
+            "credential_type": "ed25519",
+            "origins": [],
+            "public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6",
+            "user_verification": false
+          },
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": []
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": []
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.02.0"
+        },
+        "signature": {
+          "approver_id": "mallory",
+          "credential_type": "ed25519",
+          "signature": "db6ce1ece204e7ca24db54ea57946ebc617148024a25029f7787443ed9897d8e0cea1f869aa70c4d7ee3133a37b0c621516d7848d9b6cdb84d669ec11b6c0f0c",
+          "signed_at": "2026-02-01T09:05:00Z"
+        },
+        "signer_public_key": "a8dbfed141e58140ce71966207a67ed7d47fdf7bd24d96e94f5c804a2a3c71f6"
+      }
+    }
+  ],
+  "description": "SignedPolicy admin signatures: the legacy raw Ed25519 signature over the tagged pre-image, and the newer ApprovalAssertion-shaped signature (Ed25519 or WebAuthn) over the 32-byte policy_hash. verify_policy_signature checks both; the legacy form's policy_hash is byte-identical to every policy signed before this shape existed.",
+  "document_cases": [
+    {
+      "description": "The base document every case below is a copy of: one cap, one window and one threshold, all for the one asset the agent may move.",
+      "expected_findings": [],
+      "name": "enforceable-document",
+      "policy_hash": "5ead194fb364d1b9c6c476dee1767b31cb4697f3f96ef0bf7bdfe31c445003c5",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": [
+                {
+                  "amount": "2000.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                }
+              ]
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": [
+                {
+                  "amount": "250.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ]
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.03.0"
+        },
+        "signature": "49c092ddf7dd774821492c3c8537b02e6fd878edd10ad6f79df88c1c0dda2deb52084bd053b3297eed7ba0e34a45cf59e6130054bf85c95fcc597cb9c9b7c507",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "A second window over the same asset but a different length is not a duplicate — the engine runs every window that matches the asset, so both an hourly and a daily limit apply. This case exists to stop the duplicate check from being over-eager.",
+      "expected_findings": [],
+      "name": "two-windows-different-lengths-are-both-enforced",
+      "policy_hash": "d0b30ec416aa1ff4870d0643030679bc1987db4cba722518642f9a6b6d6415e8",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": [
+                {
+                  "amount": "2000.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                },
+                {
+                  "amount": "100.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 3600
+                }
+              ]
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": [
+                {
+                  "amount": "250.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ]
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.03.0"
+        },
+        "signature": "7ce21a1400317bdd6d45a1af66d8fda0e6ea6bf13bba8280b8bba1fab7c4cd12adb77ba1542a9b66cf543608af68f2234611d70b8b48af0cd1037075f6497e0a",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "An operator 'tightens' a cap by appending a second one for the same asset. The admin signs it, policy_hash covers it, and the engine takes the first cap only — so the payment the tighter number was meant to stop still settles.",
+      "expected_findings": [
+        "agent 'agent-admin-vector' names more than one per_tx_cap for RLUSD.rADMINVECTORISSUER000000000000000000; the engine enforces the first, so the rest cannot be enforced"
+      ],
+      "name": "duplicate-per-tx-cap",
+      "policy_hash": "174afd8ac1aa3b9c67db9597d69af0d7c9f6072effe72644c968c392160da8bc",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                },
+                {
+                  "amount": "100.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": [
+                {
+                  "amount": "2000.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                }
+              ]
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": [
+                {
+                  "amount": "250.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ]
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.03.0"
+        },
+        "signature": "b2d4354dabbda824c0bf32994441839bf851b1b74e673fb3d78ee2686a14ecdda12729ee4911652db1a8ca59ed2eea119476f5e7b0be98d423fa1a9f75c63901",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "A cap for XRP on an agent whose allowlist_assets is RLUSD only. The asset rule denies XRP before the cap is ever consulted, so the cap reads as a limit and is a decoration.",
+      "expected_findings": [
+        "agent 'agent-admin-vector' has a per_tx_cap for XRP, which is not in its allowlist_assets, so that cap cannot be enforced"
+      ],
+      "name": "per-tx-cap-for-an-asset-the-agent-may-not-move",
+      "policy_hash": "67b1d60e266211d835b77033c1f1a916fec1f2a84e65e02213252c017000b7bd",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                },
+                {
+                  "amount": "1.00",
+                  "asset": "XRP"
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": [
+                {
+                  "amount": "2000.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                }
+              ]
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": [
+                {
+                  "amount": "250.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ]
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.03.0"
+        },
+        "signature": "b7aff3f18e062726c1d22a1bfde2a909ae37a6043206d55d5980b24dd93ef435f93ddb8635333a3476d0e03e6da73a17ca5247d126b202815bf34d40030ede03",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "Two windows over the same asset and the same length. The engine evaluates both, so the pair is not silently ignored the way a duplicate cap is — but nothing says which of two contradictory limits an operator meant, and the receipt would carry two window_cap rules for one asset.",
+      "expected_findings": [
+        "agent 'agent-admin-vector' names more than one window for RLUSD.rADMINVECTORISSUER000000000000000000 over 86400s; the engine enforces one per (asset, seconds), so the rest cannot be enforced"
+      ],
+      "name": "duplicate-window",
+      "policy_hash": "0a1d9c2bb4be1dc60eeff4c8a4093fe4e36bf12685b445556c61583f24397c19",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": [
+                {
+                  "amount": "2000.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                },
+                {
+                  "amount": "100.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                }
+              ]
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": [
+                {
+                  "amount": "250.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ]
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.03.0"
+        },
+        "signature": "ab4752f1d7ab824dbeb039e6a115d4d972e603988fcc763792bd9f880df6c92780a2e95ae8f318d2bb6e99d96e28cfb16868dc89c8dcfe0c5de5738ed959680e",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "A rolling limit on an asset the agent's allowlist_assets does not name. Same shape as the foreign cap: the asset rule fires first.",
+      "expected_findings": [
+        "agent 'agent-admin-vector' has a window for XRP, which is not in its allowlist_assets, so that window cannot be enforced"
+      ],
+      "name": "window-for-an-asset-the-agent-may-not-move",
+      "policy_hash": "a0a6e86d8d2290a0006f5390619cdb91874abac05fcbc54265d5e8b974569ec4",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": [
+                {
+                  "amount": "2000.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                },
+                {
+                  "amount": "5.00",
+                  "asset": "XRP",
+                  "seconds": 3600
+                }
+              ]
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": [
+                {
+                  "amount": "250.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ]
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.03.0"
+        },
+        "signature": "d179324bf6e53f6979d1885c7adb6ff5632e6f3e00aaf308819de58fc03fc010ac6b560a3f08b4b18645123ccc4fb07d810fd83fa23fa78a919726c1e2986404",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "Two human-approval thresholds for one asset. tiers.human.threshold_for returns the first match, so a lower second threshold never escalates anything — the payment that should have gone to people settles instantly.",
+      "expected_findings": [
+        "tiers.human.thresholds names more than one threshold for RLUSD.rADMINVECTORISSUER000000000000000000; the engine enforces the first, so the rest cannot be enforced"
+      ],
+      "name": "duplicate-human-threshold",
+      "policy_hash": "36c992659aaf4a54b942f6b419ad63653553f7f0031784c52317371c1996efbd",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": [
+                {
+                  "amount": "2000.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                }
+              ]
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": [
+                {
+                  "amount": "250.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                },
+                {
+                  "amount": "10.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ]
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.03.0"
+        },
+        "signature": "0389ab8bc4700c89371a28e206dfdaf9af32fdd619341fd9d55d946efd6a20571356d1e47e5b18fa5fa6072af50aa31e8f5b3d32f894e5005df910d004b8f106",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "An escalation threshold for an asset no agent in the document is allowed to move at all. Nothing can ever reach it.",
+      "expected_findings": [
+        "tiers.human.thresholds has a threshold for XRP, which no agent in this policy may move, so that threshold cannot be enforced"
+      ],
+      "name": "human-threshold-for-an-asset-nobody-may-move",
+      "policy_hash": "cdaaeb83a1af1ab6aaa382e43a41e37357df3871eb0ca439ffe7e7b2a0ef842b",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": [
+                {
+                  "amount": "2000.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                }
+              ]
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": [
+                {
+                  "amount": "250.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                },
+                {
+                  "amount": "10.00",
+                  "asset": "XRP"
+                }
+              ]
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.03.0"
+        },
+        "signature": "e60fb511b6fd1c3a90ba064535d3845eac69320bbd11b0b9522d3d873468429c7727047f9caa65af29fb4dcd5a62139f9bc73c063c0204ed5fec5455a6a39e04",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    }
+  ],
+  "document_rules": "A document may only carry rules the engine would actually run: one per_tx_cap per asset per agent, one window per (asset, seconds) per agent, one tiers.human threshold per asset, and no cap, window or threshold for an asset nobody may move. Construction refuses such a document; a verifier handed one already signed reports the same sentence as a finding, because the admin signature and the policy_hash are both perfectly valid over a rule that is dead.",
+  "spec": "docs/RECEIPT-SPEC.md"
+}

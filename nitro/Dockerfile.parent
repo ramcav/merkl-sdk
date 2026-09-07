@@ -1,0 +1,42 @@
+# The parent proxy. Runs on the EC2 host, outside the enclave.
+#
+# Nothing here is measured, which is exactly why nothing here is trusted. This
+# image relays the RPC, keeps sealed blobs, and forwards credentials the KMS key
+# policy will not honour without an attestation it cannot produce.
+#
+# Built and run on the instance:
+#
+#   docker build --file nitro/Dockerfile.parent --tag merkl-parent:<version> .
+#   docker run --rm --network host \
+#     --device /dev/vsock \
+#     -v /var/lib/merkl:/var/lib/merkl \
+#     merkl-parent:<version> --cid "$(nitro-cli describe-enclaves | jq -r '.[0].EnclaveCID')"
+#
+# --network host is for IMDS (169.254.169.254) and for the loopback listener the
+# agent connects to. The proxy refuses to bind anything but loopback; anything
+# public-facing belongs in front of it with its own authentication.
+
+# Digest read on 2026-09-06 with `docker buildx imagetools inspect python:3.11-slim`.
+FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
+
+WORKDIR /srv
+
+# Only the runtime deps. The parent needs no signer extra and no rail codec:
+# it never decides anything, so it has nothing to decode.
+COPY dist/merkl_sdk-*.whl /tmp/
+RUN python -m pip install --no-cache-dir "$(ls /tmp/merkl_sdk-*.whl)" \
+    && rm -rf /tmp/*.whl /root/.cache
+
+COPY nitro/parent/ /srv/nitro/parent/
+COPY nitro/__init__.py /srv/nitro/__init__.py
+
+RUN useradd --system --no-create-home --uid 10001 merkl \
+    && mkdir -p /var/lib/merkl \
+    && chown merkl:merkl /var/lib/merkl \
+    && chmod 0700 /var/lib/merkl
+USER merkl
+
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+
+ENTRYPOINT ["python", "-m", "nitro.parent.proxy"]
+CMD ["--listen", "127.0.0.1", "--port", "8787", "--state-dir", "/var/lib/merkl"]

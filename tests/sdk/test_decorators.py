@@ -29,6 +29,7 @@ class TestTrace:
         mock = MockSession()
         set_current_session(mock)
         try:
+
             @trace
             async def my_tool(x: int) -> str:
                 return f"result-{x}"
@@ -45,6 +46,7 @@ class TestTrace:
         mock = MockSession()
         set_current_session(mock)
         try:
+
             @trace
             async def slow_tool() -> str:
                 return "done"
@@ -87,6 +89,7 @@ class TestTrace:
         mock = MockSession()
         set_current_session(mock)
         try:
+
             @trace
             async def get_data() -> list[int]:
                 return [1, 2, 3]
@@ -102,6 +105,7 @@ class TestTrace:
         mock = MockSession()
         set_current_session(mock)
         try:
+
             @trace
             async def lookup_order(order_id: int) -> str:
                 return "found"
@@ -118,6 +122,7 @@ class TestGuardrail:
         mock = MockSession()
         set_current_session(mock)
         try:
+
             @guardrail(allowed_tools=["do_thing"])
             async def do_thing() -> str:
                 return "ok"
@@ -134,6 +139,7 @@ class TestGuardrail:
         mock = MockSession()
         set_current_session(mock)
         try:
+
             @guardrail(allowed_tools=["only_this"])
             async def dangerous_tool() -> str:
                 return "should not run"
@@ -153,6 +159,7 @@ class TestGuardrail:
         mock = MockSession()
         set_current_session(mock)
         try:
+
             @guardrail(check=lambda amount: amount <= 1000)
             async def transfer(amount: int) -> str:
                 return "sent"
@@ -168,6 +175,7 @@ class TestGuardrail:
         mock = MockSession()
         set_current_session(mock)
         try:
+
             def policy(amount: int) -> str:
                 return "exceeds daily limit" if amount > 1000 else ""
 
@@ -186,6 +194,7 @@ class TestGuardrail:
         mock = MockSession()
         set_current_session(mock)
         try:
+
             @guardrail(check=lambda: False, on_block="skip")
             async def do_thing() -> str:
                 return "ran"
@@ -201,6 +210,7 @@ class TestGuardrail:
         mock = MockSession()
         set_current_session(mock)
         try:
+
             async def async_policy(x: int) -> bool:
                 return x > 0
 

@@ -7,10 +7,10 @@ from merkl.shared.errors import (
     DomainError,
     EntityNotFoundError,
     InfrastructureError,
+    MerklError,
     RepositoryError,
     TransportError,
     ValidationError,
-    MerklError,
 )
 
 

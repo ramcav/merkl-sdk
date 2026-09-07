@@ -1,0 +1,8 @@
+{
+  "name": "merkl-sdk-js-tests",
+  "private": true,
+  "description": "Runs the JavaScript half of the verifier against the committed vectors. Not published; @merkl-ai/verify lives in merkl/core/verify/js.",
+  "scripts": {
+    "test": "node --test \"tests/js/*.test.mjs\""
+  }
+}

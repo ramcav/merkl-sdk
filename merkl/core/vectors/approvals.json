@@ -1,0 +1,419 @@
+{
+  "cases": [
+    {
+      "assertion": {
+        "approver_id": "alice@example.com",
+        "authenticator_data": "1c9d60ff005b2bad294313891621d02bddd53507df0389a98d0fb68f9b7918d00500000001",
+        "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a224d4239303150507141666c6a647970487a675a6375755934736168372d344c6f595654626658464e346767222c226f726967696e223a2268747470733a2f2f6170702e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+        "credential_type": "webauthn",
+        "signature": "30450220025ef7f0f0dc1f7eb89356439860ae1b983df07a1913ec5095411eb618b82001022100bb6a98902b404809dd1be1425c64e217754aa677d5e251b11d991554ef087244",
+        "signed_at": "2026-01-02T03:20:11Z"
+      },
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "credential": {
+        "credential_type": "webauthn",
+        "id": "alice@example.com",
+        "origins": [
+          "https://app.merkl.ai"
+        ],
+        "public_key": "04fbd112f53e8d4379b26fb7b2384bb64eae8a848bff123de046c40399450c2ae4b8c33db1af111b536da3458cd1e44a7f342290e45b8894905966c189221a9bef",
+        "rp_id": "app.merkl.ai",
+        "user_verification": true
+      },
+      "description": "A passkey assertion over the challenge. The signature covers authenticatorData || SHA-256(clientDataJSON); clientDataJSON is carried as the exact bytes, hex-encoded, because re-serializing it would break the signature.",
+      "expected_valid": true,
+      "name": "webauthn-valid"
+    },
+    {
+      "assertion": {
+        "approver_id": "alice@example.com",
+        "authenticator_data": "1c9d60ff005b2bad294313891621d02bddd53507df0389a98d0fb68f9b7918d00500000001",
+        "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a224d4239303150507141666c6a647970487a675a6375755934736168372d344c6f595654626658464e346767222c226f726967696e223a2268747470733a2f2f6170702e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+        "credential_type": "webauthn",
+        "signature": "30450220025ef7f0f0dc1f7eb89356439860ae1b983df07a1913ec5095411eb618b82001022100bb6a98902b404809dd1be1425c64e217754aa677d5e251b11d991554ef087244",
+        "signed_at": "2026-01-02T03:20:11Z"
+      },
+      "challenge": "a378f5276f91e512b36ac74b090f96ee8590c3283f554abcc3d6d7704a070294",
+      "credential": {
+        "credential_type": "webauthn",
+        "id": "alice@example.com",
+        "origins": [
+          "https://app.merkl.ai"
+        ],
+        "public_key": "04fbd112f53e8d4379b26fb7b2384bb64eae8a848bff123de046c40399450c2ae4b8c33db1af111b536da3458cd1e44a7f342290e45b8894905966c189221a9bef",
+        "rp_id": "app.merkl.ai",
+        "user_verification": true
+      },
+      "description": "The same assertion checked against a different escalation. An approval harvested from one payment must not authorize another.",
+      "expected_valid": false,
+      "name": "webauthn-wrong-challenge"
+    },
+    {
+      "assertion": {
+        "approver_id": "alice@example.com",
+        "authenticator_data": "1c9d60ff005b2bad294313891621d02bddd53507df0389a98d0fb68f9b7918d00500000001",
+        "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a224d4239303150507141666c6a647970487a675a6375755934736168372d344c6f595654626658464e346767222c226f726967696e223a2268747470733a2f2f6170702e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+        "credential_type": "webauthn",
+        "signature": "30450220025ef7f0f0dc1f7eb89356439860ae1b983df07a1913ec5095411eb618b82001022100bb6a98902b404809dd1be1425c64e217754aa677d5e251b11d991554ef087244",
+        "signed_at": "2026-01-02T03:20:11Z"
+      },
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "credential": {
+        "credential_type": "webauthn",
+        "id": "alice@example.com",
+        "origins": [
+          "https://console.example.com"
+        ],
+        "public_key": "04fbd112f53e8d4379b26fb7b2384bb64eae8a848bff123de046c40399450c2ae4b8c33db1af111b536da3458cd1e44a7f342290e45b8894905966c189221a9bef",
+        "rp_id": "app.merkl.ai",
+        "user_verification": true
+      },
+      "description": "The credential allows only https://app.merkl.ai; the assertion came from a page pretending to be it.",
+      "expected_valid": false,
+      "name": "webauthn-origin-not-allowed"
+    },
+    {
+      "assertion": {
+        "approver_id": "alice@example.com",
+        "authenticator_data": "1c9d60ff005b2bad294313891621d02bddd53507df0389a98d0fb68f9b7918d00500000001",
+        "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a224d4239303150507141666c6a647970487a675a6375755934736168372d344c6f595654626658464e346767222c226f726967696e223a2268747470733a2f2f6170702e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+        "credential_type": "webauthn",
+        "signature": "30450220025ef7f0f0dc1f7eb89356439860ae1b983df07a1913ec5095411eb618b82001022100bb6a98902b404809dd1be1425c64e217754aa677d5e251b11d991554ef087244",
+        "signed_at": "2026-01-02T03:20:11Z"
+      },
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "credential": {
+        "credential_type": "webauthn",
+        "id": "alice@example.com",
+        "origins": [],
+        "public_key": "04fbd112f53e8d4379b26fb7b2384bb64eae8a848bff123de046c40399450c2ae4b8c33db1af111b536da3458cd1e44a7f342290e45b8894905966c189221a9bef",
+        "rp_id": "evil.example.com",
+        "user_verification": true
+      },
+      "description": "rpIdHash does not match the relying party in the policy.",
+      "expected_valid": false,
+      "name": "webauthn-rp-id-mismatch"
+    },
+    {
+      "assertion": {
+        "approver_id": "alice@example.com",
+        "authenticator_data": "1c9d60ff005b2bad294313891621d02bddd53507df0389a98d0fb68f9b7918d00000000001",
+        "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a224d4239303150507141666c6a647970487a675a6375755934736168372d344c6f595654626658464e346767222c226f726967696e223a2268747470733a2f2f6170702e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+        "credential_type": "webauthn",
+        "signature": "30450220025ef7f0f0dc1f7eb89356439860ae1b983df07a1913ec5095411eb618b82001022100bb6a98902b404809dd1be1425c64e217754aa677d5e251b11d991554ef087244",
+        "signed_at": "2026-01-02T03:20:11Z"
+      },
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "credential": {
+        "credential_type": "webauthn",
+        "id": "alice@example.com",
+        "origins": [
+          "https://app.merkl.ai"
+        ],
+        "public_key": "04fbd112f53e8d4379b26fb7b2384bb64eae8a848bff123de046c40399450c2ae4b8c33db1af111b536da3458cd1e44a7f342290e45b8894905966c189221a9bef",
+        "rp_id": "app.merkl.ai",
+        "user_verification": true
+      },
+      "description": "Flags say nobody touched the authenticator. Rejected before the signature is even considered.",
+      "expected_valid": false,
+      "name": "webauthn-user-present-flag-clear"
+    },
+    {
+      "assertion": {
+        "approver_id": "alice@example.com",
+        "authenticator_data": "1c9d60ff005b2bad294313891621d02bddd53507df0389a98d0fb68f9b7918d00100000001",
+        "client_data_json": "7b2274797065223a22776562617574686e2e676574222c226368616c6c656e6765223a224d4239303150507141666c6a647970487a675a6375755934736168372d344c6f595654626658464e346767222c226f726967696e223a2268747470733a2f2f6170702e6d65726b6c2e6169222c2263726f73734f726967696e223a66616c73657d",
+        "credential_type": "webauthn",
+        "signature": "30450220025ef7f0f0dc1f7eb89356439860ae1b983df07a1913ec5095411eb618b82001022100bb6a98902b404809dd1be1425c64e217754aa677d5e251b11d991554ef087244",
+        "signed_at": "2026-01-02T03:20:11Z"
+      },
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "credential": {
+        "credential_type": "webauthn",
+        "id": "alice@example.com",
+        "origins": [
+          "https://app.merkl.ai"
+        ],
+        "public_key": "04fbd112f53e8d4379b26fb7b2384bb64eae8a848bff123de046c40399450c2ae4b8c33db1af111b536da3458cd1e44a7f342290e45b8894905966c189221a9bef",
+        "rp_id": "app.merkl.ai",
+        "user_verification": true
+      },
+      "description": "The policy requires a verified user (PIN or biometric) and only user-presence was asserted.",
+      "expected_valid": false,
+      "name": "webauthn-user-verification-required-but-absent"
+    },
+    {
+      "assertion": {
+        "approver_id": "bob@example.com",
+        "credential_type": "ed25519",
+        "signature": "8f187f03b090350a9457d4ad0e7836accd11a8da2d44b9e800112ee52d957caf44d6f0679ee0386ddd39f904f3e4940f3f60c677683a7b53893612e796705607",
+        "signed_at": "2026-01-02T03:22:47Z"
+      },
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "credential": {
+        "credential_type": "ed25519",
+        "id": "bob@example.com",
+        "origins": [],
+        "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+        "user_verification": false
+      },
+      "description": "An Ed25519 approval signs the raw 32-byte challenge, with no envelope around it.",
+      "expected_valid": true,
+      "name": "ed25519-valid"
+    },
+    {
+      "assertion": {
+        "approver_id": "bob@example.com",
+        "credential_type": "ed25519",
+        "signature": "8f187f03b090350a9457d4ad0e7836accd11a8da2d44b9e800112ee52d957caf44d6f0679ee0386ddd39f904f3e4940f3f60c677683a7b53893612e796705607",
+        "signed_at": "2026-01-02T03:22:47Z"
+      },
+      "challenge": "a378f5276f91e512b36ac74b090f96ee8590c3283f554abcc3d6d7704a070294",
+      "credential": {
+        "credential_type": "ed25519",
+        "id": "bob@example.com",
+        "origins": [],
+        "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+        "user_verification": false
+      },
+      "description": "The same signature against a different escalation.",
+      "expected_valid": false,
+      "name": "ed25519-wrong-challenge"
+    },
+    {
+      "assertion": {
+        "approver_id": "bob@example.com",
+        "credential_type": "ed25519",
+        "signature": "c68b40d2d532b8a7c6bfa95065f53e6a64d5a91268635bbd4087b41c4da383d81f2d00de53a06734649fcddf5e39abcd4a8173968fb1ab660dc7c3d403a37103",
+        "signed_at": "2026-01-02T03:22:47Z"
+      },
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "credential": {
+        "credential_type": "ed25519",
+        "id": "bob@example.com",
+        "origins": [],
+        "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+        "user_verification": false
+      },
+      "description": "Carol signed, but the assertion claims Bob's credential.",
+      "expected_valid": false,
+      "name": "ed25519-signed-by-someone-else"
+    },
+    {
+      "assertion": {
+        "approver_id": "bob@example.com",
+        "credential_type": "ed25519",
+        "signature": "8f187f03b090350a9457d4ad0e7836accd11a8da2d44b9e800112ee52d957caf44d6f0679ee0386ddd39f904f3e4940f3f60c677683a7b53893612e796705607",
+        "signed_at": "2026-01-02T03:22:47Z"
+      },
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "credential": {
+        "credential_type": "webauthn",
+        "id": "alice@example.com",
+        "origins": [
+          "https://app.merkl.ai"
+        ],
+        "public_key": "04fbd112f53e8d4379b26fb7b2384bb64eae8a848bff123de046c40399450c2ae4b8c33db1af111b536da3458cd1e44a7f342290e45b8894905966c189221a9bef",
+        "rp_id": "app.merkl.ai",
+        "user_verification": true
+      },
+      "description": "The policy registers this approver as a passkey; the assertion arrives as a bare Ed25519 signature.",
+      "expected_valid": false,
+      "name": "credential-type-disagrees-with-the-policy"
+    }
+  ],
+  "description": "Approval assertions over an escalation challenge. The challenge is LEFT_pre, 32 raw bytes. An ed25519 approval signs those bytes directly. A webauthn approval signs authenticator_data || SHA-256(client_data_json), where both are carried as hex of the exact bytes the browser produced; the challenge inside clientDataJSON is base64url, as WebAuthn requires. Quorum counts distinct approver ids.",
+  "quorum_cases": [
+    {
+      "approvers": [
+        {
+          "credential_type": "ed25519",
+          "id": "alice@example.com",
+          "origins": [],
+          "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+          "user_verification": false
+        },
+        {
+          "credential_type": "ed25519",
+          "id": "bob@example.com",
+          "origins": [],
+          "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+          "user_verification": false
+        },
+        {
+          "credential_type": "ed25519",
+          "id": "carol@example.com",
+          "origins": [],
+          "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+          "user_verification": false
+        }
+      ],
+      "assertions": [
+        {
+          "approver_id": "alice@example.com",
+          "credential_type": "ed25519",
+          "signature": "01fd594674f18908cd48be6ebf7384b2c9e519fc284c44e3852d4ef04613b97d209763554027c10bd4b4b7bfbc1ad067aac11cf06c96a7225d739eb82ceb8904",
+          "signed_at": "2026-01-02T03:20:11Z"
+        },
+        {
+          "approver_id": "bob@example.com",
+          "credential_type": "ed25519",
+          "signature": "8f187f03b090350a9457d4ad0e7836accd11a8da2d44b9e800112ee52d957caf44d6f0679ee0386ddd39f904f3e4940f3f60c677683a7b53893612e796705607",
+          "signed_at": "2026-01-02T03:22:47Z"
+        }
+      ],
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "description": "Two of the three named approvers signed. Quorum met.",
+      "expected_accepted": [
+        "alice@example.com",
+        "bob@example.com"
+      ],
+      "expected_reached": true,
+      "name": "two-of-three-reached",
+      "quorum": 2
+    },
+    {
+      "approvers": [
+        {
+          "credential_type": "ed25519",
+          "id": "alice@example.com",
+          "origins": [],
+          "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+          "user_verification": false
+        },
+        {
+          "credential_type": "ed25519",
+          "id": "bob@example.com",
+          "origins": [],
+          "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+          "user_verification": false
+        },
+        {
+          "credential_type": "ed25519",
+          "id": "carol@example.com",
+          "origins": [],
+          "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+          "user_verification": false
+        }
+      ],
+      "assertions": [
+        {
+          "approver_id": "alice@example.com",
+          "credential_type": "ed25519",
+          "signature": "01fd594674f18908cd48be6ebf7384b2c9e519fc284c44e3852d4ef04613b97d209763554027c10bd4b4b7bfbc1ad067aac11cf06c96a7225d739eb82ceb8904",
+          "signed_at": "2026-01-02T03:20:11Z"
+        },
+        {
+          "approver_id": "alice@example.com",
+          "credential_type": "ed25519",
+          "signature": "01fd594674f18908cd48be6ebf7384b2c9e519fc284c44e3852d4ef04613b97d209763554027c10bd4b4b7bfbc1ad067aac11cf06c96a7225d739eb82ceb8904",
+          "signed_at": "2026-01-02T03:20:11Z"
+        }
+      ],
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "description": "One person signing twice is one approval, not two. Distinct approver ids are the whole point of a quorum.",
+      "expected_accepted": [
+        "alice@example.com"
+      ],
+      "expected_reached": false,
+      "name": "same-approver-twice-is-one-approval",
+      "quorum": 2
+    },
+    {
+      "approvers": [
+        {
+          "credential_type": "ed25519",
+          "id": "alice@example.com",
+          "origins": [],
+          "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+          "user_verification": false
+        },
+        {
+          "credential_type": "ed25519",
+          "id": "bob@example.com",
+          "origins": [],
+          "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+          "user_verification": false
+        },
+        {
+          "credential_type": "ed25519",
+          "id": "carol@example.com",
+          "origins": [],
+          "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+          "user_verification": false
+        }
+      ],
+      "assertions": [
+        {
+          "approver_id": "alice@example.com",
+          "credential_type": "ed25519",
+          "signature": "01fd594674f18908cd48be6ebf7384b2c9e519fc284c44e3852d4ef04613b97d209763554027c10bd4b4b7bfbc1ad067aac11cf06c96a7225d739eb82ceb8904",
+          "signed_at": "2026-01-02T03:20:11Z"
+        },
+        {
+          "approver_id": "carol@example.com",
+          "credential_type": "ed25519",
+          "signature": "01fd594674f18908cd48be6ebf7384b2c9e519fc284c44e3852d4ef04613b97d209763554027c10bd4b4b7bfbc1ad067aac11cf06c96a7225d739eb82ceb8904",
+          "signed_at": "2026-01-02T03:23:02Z"
+        }
+      ],
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "description": "Carol's assertion was signed with Alice's key, so it counts for nobody.",
+      "expected_accepted": [
+        "alice@example.com"
+      ],
+      "expected_reached": false,
+      "name": "invalid-signature-does-not-count",
+      "quorum": 2
+    },
+    {
+      "approvers": [
+        {
+          "credential_type": "ed25519",
+          "id": "alice@example.com",
+          "origins": [],
+          "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+          "user_verification": false
+        },
+        {
+          "credential_type": "ed25519",
+          "id": "bob@example.com",
+          "origins": [],
+          "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+          "user_verification": false
+        },
+        {
+          "credential_type": "ed25519",
+          "id": "carol@example.com",
+          "origins": [],
+          "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+          "user_verification": false
+        }
+      ],
+      "assertions": [
+        {
+          "approver_id": "alice@example.com",
+          "credential_type": "ed25519",
+          "signature": "01fd594674f18908cd48be6ebf7384b2c9e519fc284c44e3852d4ef04613b97d209763554027c10bd4b4b7bfbc1ad067aac11cf06c96a7225d739eb82ceb8904",
+          "signed_at": "2026-01-02T03:20:11Z"
+        },
+        {
+          "approver_id": "mallory@example.com",
+          "credential_type": "ed25519",
+          "signature": "c68b40d2d532b8a7c6bfa95065f53e6a64d5a91268635bbd4087b41c4da383d81f2d00de53a06734649fcddf5e39abcd4a8173968fb1ab660dc7c3d403a37103",
+          "signed_at": "2026-01-02T03:23:40Z"
+        }
+      ],
+      "challenge": "301f74d4f3ea01f963772a47ce065cbae638b1a87bfb82e86154db7d714de208",
+      "description": "Someone the policy never named signed. A valid signature by a stranger is still a stranger.",
+      "expected_accepted": [
+        "alice@example.com"
+      ],
+      "expected_reached": false,
+      "name": "unknown-approver-does-not-count",
+      "quorum": 2
+    }
+  ],
+  "spec": "docs/RECEIPT-SPEC.md",
+  "webauthn_message": "authenticator_data || SHA-256(client_data_json), ECDSA P-256 with SHA-256, DER signature, uncompressed SEC1 public key"
+}

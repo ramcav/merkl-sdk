@@ -1,0 +1,14 @@
+# The signed policy document for a real treasury. Measured into PCR0 and placed
+# by whoever builds the image; it names one treasury's approvers and limits.
+policy.json
+
+# kmstool_enclave_cli and libnsm.so, built from aws-nitro-enclaves-sdk-c.
+# A binary in git is a binary nobody reviews.
+vendor/
+
+# Build products.
+*.eif
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate*
+terraform/*.tfvars

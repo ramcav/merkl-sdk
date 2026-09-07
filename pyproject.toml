@@ -4,9 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "merkl-sdk"
-version = "0.1.1"
+version = "0.2.0"
 readme = "README.md"
-description = "Record AI agent actions as independently verifiable cryptographic proofs"
+description = "The policy layer for agent transactions: enforce your rules at the key, receipt every decision"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Merkl", email = "hello@merkl.ai" }]
@@ -43,6 +43,32 @@ dev = [
     "hypothesis>=6.0",
     "mypy>=1.8",
     "ruff>=0.3",
+    # The suite covers the XRPL adapter and the signer's XRPL codec, so a dev
+    # install carries the rail library the tests import.
+    "xrpl-py>=4.0",
+]
+# The XRPL settlement adapter. Only merkl.adapters.xrpl imports xrpl-py.
+xrpl = [
+    "xrpl-py>=4.0",
+]
+# The dev signer process. Deliberately stdlib-only: merkl.signer.server is a
+# ThreadingHTTPServer, so running a signer pulls in no web framework.
+signer = []
+# The XRPL payload codec the signer uses to read the bytes it is about to sign.
+# A separate extra from [signer] because a signer serves one treasury on one rail
+# (plan D18), so it should carry that rail's library and no other.
+signer-xrpl = [
+    "xrpl-py>=4.0",
+]
+# The AWS Nitro Enclave signer. Only merkl.adapters.nitro imports boto3, and
+# tests/signer/test_signer_purity.py refuses it anywhere under merkl/signer — the
+# signer knows a two-method SealingPort and never which cloud is behind it.
+#
+# Nothing in merkl.core needs this. Verifying an attestation document is pure:
+# a stdlib CBOR reader and `cryptography`, both already there. That is deliberate
+# — a verifier a stranger cannot run without an AWS SDK is not much of a verifier.
+nitro = [
+    "boto3>=1.34.100",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -72,3 +98,5 @@ ignore = ["N818"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"

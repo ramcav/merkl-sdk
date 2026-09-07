@@ -1,0 +1,19 @@
+# Only the package and what pip needs to build it go into the signer image.
+.git
+.github
+.venv*
+.hypothesis
+.pytest_cache
+.mypy_cache
+.ruff_cache
+__pycache__
+*.egg-info
+node_modules
+tests
+nitro
+docs
+examples
+merkl-demo
+disclosure-*
+package.json
+uv.lock

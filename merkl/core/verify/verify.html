@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merkl — __TITLE__</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F7F5F2;
+    --surface: #FFFFFF;
+    --border: #E5E3DF;
+    --border-light: #F0EDEA;
+    --text: #0A0A0A;
+    --text-2: #4A4846;
+    --text-3: #9B9896;
+    --accent: #FF3B00;
+    --green: #00A85A;
+    --red: #E0220B;
+    --yellow: #D97706;
+    --mono: 'Courier New', Courier, monospace;
+    --serif: Georgia, 'Times New Roman', serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* Header */
+  .header { border-bottom: 2px solid var(--text); padding-bottom: 24px; margin-bottom: 32px; }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+  .brand { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); }
+  .verdict-badge { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 16px; border-radius: 4px; white-space: nowrap; }
+  .verdict-badge.verified { background: var(--green); color: #fff; }
+  .verdict-badge.failed { background: var(--red); color: #fff; }
+  .verdict-badge.partial { background: var(--yellow); color: #fff; }
+  .verdict-badge.pending { background: var(--border); color: var(--text-2); }
+  h1 { font-family: var(--serif); font-size: 28px; font-weight: 400; line-height: 1.3; margin-bottom: 12px; }
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+  .meta-row span { display: flex; gap: 6px; align-items: center; }
+
+  /* Sections */
+  .section { margin-bottom: 32px; }
+  .section-title { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+  /* The story, in sentences */
+  .story { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 0; }
+  .story-line { display: flex; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--border-light); align-items: baseline; }
+  .story-line:last-child { border-bottom: none; }
+  .story-label { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); min-width: 130px; flex-shrink: 0; }
+  .story-text { font-size: 15px; line-height: 1.55; }
+  .story-line.absent .story-text { color: var(--text-3); font-style: italic; }
+  .story-line.loud { background: rgba(224,34,11,0.05); }
+  .story-line.loud .story-text { color: var(--red); font-weight: 600; }
+  .story-line.testimony .story-text { color: var(--text-2); font-size: 13px; }
+  .story-note { display: block; margin-top: 6px; color: var(--text-3); font-family: var(--serif); font-style: italic; font-size: 13px; }
+
+  /* Two settlement lines + level */
+  .lines { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .lines { grid-template-columns: 1fr; } }
+  .line-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
+  .line-card .k { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+  .line-card .v { font-family: var(--mono); font-size: 15px; font-weight: 700; margin: 4px 0 6px; }
+  .line-card .d { font-size: 12px; color: var(--text-2); }
+  .v.state-verified, .v.state-proven-offline { color: var(--green); }
+  .v.state-contradicted { color: var(--red); }
+  .v.state-absent, .v.state-unchecked, .v.state-supplied-unverified { color: var(--yellow); }
+  .v.state-verified-live { color: var(--yellow); }
+  .level-note { margin-top: 12px; background: var(--surface); border-left: 3px solid var(--accent); padding: 12px 16px; font-size: 13px; color: var(--text-2); }
+  .level-note .headline { display: block; color: var(--text); font-size: 14px; font-weight: 600; }
+  .level-note .unchecked { display: block; margin-top: 8px; }
+
+  /* Checks */
+  table.checks { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+  table.checks th { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  table.checks td { padding: 8px 12px; border-bottom: 1px solid var(--border-light); vertical-align: top; font-size: 12px; }
+  table.checks tr:last-child td { border-bottom: none; }
+  td.cname { font-family: var(--mono); font-size: 11px; white-space: nowrap; color: var(--text-2); }
+  td.cstate { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .ok { color: var(--green); } .bad { color: var(--red); } .unknown { color: var(--text-3); }
+  td.cdetail { color: var(--text-2); word-break: break-word; }
+
+  /* Leaves */
+  .leaf { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px; overflow: hidden; }
+  .leaf-head { display: flex; align-items: baseline; gap: 12px; padding: 10px 14px; cursor: pointer; }
+  .leaf-index { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+  .leaf-name { font-weight: 600; min-width: 150px; }
+  .leaf-plain { color: var(--text-2); font-size: 13px; flex: 1; }
+  .leaf-state { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .leaf-body { padding: 0 14px 12px; border-top: 1px solid var(--border-light); display: none; }
+  .leaf.open .leaf-body { display: block; }
+  .leaf-body pre { font-family: var(--mono); font-size: 11px; white-space: pre-wrap; word-break: break-all; color: var(--text-2); margin-top: 8px; }
+  .hash { font-family: var(--mono); font-size: 11px; color: var(--text-3); word-break: break-all; }
+
+  /* Actions table */
+  .actions-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+  .actions-table th { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .actions-table td { padding: 12px; border-bottom: 1px solid var(--border-light); vertical-align: top; }
+  .actions-table tr.action-row:hover td { background: rgba(0,0,0,0.02); cursor: pointer; }
+  .action-name { font-weight: 600; margin-bottom: 2px; }
+  .action-meta { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
+  .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+  .status-success { background: var(--green); }
+  .status-failed, .status-blocked { background: var(--red); }
+  .status-pending { background: var(--yellow); }
+  .check-mark { color: var(--green); font-size: 14px; }
+  .cross-mark { color: var(--red); font-size: 14px; }
+  .proof-row { display: none; }
+  .proof-row.open { display: table-row; }
+  .proof-box { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 14px 16px; font-family: var(--mono); font-size: 11px; line-height: 1.9; }
+  .proof-box .label { color: var(--text-3); display: inline-block; width: 130px; }
+  .proof-box .val { word-break: break-all; }
+  .path-step { display: flex; gap: 8px; align-items: flex-start; }
+  .path-step .dir { color: var(--accent); min-width: 44px; }
+  .path-step .sib { color: var(--text-2); word-break: break-all; }
+
+  /* Boxes */
+  .audit-box { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 16px 18px; font-family: var(--mono); font-size: 11px; line-height: 2.0; }
+  .audit-row { display: flex; gap: 8px; }
+  .audit-label { color: var(--text-3); min-width: 150px; flex-shrink: 0; }
+  .audit-val { word-break: break-all; color: var(--text-2); }
+  .info-box { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-size: 13px; color: var(--text-2); line-height: 1.7; }
+  .warn-box { background: var(--surface); border-left: 3px solid var(--yellow); padding: 12px 16px; font-size: 13px; color: var(--text-2); line-height: 1.7; }
+
+  details.more { margin-top: 10px; }
+  details.more > summary { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); cursor: pointer; padding: 4px 0; }
+  details.more[open] > summary { color: var(--text-2); }
+
+  .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-3); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  .receipt-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 20px 22px 8px; }
+  .receipt-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-bottom: 2px solid var(--text); padding-bottom: 10px; margin-bottom: 14px; }
+  .receipt-card-head .brand { letter-spacing: 0.18em; }
+  .receipt-status { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; }
+  .receipt-status.settled { color: var(--green); }
+  .receipt-status.refused, .receipt-status.rejected, .receipt-status.failed, .receipt-status.expired { color: var(--red); }
+  .receipt-row { display: flex; gap: 14px; padding: 5px 0; align-items: baseline; }
+  .receipt-row .k { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); min-width: 110px; }
+  .receipt-row .v { font-size: 15px; }
+  .receipt-rule { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+  .receipt-stamp { font-family: var(--mono); font-size: 12px; padding: 4px 0 12px; color: var(--text-2); }
+  .receipt-stamp .ok { color: var(--green); }
+  .receipt-stamp .no { color: var(--text-3); }
+  .receipt-unchecked { display: block; margin-top: 6px; font-size: 11px; color: var(--yellow); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-top">
+      <span class="brand">Merkl — Proof Verifier</span>
+      <span class="verdict-badge pending" id="global-verdict">Checking…</span>
+    </div>
+    <h1 id="headline">Verifying this record in your browser…</h1>
+    <div class="meta-row" id="meta"></div>
+  </div>
+
+  <!-- What happened, in sentences. No hashes above this fold. -->
+  <div class="section" id="story-section" style="display:none">
+    <div class="section-title">What happened</div>
+    <div id="stories"></div>
+  </div>
+
+  <!-- The two settlement lines and the level -->
+  <div class="section" id="lines-section" style="display:none">
+    <div class="section-title">What settled, and how far this page could check it</div>
+    <div id="lines"></div>
+  </div>
+
+  <!-- Selective disclosure -->
+  <div class="section" id="disclosure-section" style="display:none">
+    <div class="section-title">A partial receipt</div>
+    <div class="warn-box" id="disclosure-note"></div>
+    <div id="disclosure-leaves" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Every check, by name -->
+  <div class="section" id="checks-section" style="display:none">
+    <div class="section-title">Every check this page ran</div>
+    <div id="checks"></div>
+  </div>
+
+  <!-- Session actions -->
+  <div class="section" id="actions-section" style="display:none">
+    <div class="section-title">The session this belongs to — <span id="verified-count"></span> of <span id="total-count"></span> actions verified</div>
+    <table class="actions-table">
+      <thead><tr><th>#</th><th>Action</th><th>Type</th><th>Status</th><th style="text-align:center">Proof</th></tr></thead>
+      <tbody id="actions-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Transparency log -->
+  <div class="section" id="log-section" style="display:none">
+    <div class="section-title">Transparency log</div>
+    <div class="audit-box" id="log-box"></div>
+  </div>
+
+  <!-- Bitcoin anchor -->
+  <div class="section" id="anchor-section" style="display:none">
+    <div class="section-title">Bitcoin anchor</div>
+    <div class="audit-box" id="anchor-box"></div>
+  </div>
+
+  <!-- Evidence -->
+  <div class="section" id="evidence-section" style="display:none">
+    <div class="section-title">Evidence verification</div>
+    <div class="info-box">
+      <p style="margin:0 0 10px 0">The notary stores only hashes. If the operator disclosed an
+      evidence file (<code>.jsonl</code>) for this session, drop it here: each record's raw
+      input and output is re-hashed <em>in your browser</em> and matched against the hashes
+      committed in the leaves above. A tampered or fabricated record cannot match.</p>
+      <input type="file" id="evidence-file" accept=".jsonl,.json,application/json" />
+      <div style="margin:10px 0 4px 0; color:var(--text-3); font-size:12px">…or paste one or more records, one JSON object per line:</div>
+      <textarea id="evidence-paste" rows="3" spellcheck="false" style="width:100%; font-family:var(--mono); font-size:11px; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text-2)"></textarea>
+      <button id="evidence-paste-btn" style="margin-top:6px; padding:6px 14px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text-2); cursor:pointer">Verify pasted records</button>
+      <div id="evidence-results" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- What nobody checked -->
+  <div class="section" id="gaps-section" style="display:none">
+    <div class="section-title">What this page could not check</div>
+    <div class="warn-box" id="gaps"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">How to check this yourself</div>
+    <div class="info-box" id="algo-box"></div>
+  </div>
+
+  <div class="footer">
+    <span>Merkl — the truth layer for AI agents</span>
+    <span id="footer-time"></span>
+  </div>
+
+</div>
+
+<script>
+const BUNDLE = __BUNDLE__;
+
+__MERKL_VERIFY_JS__
+
+// ─── DOM helpers ───────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function stateClass(status) {
+  return status === 'pass' ? 'ok' : status === 'fail' ? 'bad' : 'unknown';
+}
+
+function stateWord(status) {
+  return status === 'pass' ? 'checked' : status === 'fail' ? 'failed' : 'not checked';
+}
+
+function checksTable(checks) {
+  const rows = checks
+    .map(
+      (c) =>
+        `<tr><td class="cname">${esc(c.name)}</td>` +
+        `<td class="cstate ${stateClass(c.status)}">${stateWord(c.status)}</td>` +
+        `<td class="cdetail">${esc(c.detail)}</td></tr>`,
+    )
+    .join('');
+  return (
+    '<table class="checks"><thead><tr><th>Check</th><th>Result</th>' +
+    '<th>What was compared</th></tr></thead><tbody>' + rows + '</tbody></table>'
+  );
+}
+
+// ─── The story: sentences first, hashes never ──────────────────────────────
+
+const STORY_LABELS = [
+  ['instructed', 'What the agent was told'],
+  ['rule', 'Which rule allowed it'],
+  ['approved', 'Who approved'],
+  ['settled', 'What settled'],
+  ['when', 'When'],
+  ['signer', 'Who signed it'],
+  ['testimony', 'Reasoning'],
+];
+
+function cardHtml(verdict, receipt) {
+  const card = receiptCard(verdict, receipt.envelope, receipt.leaves || []);
+  const statusClass = card.status.toLowerCase().replaceAll(' ', '-');
+  const rows = (list, extraClass) =>
+    list
+      .map((r) => {
+        const loud =
+          extraClass && r.label === 'Signed by' && /unattested/.test(r.value) ? ' loud' : '';
+        return `<div class="receipt-row${loud}"><span class="k">${esc(r.label)}</span><span class="v">${esc(r.value)}</span></div>`;
+      })
+      .join('');
+  const ticks = card.stamp.checks
+    .map((c) => `<span class="${c.ok ? 'ok' : 'no'}">${esc(c.name)} ${c.ok ? '✓' : '–'}</span>`)
+    .join('  ');
+  const unchecked = card.stamp.not_checked.length
+    ? `<span class="receipt-unchecked">not checked: ${esc(
+        card.stamp.not_checked.map((e) => `${e.label} (${e.reason})`).join(', '),
+      )}</span>`
+    : '';
+  const testimony = card.folds.reasoning.testimony
+    ? `<details class="receipt-fold"><summary>Reasoning</summary><p><b>Testimony, not proof.</b> ${esc(card.folds.reasoning.testimony)}</p></details>`
+    : '';
+  return (
+    `<div class="receipt-card">` +
+    `<div class="receipt-card-head"><span class="brand">${esc(card.headline)}</span>` +
+    `<span class="receipt-status ${statusClass}">${esc(card.status_mark)} ${esc(card.status)}</span></div>` +
+    rows(card.body) +
+    `<hr class="receipt-rule">` +
+    rows(card.provenance, true) +
+    `<hr class="receipt-rule">` +
+    `<div class="receipt-stamp">VERIFIED  ${ticks}        Level ${esc(card.stamp.level)}${unchecked}</div>` +
+    testimony +
+    `</div>`
+  );
+}
+
+function storyHtml(verdict) {
+  const s = verdict.summary;
+  const lines = STORY_LABELS.map(([key, label]) => {
+    const text = s[key];
+    const absent = !text;
+    // An unattested signer is the one line that must not read as routine.
+    const loud = key === 'signer' && verdict.attested === false;
+    const cls = ['story-line', absent ? 'absent' : '', loud ? 'loud' : '', key === 'testimony' ? 'testimony' : '']
+      .filter(Boolean)
+      .join(' ');
+    const body = absent ? 'The receipt does not say.' : text;
+    const prefix = key === 'testimony' ? '<b>Testimony, not proof.</b> ' : '';
+    // The model's own note goes underneath the sentence about it, quieter and
+    // never run into it: one is this page speaking, the other is the agent.
+    const note =
+      key === 'testimony' && s.testimony_note
+        ? `<span class="story-note">“${esc(s.testimony_note)}”</span>`
+        : '';
+    return (
+      `<div class="${cls}"><span class="story-label">${esc(label)}</span>` +
+      `<span class="story-text">${prefix}${esc(body)}${note}</span></div>`
+    );
+  }).join('');
+  return `<div class="story">${lines}</div>`;
+}
+
+const LEAF_PLAIN = {
+  instruction: 'Who asked for this, and the hash of what they said.',
+  intent: 'The payment as the agent proposed it: rail, treasury, destination, amount.',
+  policy_decision: 'Every rule the signer ran, the verdict, and any escalation.',
+  signer_attestation: 'The enclave document vouching for the policy key, or its absence.',
+  settlement: 'The transaction the rail validated, and the policy signature over it.',
+  result: 'How the attempt ended, and what moved.',
+  reasoning: 'A hash of the model trace. Testimony, not proof.',
+};
+
+function leavesHtml(receipt, verdict) {
+  const contents = receipt.leaves || [];
+  return LEAF_NAMES.map((name, i) => {
+    const c = verdict.result.get(`leaf.${name}`);
+    const status = c ? c.status : 'not_implemented';
+    const content = i < contents.length ? contents[i] : null;
+    const body =
+      content === null || content === undefined
+        ? 'null — this leaf is absent, and the receipt commits to its absence'
+        : JSON.stringify(content, null, 2);
+    return (
+      `<div class="leaf"><div class="leaf-head">` +
+      `<span class="leaf-index">${i}</span>` +
+      `<span class="leaf-name">${esc(name)}</span>` +
+      `<span class="leaf-plain">${esc(LEAF_PLAIN[name])}</span>` +
+      `<span class="leaf-state ${stateClass(status)}">${stateWord(status)}</span></div>` +
+      `<div class="leaf-body"><div class="hash">${esc(c ? c.detail : '')}</div>` +
+      `<pre>${esc(body)}</pre></div></div>`
+    );
+  }).join('');
+}
+
+// ─── Selective disclosure ──────────────────────────────────────────────────
+
+function disclosureHtml(disclosure) {
+  const revealed = new Map((disclosure.leaves || []).map((l) => [l.index, l]));
+  return LEAF_NAMES.map((name, i) => {
+    const leaf = revealed.get(i);
+    const hidden = leaf === undefined;
+    const body = hidden
+      ? 'Withheld. Only its hash is in this file — enough to prove this leaf was ' +
+        'committed and has not been changed, and nothing at all about what it says.'
+      : leaf.content === null || leaf.content === undefined
+        ? 'null — this leaf is absent, and the receipt commits to its absence'
+        : JSON.stringify(leaf.content, null, 2);
+    return (
+      `<div class="leaf${hidden ? '' : ' open'}"><div class="leaf-head">` +
+      `<span class="leaf-index">${i}</span>` +
+      `<span class="leaf-name">${esc(name)}</span>` +
+      `<span class="leaf-plain">${esc(LEAF_PLAIN[name])}</span>` +
+      `<span class="leaf-state ${hidden ? 'unknown' : 'ok'}">${hidden ? 'withheld' : 'revealed'}</span>` +
+      `</div><div class="leaf-body"><div class="hash">${esc(disclosure.leaf_hashes[i])}</div>` +
+      `<pre>${esc(body)}</pre></div></div>`
+    );
+  }).join('');
+}
+
+function lineCard(label, state, detail) {
+  return (
+    `<div class="line-card"><div class="k">${esc(label)}</div>` +
+    `<div class="v state-${esc(state)}">${esc(state)}</div>` +
+    `<div class="d">${esc(detail)}</div></div>`
+  );
+}
+
+// ─── Session actions ───────────────────────────────────────────────────────
+
+function renderActions(log, actions) {
+  if (!actions.length) return;
+  $('actions-section').style.display = '';
+  const tbody = $('actions-tbody');
+  $('total-count').textContent = actions.length;
+  let verified = 0;
+  actions.forEach((a, i) => {
+    const reading = log.actions[i];
+    if (reading.ok) verified++;
+    const tr = document.createElement('tr');
+    tr.className = 'action-row';
+    tr.innerHTML =
+      `<td style="color:var(--text-3);font-family:var(--mono);font-size:11px">${i + 1}</td>` +
+      `<td><div class="action-name">${esc(a.display_name || a.tool_name)}</div>` +
+      `<div class="action-meta">${esc(a.tool_name)} · ${esc(a.category || '—')}` +
+      (a.receipt_id ? ' · carries a receipt' : '') + `</div></td>` +
+      `<td style="font-family:var(--mono);font-size:11px">${esc(a.action_type)}</td>` +
+      `<td><span class="status-dot status-${esc(a.status || 'success')}"></span>` +
+      `<span style="font-family:var(--mono);font-size:11px">${esc(a.status)}</span></td>` +
+      `<td style="text-align:center">` +
+      (reading.ok ? '<span class="check-mark">✓</span>' : '<span class="cross-mark">✗</span>') +
+      `</td>`;
+    const proofTr = document.createElement('tr');
+    proofTr.className = 'proof-row';
+    const proof = a.proof || { siblings: [], directions: [] };
+    proofTr.innerHTML =
+      `<td colspan="5" style="padding:0 12px 16px"><div class="proof-box">` +
+      `<div><span class="label">Recomputed leaf:</span><span class="val ${reading.leaf_matches ? 'ok' : 'bad'}">${esc(reading.computed_leaf)}</span></div>` +
+      `<div><span class="label">Bundle leaf:</span><span class="val">${esc(reading.committed_leaf)}</span></div>` +
+      `<div><span class="label">Proof lands on:</span><span class="val ${reading.proof_ok ? 'ok' : 'bad'}">${esc(reading.derived_root)}</span></div>` +
+      (proof.siblings.length
+        ? `<div style="margin-top:8px"><b>Merkle path</b> (${proof.siblings.length} levels)</div>` +
+          proof.siblings
+            .map(
+              (s, j) =>
+                `<div class="path-step"><span class="dir">${esc(proof.directions[j])}</span>` +
+                `<span class="sib">${esc(s)}</span></div>`,
+            )
+            .join('')
+        : '<div style="margin-top:8px;color:var(--text-3)">A single-leaf tree: the leaf is the root.</div>') +
+      `</div></td>`;
+    tr.onclick = () => proofTr.classList.toggle('open');
+    tbody.appendChild(tr);
+    tbody.appendChild(proofTr);
+  });
+  $('verified-count').textContent = verified;
+}
+
+// ─── Evidence ──────────────────────────────────────────────────────────────
+
+let SESSION_ACTIONS = [];
+
+async function runEvidence(text) {
+  const readings = await verifyEvidence(evidenceRecords(text), SESSION_ACTIONS);
+  const bad = readings.filter((r) => r.verdict === 'bad').length;
+  const good = readings.filter((r) => r.verdict === 'ok').length;
+  const unknown = readings.filter((r) => r.verdict === 'unknown').length;
+  const head =
+    bad === 0 && good > 0
+      ? `<div class="ok" style="margin-bottom:8px">✓ ${good} record(s) match the hashes committed in the tree${unknown ? ` · ${unknown} not in this bundle` : ''}</div>`
+      : `<div class="bad" style="margin-bottom:8px">✗ ${bad} record(s) do not match · ${good} do${unknown ? ` · ${unknown} not in this bundle` : ''}</div>`;
+  $('evidence-results').innerHTML =
+    head +
+    readings
+      .map((r) => {
+        const cls = r.verdict === 'ok' ? 'ok' : r.verdict === 'bad' ? 'bad' : '';
+        const mark = r.verdict === 'ok' ? '✓' : r.verdict === 'bad' ? '✗' : '◦';
+        return `<div class="audit-row"><span class="audit-label">${esc(r.label)}</span><span class="audit-val ${cls}">${mark} ${esc(r.detail)}</span></div>`;
+      })
+      .join('');
+}
+
+// ─── Main ──────────────────────────────────────────────────────────────────
+
+async function run() {
+  const session = BUNDLE.session || null;
+  const actions = Array.isArray(BUNDLE.actions) ? BUNDLE.actions : [];
+  const receipts = Array.isArray(BUNDLE.receipts) ? BUNDLE.receipts : [];
+  SESSION_ACTIONS = actions;
+
+  const whole = await verifyBundle(BUNDLE);
+  const log = whole.log;
+
+  // Header
+  const meta = [];
+  if (session) {
+    $('headline').textContent = session.goal || 'Agent session';
+    meta.push(['Session', String(session.session_id || '').slice(0, 8) + '…']);
+    meta.push(['Agent', session.agent_id || '—']);
+    meta.push(['Actions', actions.length]);
+  }
+  if (receipts.length === 1 && !session) {
+    $('headline').textContent = 'One co-signed payment, and everything behind it';
+  } else if (receipts.length) {
+    meta.push(['Receipts', receipts.length]);
+  }
+  if (BUNDLE.exported_at) meta.push(['Exported', new Date(BUNDLE.exported_at).toLocaleString()]);
+  $('meta').innerHTML = meta
+    .map(([k, v]) => `<span><b>${esc(k)}</b> ${esc(v)}</span>`)
+    .join('');
+  $('footer-time').textContent = 'Verified in your browser at ' + new Date().toLocaleString();
+
+  // Stories, settlement lines and checks, per receipt
+  if (receipts.length) {
+    $('story-section').style.display = '';
+    $('lines-section').style.display = '';
+    $('checks-section').style.display = '';
+    const stories = [];
+    const lines = [];
+    const checkBlocks = [];
+    whole.receipts.forEach((verdict, i) => {
+      const receipt = receipts[i];
+      const heading =
+        receipts.length > 1
+          ? `<div class="section-title" style="margin-top:20px">Receipt ${i + 1} — ${esc(verdict.receipt_id)}</div>`
+          : '';
+      stories.push(heading + cardHtml(verdict, receipt));
+      $('lines-section').style.display = 'none';
+      lines.push(
+        heading +
+          '<div class="lines">' +
+          lineCard(
+            'Transaction authorization',
+            verdict.settlement.transaction_authorization,
+            verdict.settlement.transaction_authorization_detail,
+          ) +
+          lineCard(
+            'Ledger inclusion',
+            verdict.settlement.ledger_inclusion,
+            verdict.settlement.ledger_inclusion_detail,
+          ) +
+          '</div>' +
+          // level_detail already names its level. Prefixing "Level 2." here is
+          // how the page ended up saying it twice in one line.
+          `<div class="level-note"><span class="headline">${esc(verdict.level_detail)}</span>` +
+          `<span class="unchecked">${esc(verdict.verdict_line)}</span></div>`,
+      );
+      checkBlocks.push(
+        heading +
+          checksTable(verdict.checks) +
+          '<details class="more"><summary>The seven leaves, and what each one hashes to</summary>' +
+          leavesHtml(receipt, verdict) +
+          '</details>',
+      );
+    });
+    $('stories').innerHTML = stories.join('');
+    $('lines').innerHTML = lines.join('');
+    $('checks').innerHTML = checkBlocks.join('');
+  }
+
+  // A partial receipt, rendered for what it is
+  let disclosureOk = true;
+  let disclosureComplete = true;
+  const disclosures = Array.isArray(BUNDLE.disclosures)
+    ? BUNDLE.disclosures
+    : BUNDLE.disclosure
+      ? [BUNDLE.disclosure]
+      : [];
+  if (disclosures.length) {
+    $('disclosure-section').style.display = '';
+    $('checks-section').style.display = '';
+    const notes = [];
+    const bodies = [];
+    const tables = [];
+    for (const disclosure of disclosures) {
+      const res = await verifyDisclosure(disclosure, disclosure.root);
+      const shown = (disclosure.leaves || []).length;
+      notes.push(
+        `<p><b>${shown} of ${LEAF_NAMES.length} leaves were disclosed.</b> Each one was ` +
+          'rehashed here and folded back to the receipt root, so what you can read is ' +
+          'provably part of that receipt and provably unedited. The rest are present as ' +
+          'hashes only.</p>' +
+          '<p style="margin-top:8px">This page cannot tell you the root is the right one. ' +
+          `It is <span class="hash">${esc(disclosure.root)}</span> — compare it against the ` +
+          'receipt or the session log the discloser pointed you at.</p>',
+      );
+      bodies.push(disclosureHtml(disclosure));
+      tables.push(checksTable(res.checks));
+      disclosureOk = disclosureOk && res.ok;
+      disclosureComplete = disclosureComplete && res.complete;
+    }
+    $('disclosure-note').innerHTML = notes.join('');
+    $('disclosure-leaves').innerHTML = bodies.join('');
+    $('checks').innerHTML += tables.join('');
+    if (!$('headline').textContent || $('headline').textContent.startsWith('Verifying')) {
+      $('headline').textContent = 'A partial receipt, and the proof it belongs to a whole one';
+    }
+  }
+
+  // Session, log and evidence
+  if (log) {
+    renderActions(log, actions);
+    $('evidence-section').style.display = '';
+    if (!receipts.length) {
+      $('checks-section').style.display = '';
+      $('checks').innerHTML = checksTable(log.result.checks);
+    } else {
+      $('checks').innerHTML += '<div class="section-title" style="margin-top:20px">The session log</div>' + checksTable(log.result.checks);
+    }
+    const audit = BUNDLE.audit_log;
+    const transparency = BUNDLE.transparency || {};
+    const cp = transparency.checkpoint;
+    if (audit || cp) {
+      $('log-section').style.display = '';
+      const rows = [];
+      if (session) rows.push(['Session root', session.root_hash]);
+      if (audit) {
+        rows.push(['Log entry', audit.entry_id]);
+        rows.push(['Sequence', audit.sequence]);
+        rows.push(['Sealed at', audit.sealed_at_iso]);
+        rows.push(['Entry hash', audit.current_hash]);
+        rows.push(['Previous entry', audit.prev_log_hash]);
+      }
+      if (cp) {
+        rows.push(['Checkpoint origin', cp.origin]);
+        rows.push(['Log size', cp.tree_size + ' entries']);
+        rows.push(['Log root', cp.root_hash]);
+        rows.push(['Notary key', cp.public_key]);
+      }
+      $('log-box').innerHTML = rows
+        .map(
+          ([k, v]) =>
+            `<div class="audit-row"><span class="audit-label">${esc(k)}</span><span class="audit-val">${esc(v)}</span></div>`,
+        )
+        .join('');
+    }
+    const anchor = transparency.anchor;
+    if (anchor) {
+      $('anchor-section').style.display = '';
+      const confirmed = anchor.status === 'confirmed';
+      $('anchor-box').innerHTML = [
+        ['Status', confirmed ? '✓ Confirmed in the Bitcoin blockchain' : '◦ Pending — submitted, awaiting the calendar’s next aggregation'],
+        ['Calendar', anchor.calendar],
+        ['Anchored digest', anchor.body_digest],
+        ['Log size', anchor.tree_size + ' entries'],
+        ['Submitted', anchor.submitted_at || '—'],
+        ['Verify yourself', anchor.how_to_verify || ''],
+      ]
+        .map(
+          ([k, v]) =>
+            `<div class="audit-row"><span class="audit-label">${esc(k)}</span><span class="audit-val">${esc(v)}</span></div>`,
+        )
+        .join('');
+    }
+  }
+
+  // Everything nobody checked, named
+  const deferred = [];
+  for (const verdict of whole.receipts) {
+    for (const c of verdict.checks) if (c.status === 'not_implemented') deferred.push([c.name, c.detail]);
+  }
+  if (log) for (const c of log.result.deferred) deferred.push([c.name, c.detail]);
+  if (deferred.length) {
+    $('gaps-section').style.display = '';
+    $('gaps').innerHTML =
+      '<p style="margin-bottom:8px">A check whose inputs are not in this file is reported here by ' +
+      'name. None of these is a failure, and none of them is a pass.</p>' +
+      '<p style="margin-bottom:8px">Most of them are waiting on something you pin rather than ' +
+      'something the discloser sends — deliberately, because material that nominated its own ' +
+      'trust anchors would be checking itself. <code>merkl verify --pcr 0=… --validator ' +
+      'name=key --policy policy.json --admin-key …</code> runs the same checks with yours.</p>' +
+      deferred
+        .map(([n, d]) => `<div class="audit-row"><span class="audit-label" style="min-width:230px">${esc(n)}</span><span class="audit-val">${esc(d)}</span></div>`)
+        .join('');
+  }
+
+  // How to check it yourself
+  $('algo-box').innerHTML =
+    '<p>Everything above was recomputed in your browser from the data embedded in this ' +
+    'file. Nothing was fetched, and no answer came from Merkl.</p>' +
+    '<p style="margin-top:8px">The same checks run from the command line with ' +
+    '<code>pip install merkl-sdk &amp;&amp; merkl verify &lt;this file&gt;</code>, and from ' +
+    'JavaScript with <code>npm i @merkl-ai/verify</code>. Both implementations are held ' +
+    'against the same published test vectors, so if they ever disagreed, one of them would ' +
+    'be wrong — and you can check that too.</p>';
+
+  // The badge
+  const badge = $('global-verdict');
+  const ok = whole.ok && disclosureOk;
+  const complete = whole.complete && disclosureComplete;
+  if (!ok) {
+    badge.textContent = '✗ Contradicted';
+    badge.className = 'verdict-badge failed';
+    $('headline').textContent = 'This record does not hold together';
+  } else if (!complete) {
+    badge.textContent = '✓ Consistent · partly unchecked';
+    badge.className = 'verdict-badge partial';
+  } else {
+    badge.textContent = '✓ Verified';
+    badge.className = 'verdict-badge verified';
+  }
+
+  $('evidence-file').addEventListener('change', async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (file) await runEvidence(await file.text());
+  });
+  $('evidence-paste-btn').addEventListener('click', async () => {
+    const text = $('evidence-paste').value;
+    if (text.trim()) await runEvidence(text);
+  });
+  document.querySelectorAll('.leaf-head').forEach((h) =>
+    h.addEventListener('click', () => h.parentElement.classList.toggle('open')),
+  );
+}
+
+run().catch((e) => {
+  console.error('Verifier error:', e);
+  const badge = $('global-verdict');
+  badge.textContent = 'Verifier error';
+  badge.className = 'verdict-badge failed';
+  $('headline').textContent = String(e && e.message ? e.message : e);
+});
+</script>
+</body>
+</html>

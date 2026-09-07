@@ -72,10 +72,12 @@ def test_session_end_seals_the_session(merkl_env, tmp_path, capture_httpx):  # n
     state = HookState(claude_session_id=claude_sid, session_id=merkl_sid)
     state.save()
 
-    _run_hook_with({
-        "hook_event_name": "SessionEnd",
-        "session_id": claude_sid,
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "SessionEnd",
+            "session_id": claude_sid,
+        }
+    )
 
     seal_calls = [c for c in capture_httpx if "/seal" in c["url"]]
     assert len(seal_calls) == 1, f"expected one /seal call, got {capture_httpx}"
@@ -86,10 +88,12 @@ def test_session_end_without_known_session_is_a_noop(merkl_env, capture_httpx): 
     """If we don't have a Merkl session_id for this Claude Code session
     (e.g. the user never ran a tool), SessionEnd does nothing — no spurious
     create + immediate seal."""
-    _run_hook_with({
-        "hook_event_name": "SessionEnd",
-        "session_id": "claude-sess-unknown",
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "SessionEnd",
+            "session_id": "claude-sess-unknown",
+        }
+    )
     assert capture_httpx == []
 
 
@@ -187,7 +191,9 @@ def test_display_name_search_and_web_tools():
     from merkl.hooks.claude_code import _display_name
 
     assert _display_name("Grep", {"pattern": "foo", "path": "src/pkg"}).startswith("Grep foo")
-    assert _display_name("WebFetch", {"url": "https://example.com/x"}).startswith("Fetched example.com/x")
+    assert _display_name("WebFetch", {"url": "https://example.com/x"}).startswith(
+        "Fetched example.com/x"
+    )
     assert _display_name("Task", {"description": "audit auth"}).startswith("Sub-agent: audit auth")
 
 
@@ -255,13 +261,15 @@ def test_privacy_default_sends_no_payload_text(merkl_env, capture_httpx, tmp_pat
     no command text in display_name, empty previews."""
     monkeypatch.delenv("MERKL_INCLUDE_PREVIEWS", raising=False)
     monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "evidence"))
-    _run_hook_with({
-        "hook_event_name": "PostToolUse",
-        "session_id": "claude-sess-priv",
-        "tool_name": "Bash",
-        "tool_input": {"command": "psql -c 'select * from payments'"},
-        "tool_response": "42 rows\n",
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "PostToolUse",
+            "session_id": "claude-sess-priv",
+            "tool_name": "Bash",
+            "tool_input": {"command": "psql -c 'select * from payments'"},
+            "tool_response": "42 rows\n",
+        }
+    )
     action = [c for c in capture_httpx if "/actions" in c["url"]][0]["json"]
     assert action["display_name"] == "Bash"
     assert action["input_preview"] == ""
@@ -274,13 +282,15 @@ def test_privacy_default_sends_no_payload_text(merkl_env, capture_httpx, tmp_pat
 def test_previews_opt_in_restores_rich_labels(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
     monkeypatch.setenv("MERKL_INCLUDE_PREVIEWS", "1")
     monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "evidence"))
-    _run_hook_with({
-        "hook_event_name": "PostToolUse",
-        "session_id": "claude-sess-verb",
-        "tool_name": "Bash",
-        "tool_input": {"command": "ls -la"},
-        "tool_response": "file.txt\n",
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "PostToolUse",
+            "session_id": "claude-sess-verb",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls -la"},
+            "tool_response": "file.txt\n",
+        }
+    )
     action = [c for c in capture_httpx if "/actions" in c["url"]][0]["json"]
     assert action["display_name"] == "$ ls -la"
     assert action["input_preview"] == "ls -la"
@@ -292,13 +302,15 @@ def test_evidence_log_holds_preimages(merkl_env, capture_httpx, tmp_path, monkey
     from merkl.shared.hashing import canonical_hash
 
     monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "evidence"))
-    _run_hook_with({
-        "hook_event_name": "PostToolUse",
-        "session_id": "claude-sess-evd",
-        "tool_name": "Bash",
-        "tool_input": {"command": "stripe transfer --amount 100"},
-        "tool_response": {"ok": True},
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "PostToolUse",
+            "session_id": "claude-sess-evd",
+            "tool_name": "Bash",
+            "tool_input": {"command": "stripe transfer --amount 100"},
+            "tool_response": {"ok": True},
+        }
+    )
     action = [c for c in capture_httpx if "/actions" in c["url"]][0]["json"]
     files = list((tmp_path / "evidence").glob("*.jsonl"))
     assert len(files) == 1
@@ -313,13 +325,15 @@ def test_evidence_log_holds_preimages(merkl_env, capture_httpx, tmp_path, monkey
 
 def test_evidence_capture_can_be_disabled(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
     monkeypatch.setenv("MERKL_EVIDENCE_DIR", "off")
-    _run_hook_with({
-        "hook_event_name": "PostToolUse",
-        "session_id": "claude-sess-noevd",
-        "tool_name": "Bash",
-        "tool_input": {"command": "ls"},
-        "tool_response": "x",
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "PostToolUse",
+            "session_id": "claude-sess-noevd",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls"},
+            "tool_response": "x",
+        }
+    )
     assert not (Path.home() / ".merkl").exists() or True  # no crash is the contract
     assert len([c for c in capture_httpx if "/actions" in c["url"]]) == 1
 
@@ -331,9 +345,24 @@ def test_infer_goal_skips_synthetic_user_messages(tmp_path, merkl_env):  # noqa:
 
     transcript = tmp_path / "t.jsonl"
     lines = [
-        {"message": {"role": "user", "content": "<local-command-caveat>Caveat: The messages below were generated..."}},
-        {"message": {"role": "user", "content": [{"type": "text", "text": "<command-name>/hooks</command-name>"}]}},
-        {"message": {"role": "user", "content": "<local-command-stdout>Set model to Opus 5</local-command-stdout>"}},
+        {
+            "message": {
+                "role": "user",
+                "content": "<local-command-caveat>Caveat: The messages below were generated...",
+            }
+        },
+        {
+            "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": "<command-name>/hooks</command-name>"}],
+            }
+        },
+        {
+            "message": {
+                "role": "user",
+                "content": "<local-command-stdout>Set model to Opus 5</local-command-stdout>",
+            }
+        },
         {"isMeta": True, "message": {"role": "user", "content": "meta noise"}},
         {"message": {"role": "assistant", "content": "hi"}},
         {"message": {"role": "user", "content": "Fix the billing rate bug"}},
@@ -346,19 +375,21 @@ def test_infer_goal_falls_back_when_only_synthetic(tmp_path, merkl_env):  # noqa
     from merkl.hooks.claude_code import _infer_goal
 
     transcript = tmp_path / "t.jsonl"
-    transcript.write_text(json.dumps(
-        {"message": {"role": "user", "content": "<local-command-caveat>only noise"}}
-    ))
+    transcript.write_text(
+        json.dumps({"message": {"role": "user", "content": "<local-command-caveat>only noise"}})
+    )
     assert _infer_goal(str(transcript)) == "Claude Code session"
 
 
 def test_user_prompt_submit_records_human_input(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
     monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "ev"))
-    _run_hook_with({
-        "hook_event_name": "UserPromptSubmit",
-        "session_id": "claude-sess-prompt",
-        "prompt": "Refund order #4821 and email the customer",
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "claude-sess-prompt",
+            "prompt": "Refund order #4821 and email the customer",
+        }
+    )
     actions = [c for c in capture_httpx if c["url"].endswith("/actions")]
     assert len(actions) == 1
     a = actions[0]["json"]
@@ -372,27 +403,34 @@ def test_user_prompt_submit_records_human_input(merkl_env, capture_httpx, tmp_pa
 
 
 def test_user_prompt_skips_synthetic(merkl_env, capture_httpx):  # noqa: ANN001
-    _run_hook_with({
-        "hook_event_name": "UserPromptSubmit",
-        "session_id": "claude-sess-prompt2",
-        "prompt": "<command-name>/hooks</command-name>",
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "claude-sess-prompt2",
+            "prompt": "<command-name>/hooks</command-name>",
+        }
+    )
     assert [c for c in capture_httpx if c["url"].endswith("/actions")] == []
 
 
-def test_permission_denied_records_blocked_approval(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+def test_permission_denied_records_blocked_approval(  # noqa: ANN001
+    merkl_env, capture_httpx, tmp_path, monkeypatch
+):
     from merkl.hooks.claude_code import HookState
 
     monkeypatch.setenv("MERKL_EVIDENCE_DIR", str(tmp_path / "ev"))
-    state = HookState(claude_session_id="claude-sess-perm",
-                      session_id="019d9999-0000-7000-8000-000000000077")
+    state = HookState(
+        claude_session_id="claude-sess-perm", session_id="019d9999-0000-7000-8000-000000000077"
+    )
     state.save()
-    _run_hook_with({
-        "hook_event_name": "PermissionDenied",
-        "session_id": "claude-sess-perm",
-        "tool_name": "Bash",
-        "tool_input": {"command": "rm -rf /"},
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "PermissionDenied",
+            "session_id": "claude-sess-perm",
+            "tool_name": "Bash",
+            "tool_input": {"command": "rm -rf /"},
+        }
+    )
     actions = [c for c in capture_httpx if c["url"].endswith("/actions")]
     assert len(actions) == 1
     a = actions[0]["json"]
@@ -404,7 +442,9 @@ def test_permission_denied_records_blocked_approval(merkl_env, capture_httpx, tm
     assert "rm -rf" not in json.dumps(a)
 
 
-def test_session_end_commits_transcript_then_seals(merkl_env, capture_httpx, tmp_path, monkeypatch):  # noqa: ANN001
+def test_session_end_commits_transcript_then_seals(  # noqa: ANN001
+    merkl_env, capture_httpx, tmp_path, monkeypatch
+):
     import hashlib
 
     from merkl.hooks.claude_code import HookState
@@ -414,14 +454,17 @@ def test_session_end_commits_transcript_then_seals(merkl_env, capture_httpx, tmp
     transcript.write_text('{"role":"user","content":"hi"}\n')
     expected_digest = hashlib.sha256(transcript.read_bytes()).hexdigest()
 
-    state = HookState(claude_session_id="claude-sess-tx",
-                      session_id="019d9999-0000-7000-8000-000000000088")
+    state = HookState(
+        claude_session_id="claude-sess-tx", session_id="019d9999-0000-7000-8000-000000000088"
+    )
     state.save()
-    _run_hook_with({
-        "hook_event_name": "SessionEnd",
-        "session_id": "claude-sess-tx",
-        "transcript_path": str(transcript),
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "SessionEnd",
+            "session_id": "claude-sess-tx",
+            "transcript_path": str(transcript),
+        }
+    )
     actions = [c for c in capture_httpx if c["url"].endswith("/actions")]
     seals = [c for c in capture_httpx if c["url"].endswith("/seal")]
     assert len(actions) == 1 and len(seals) == 1
@@ -441,14 +484,19 @@ def test_session_end_keeps_session_id_for_resume(merkl_env, capture_httpx, tmp_p
 
     monkeypatch.setenv("MERKL_EVIDENCE_DIR", "off")
     sid = "019d9999-0000-7000-8000-000000000099"
-    state = HookState(claude_session_id="claude-sess-resume", session_id=sid,
-                      turn_id="t1", current_actions=["a-1"], dataflow={"a-1": ["xxxx"]})
+    state = HookState(
+        claude_session_id="claude-sess-resume",
+        session_id=sid,
+        turn_id="t1",
+        current_actions=["a-1"],
+        dataflow={"a-1": ["xxxx"]},
+    )
     state.save()
     _run_hook_with({"hook_event_name": "SessionEnd", "session_id": "claude-sess-resume"})
 
     reloaded = HookState.load("claude-sess-resume")
-    assert reloaded.session_id == sid          # chain identity survives
-    assert reloaded.current_actions == []      # scratch does not
+    assert reloaded.session_id == sid  # chain identity survives
+    assert reloaded.current_actions == []  # scratch does not
     assert reloaded.dataflow == {}
     assert reloaded.turn_id is None
 
@@ -456,6 +504,7 @@ def test_session_end_keeps_session_id_for_resume(merkl_env, capture_httpx, tmp_p
 # ---------------------------------------------------------------------------
 # Multi-notary state isolation, stale-session recovery, goal derivation
 # ---------------------------------------------------------------------------
+
 
 def test_state_file_is_scoped_per_notary(merkl_env, tmp_path, monkeypatch):  # noqa: ANN001
     """Two hooks against different notaries must not share a state file.
@@ -537,13 +586,15 @@ def test_unknown_session_is_reopened_and_the_action_retried(merkl_env, tmp_path,
         current_actions=["a-from-dead-session"],
     ).save()
 
-    _run_hook_with({
-        "hook_event_name": "PostToolUse",
-        "session_id": claude_sid,
-        "tool_name": "Bash",
-        "tool_input": {"command": "ls"},
-        "tool_response": "ok",
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "PostToolUse",
+            "session_id": claude_sid,
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls"},
+            "tool_response": "ok",
+        }
+    )
 
     assert any(c["url"].endswith("/v1/sessions") for c in calls), "session not reopened"
     retry = [c for c in calls if "/sessions/s-fresh/actions" in c["url"]]
@@ -574,13 +625,15 @@ def test_pinned_session_id_is_never_reopened(merkl_env, tmp_path, monkeypatch): 
 
     monkeypatch.setattr(httpx, "post", fake_post)
 
-    _run_hook_with({
-        "hook_event_name": "PostToolUse",
-        "session_id": "claude-sess-pinned",
-        "tool_name": "Bash",
-        "tool_input": {"command": "ls"},
-        "tool_response": "ok",
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "PostToolUse",
+            "session_id": "claude-sess-pinned",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls"},
+            "tool_response": "ok",
+        }
+    )
 
     assert not [u for u in calls if u.endswith("/v1/sessions")]
 
@@ -592,12 +645,14 @@ def test_goal_comes_from_the_prompt_when_transcript_is_empty(merkl_env, capture_
     transcript = tmp_path / "transcript.jsonl"
     transcript.write_text("")
 
-    _run_hook_with({
-        "hook_event_name": "UserPromptSubmit",
-        "session_id": "claude-sess-goal",
-        "transcript_path": str(transcript),
-        "prompt": "Fix the checkpoint signing key rotation. It drops old keys.",
-    })
+    _run_hook_with(
+        {
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "claude-sess-goal",
+            "transcript_path": str(transcript),
+            "prompt": "Fix the checkpoint signing key rotation. It drops old keys.",
+        }
+    )
 
     create = [c for c in capture_httpx if c["url"].endswith("/v1/sessions")]
     assert len(create) == 1

@@ -19,3 +19,23 @@ build/
 .DS_Store
 .idea/
 .vscode/
+
+# Keys, seeds and signer state — never committed (charter: gitignore before generating)
+.merkl/
+*.wallets.json
+*.seed
+*.seeds.json
+signer-keystore/
+signer-state/
+*.keystore.json
+*.key
+approver.key
+receipts/
+
+# merkl demo's output folder (default: ./merkl-demo)
+/merkl-demo/
+
+# Node — the JS suite runs with no dependencies, but npm still writes these
+node_modules/
+package-lock.json
+npm-debug.log*

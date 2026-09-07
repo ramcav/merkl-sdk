@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Parent instance bootstrap. Everything here is *outside* the measurement, so
+# nothing here is trusted — it only has to be correct enough for the enclave to
+# start and reach KMS.
+set -euo pipefail
+
+dnf install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel docker jq
+usermod -aG ne ec2-user
+usermod -aG docker ec2-user
+
+# CPUs and memory are taken from the parent's pool and given to the enclave, so
+# this is a reboot-level decision rather than a runtime one.
+cat >/etc/nitro_enclaves/allocator.yaml <<'ALLOCATOR'
+---
+memory_mib: ${enclave_memory_mb}
+cpu_count: ${enclave_cpu_count}
+ALLOCATOR
+
+systemctl enable --now nitro-enclaves-allocator.service
+systemctl enable --now docker
+
+# The enclave has no network device. vsock-proxy is the only route out, and it
+# is allowlisted to one destination: an enclave that could reach anything else
+# would be an enclave that could exfiltrate what it holds.
+cat >/etc/nitro_enclaves/vsock-proxy.yaml <<'PROXY'
+allowlist:
+- {address: ${kms_endpoint}, port: 443}
+PROXY
+
+cat >/etc/systemd/system/merkl-vsock-proxy.service <<'UNIT'
+[Unit]
+Description=vsock-proxy from the Merkl enclave to KMS
+After=nitro-enclaves-allocator.service
+
+[Service]
+ExecStart=/usr/bin/vsock-proxy ${kms_proxy_port} ${kms_endpoint} 443 --config /etc/nitro_enclaves/vsock-proxy.yaml
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now merkl-vsock-proxy.service
+
+mkdir -p /var/lib/merkl
+chmod 0700 /var/lib/merkl
+
+# The enclave image and the parent container are not fetched here. Deliberately:
+# what runs inside the enclave is the thing whose measurements the KMS key policy
+# names, so it is placed by a deployment step somebody signed off on, not by a
+# script that pulls a tag. See nitro/README.md for the runbook.
+echo "instance ready — place merkl-signer.eif in /opt/merkl and run the runbook" >/var/log/merkl-bootstrap.log

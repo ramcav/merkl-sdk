@@ -20,15 +20,42 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest tests/ -x -q
 
-  lint:
-    # Advisory until the ruff backlog is cleared; then drop continue-on-error.
+  # One spec, one vector set, two implementations (plan D7). The JavaScript
+  # verifier runs against the same committed fixtures the Python suite reads, so
+  # a divergence between them fails here rather than in an auditor's browser.
+  javascript:
     runs-on: ubuntu-latest
-    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # `node --test` only takes a glob from 21 on; 20 read the pattern as a path.
+          node-version: "22"
+      - name: Verify against the committed vectors
+        run: npm test
+
+  # The fixtures are generated, not hand-written. A stale file means one of the
+  # two implementations is being tested against the wrong answer.
+  vectors:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: ruff check merkl/
-      - run: ruff format --check merkl/
+      - run: python -m merkl.core.vectors.generate --check
+      - run: python -m merkl.core.vectors.attestation.generate --check
+      - run: python -m merkl.core.vectors.bundles.generate --check
+      - run: python -m merkl.core.vectors.xrpl.generate --check
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check merkl/ tests/
+      - run: ruff format --check merkl/ tests/

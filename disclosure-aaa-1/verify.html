@@ -1,0 +1,3434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merkl — Proof verifier</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F7F5F2;
+    --surface: #FFFFFF;
+    --border: #E5E3DF;
+    --border-light: #F0EDEA;
+    --text: #0A0A0A;
+    --text-2: #4A4846;
+    --text-3: #9B9896;
+    --accent: #FF3B00;
+    --green: #00A85A;
+    --red: #E0220B;
+    --yellow: #D97706;
+    --mono: 'Courier New', Courier, monospace;
+    --serif: Georgia, 'Times New Roman', serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* Header */
+  .header { border-bottom: 2px solid var(--text); padding-bottom: 24px; margin-bottom: 32px; }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+  .brand { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); }
+  .verdict-badge { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 16px; border-radius: 4px; white-space: nowrap; }
+  .verdict-badge.verified { background: var(--green); color: #fff; }
+  .verdict-badge.failed { background: var(--red); color: #fff; }
+  .verdict-badge.partial { background: var(--yellow); color: #fff; }
+  .verdict-badge.pending { background: var(--border); color: var(--text-2); }
+  h1 { font-family: var(--serif); font-size: 28px; font-weight: 400; line-height: 1.3; margin-bottom: 12px; }
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+  .meta-row span { display: flex; gap: 6px; align-items: center; }
+
+  /* Sections */
+  .section { margin-bottom: 32px; }
+  .section-title { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+  /* The story, in sentences */
+  .story { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 0; }
+  .story-line { display: flex; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--border-light); align-items: baseline; }
+  .story-line:last-child { border-bottom: none; }
+  .story-label { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); min-width: 130px; flex-shrink: 0; }
+  .story-text { font-size: 15px; line-height: 1.55; }
+  .story-line.absent .story-text { color: var(--text-3); font-style: italic; }
+  .story-line.loud { background: rgba(224,34,11,0.05); }
+  .story-line.loud .story-text { color: var(--red); font-weight: 600; }
+  .story-line.testimony .story-text { color: var(--text-2); font-size: 13px; }
+
+  /* Two settlement lines + level */
+  .lines { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .lines { grid-template-columns: 1fr; } }
+  .line-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
+  .line-card .k { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+  .line-card .v { font-family: var(--mono); font-size: 15px; font-weight: 700; margin: 4px 0 6px; }
+  .line-card .d { font-size: 12px; color: var(--text-2); }
+  .v.state-verified, .v.state-proven-offline { color: var(--green); }
+  .v.state-contradicted { color: var(--red); }
+  .v.state-absent, .v.state-unchecked, .v.state-supplied-unverified { color: var(--yellow); }
+  .v.state-verified-live { color: var(--yellow); }
+  .level-note { margin-top: 12px; background: var(--surface); border-left: 3px solid var(--accent); padding: 12px 16px; font-size: 13px; color: var(--text-2); }
+
+  /* Checks */
+  table.checks { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+  table.checks th { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  table.checks td { padding: 8px 12px; border-bottom: 1px solid var(--border-light); vertical-align: top; font-size: 12px; }
+  table.checks tr:last-child td { border-bottom: none; }
+  td.cname { font-family: var(--mono); font-size: 11px; white-space: nowrap; color: var(--text-2); }
+  td.cstate { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .ok { color: var(--green); } .bad { color: var(--red); } .unknown { color: var(--text-3); }
+  td.cdetail { color: var(--text-2); word-break: break-word; }
+
+  /* Leaves */
+  .leaf { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px; overflow: hidden; }
+  .leaf-head { display: flex; align-items: baseline; gap: 12px; padding: 10px 14px; cursor: pointer; }
+  .leaf-index { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+  .leaf-name { font-weight: 600; min-width: 150px; }
+  .leaf-plain { color: var(--text-2); font-size: 13px; flex: 1; }
+  .leaf-state { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .leaf-body { padding: 0 14px 12px; border-top: 1px solid var(--border-light); display: none; }
+  .leaf.open .leaf-body { display: block; }
+  .leaf-body pre { font-family: var(--mono); font-size: 11px; white-space: pre-wrap; word-break: break-all; color: var(--text-2); margin-top: 8px; }
+  .hash { font-family: var(--mono); font-size: 11px; color: var(--text-3); word-break: break-all; }
+
+  /* Actions table */
+  .actions-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+  .actions-table th { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .actions-table td { padding: 12px; border-bottom: 1px solid var(--border-light); vertical-align: top; }
+  .actions-table tr.action-row:hover td { background: rgba(0,0,0,0.02); cursor: pointer; }
+  .action-name { font-weight: 600; margin-bottom: 2px; }
+  .action-meta { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
+  .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+  .status-success { background: var(--green); }
+  .status-failed, .status-blocked { background: var(--red); }
+  .status-pending { background: var(--yellow); }
+  .check-mark { color: var(--green); font-size: 14px; }
+  .cross-mark { color: var(--red); font-size: 14px; }
+  .proof-row { display: none; }
+  .proof-row.open { display: table-row; }
+  .proof-box { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 14px 16px; font-family: var(--mono); font-size: 11px; line-height: 1.9; }
+  .proof-box .label { color: var(--text-3); display: inline-block; width: 130px; }
+  .proof-box .val { word-break: break-all; }
+  .path-step { display: flex; gap: 8px; align-items: flex-start; }
+  .path-step .dir { color: var(--accent); min-width: 44px; }
+  .path-step .sib { color: var(--text-2); word-break: break-all; }
+
+  /* Boxes */
+  .audit-box { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 16px 18px; font-family: var(--mono); font-size: 11px; line-height: 2.0; }
+  .audit-row { display: flex; gap: 8px; }
+  .audit-label { color: var(--text-3); min-width: 150px; flex-shrink: 0; }
+  .audit-val { word-break: break-all; color: var(--text-2); }
+  .info-box { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-size: 13px; color: var(--text-2); line-height: 1.7; }
+  .warn-box { background: var(--surface); border-left: 3px solid var(--yellow); padding: 12px 16px; font-size: 13px; color: var(--text-2); line-height: 1.7; }
+
+  details.more { margin-top: 10px; }
+  details.more > summary { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); cursor: pointer; padding: 4px 0; }
+  details.more[open] > summary { color: var(--text-2); }
+
+  .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-3); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-top">
+      <span class="brand">Merkl — Proof Verifier</span>
+      <span class="verdict-badge pending" id="global-verdict">Checking…</span>
+    </div>
+    <h1 id="headline">Verifying this record in your browser…</h1>
+    <div class="meta-row" id="meta"></div>
+  </div>
+
+  <!-- What happened, in sentences. No hashes above this fold. -->
+  <div class="section" id="story-section" style="display:none">
+    <div class="section-title">What happened</div>
+    <div id="stories"></div>
+  </div>
+
+  <!-- The two settlement lines and the level -->
+  <div class="section" id="lines-section" style="display:none">
+    <div class="section-title">What settled, and how far this page could check it</div>
+    <div id="lines"></div>
+  </div>
+
+  <!-- Selective disclosure -->
+  <div class="section" id="disclosure-section" style="display:none">
+    <div class="section-title">A partial receipt</div>
+    <div class="warn-box" id="disclosure-note"></div>
+    <div id="disclosure-leaves" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Every check, by name -->
+  <div class="section" id="checks-section" style="display:none">
+    <div class="section-title">Every check this page ran</div>
+    <div id="checks"></div>
+  </div>
+
+  <!-- Session actions -->
+  <div class="section" id="actions-section" style="display:none">
+    <div class="section-title">The session this belongs to — <span id="verified-count"></span> of <span id="total-count"></span> actions verified</div>
+    <table class="actions-table">
+      <thead><tr><th>#</th><th>Action</th><th>Type</th><th>Status</th><th style="text-align:center">Proof</th></tr></thead>
+      <tbody id="actions-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Transparency log -->
+  <div class="section" id="log-section" style="display:none">
+    <div class="section-title">Transparency log</div>
+    <div class="audit-box" id="log-box"></div>
+  </div>
+
+  <!-- Bitcoin anchor -->
+  <div class="section" id="anchor-section" style="display:none">
+    <div class="section-title">Bitcoin anchor</div>
+    <div class="audit-box" id="anchor-box"></div>
+  </div>
+
+  <!-- Evidence -->
+  <div class="section" id="evidence-section" style="display:none">
+    <div class="section-title">Evidence verification</div>
+    <div class="info-box">
+      <p style="margin:0 0 10px 0">The notary stores only hashes. If the operator disclosed an
+      evidence file (<code>.jsonl</code>) for this session, drop it here: each record's raw
+      input and output is re-hashed <em>in your browser</em> and matched against the hashes
+      committed in the leaves above. A tampered or fabricated record cannot match.</p>
+      <input type="file" id="evidence-file" accept=".jsonl,.json,application/json" />
+      <div style="margin:10px 0 4px 0; color:var(--text-3); font-size:12px">…or paste one or more records, one JSON object per line:</div>
+      <textarea id="evidence-paste" rows="3" spellcheck="false" style="width:100%; font-family:var(--mono); font-size:11px; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text-2)"></textarea>
+      <button id="evidence-paste-btn" style="margin-top:6px; padding:6px 14px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text-2); cursor:pointer">Verify pasted records</button>
+      <div id="evidence-results" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- What nobody checked -->
+  <div class="section" id="gaps-section" style="display:none">
+    <div class="section-title">What this page could not check</div>
+    <div class="warn-box" id="gaps"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">How to check this yourself</div>
+    <div class="info-box" id="algo-box"></div>
+  </div>
+
+  <div class="footer">
+    <span>Merkl — the truth layer for AI agents</span>
+    <span id="footer-time"></span>
+  </div>
+
+</div>
+
+<script>
+const BUNDLE = {"version": "1.2", "session": null, "actions": [], "receipts": [], "disclosed_action_id": "aaa-1"};
+
+/**
+ * @merkl/verify — the JavaScript half of Merkl's verification.
+ *
+ * One normative spec, one vector set, two implementations (plan D7). Everything
+ * here has a counterpart in `merkl.core.verify`, computes the same bytes, reports
+ * the same check names and produces the same verdicts over the same fixtures in
+ * `merkl/core/vectors/`. A divergence between the two is a bug in one of them; it
+ * is never "a difference between the Python and the JavaScript".
+ *
+ * No dependencies. Web Crypto only, so the same file runs in a browser opening
+ * verify.html offline and under `node --test` in CI. Nothing here reads a clock:
+ * `now` is an argument everywhere, because a reader's clock is not evidence and a
+ * verifier that consults one cannot be checked against a fixture.
+ *
+ * Layout, in the order a reader needs it:
+ *
+ *   1. bytes, hex, base64            8. approvals (WebAuthn, Ed25519)
+ *   2. canonical JSON                9. CBOR (the attestation profile)
+ *   3. checks and results           10. DER / X.509 (four fields, exactly)
+ *   4. Merkle folds                 11. attestation documents
+ *   5. session log encodings        12. settlement proofs
+ *   6. receipt tree                 13. the receipt verdict
+ *   7. signatures                   14. the bundle
+ */
+
+// ─── 1. bytes, hex, base64 ──────────────────────────────────────────────────
+
+const TE = new TextEncoder();
+
+function utf8(s) {
+  return TE.encode(String(s));
+}
+
+function toHex(bytes) {
+  let out = '';
+  for (const b of bytes) out += b.toString(16).padStart(2, '0');
+  return out;
+}
+
+function fromHex(hex) {
+  const s = String(hex ?? '');
+  if (s.length % 2 !== 0 || /[^0-9a-fA-F]/.test(s)) return null;
+  const out = new Uint8Array(s.length / 2);
+  for (let i = 0; i < s.length; i += 2) out[i >> 1] = parseInt(s.slice(i, i + 2), 16);
+  return out;
+}
+
+/** Hex that must parse. Throws, for callers that already checked the shape. */
+function hexBytes(hex, what = 'value') {
+  const raw = fromHex(hex);
+  if (raw === null) throw new Error(`${what} is not hex`);
+  return raw;
+}
+
+function concatBytes(arrays) {
+  let total = 0;
+  for (const a of arrays) total += a.length;
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const a of arrays) {
+    out.set(a, off);
+    off += a.length;
+  }
+  return out;
+}
+
+function bytesEqual(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
+function fromBase64(value) {
+  const clean = String(value ?? '').replace(/\s+/g, '');
+  try {
+    if (typeof atob === 'function') {
+      const bin = atob(clean);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+    return new Uint8Array(Buffer.from(clean, 'base64'));
+  } catch {
+    return null;
+  }
+}
+
+function fromBase64Url(value) {
+  const s = String(value ?? '')
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  return fromBase64(s + '='.repeat((4 - (s.length % 4)) % 4));
+}
+
+/** Big-endian unsigned integer of `size` bytes. */
+function uintBE(value, size) {
+  const out = new Uint8Array(size);
+  let v = BigInt(value);
+  for (let i = size - 1; i >= 0; i--) {
+    out[i] = Number(v & 0xffn);
+    v >>= 8n;
+  }
+  return out;
+}
+
+async function sha256(data) {
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+}
+
+async function sha512Half(data) {
+  const full = new Uint8Array(await crypto.subtle.digest('SHA-512', data));
+  return full.slice(0, 32);
+}
+
+const NUL_BYTE = new Uint8Array([0]);
+const NUL_CHAR = String.fromCharCode(0);
+
+// ─── 2. canonical JSON ──────────────────────────────────────────────────────
+
+/**
+ * A byte-exact port of `merkl.shared.hashing.canonical_bytes`.
+ *
+ * Python side: `json.dumps(v, sort_keys=True, default=str, separators=(",", ":"))`
+ * with `ensure_ascii`. Every character outside 0x20-0x7E becomes a lowercase
+ * `\uXXXX` escape and keys sort. This is *the* place where two implementations
+ * silently disagree, so it is reproduced escape by escape rather than delegated
+ * to `JSON.stringify`.
+ *
+ * Known edge: keys are sorted by UTF-16 code unit here and by code point in
+ * Python, which differ only for astral-plane keys. Receipt content is a
+ * restricted subset that has never held one; if that changes, this is the line.
+ */
+const JSON_SHORT = { 8: '\\b', 9: '\\t', 10: '\\n', 12: '\\f', 13: '\\r', 34: '\\"', 92: '\\\\' };
+
+function pythonJsonString(s) {
+  let out = '"';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (JSON_SHORT[c]) out += JSON_SHORT[c];
+    else if (c < 0x20 || c > 0x7e) out += '\\u' + c.toString(16).padStart(4, '0');
+    else out += s[i];
+  }
+  return out + '"';
+}
+
+function canonicalJson(value) {
+  if (value === null || value === undefined) return 'null';
+  const t = typeof value;
+  if (t === 'boolean') return value ? 'true' : 'false';
+  if (t === 'number') return JSON.stringify(value);
+  if (t === 'string') return pythonJsonString(value);
+  if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
+  return (
+    '{' +
+    Object.keys(value)
+      .sort()
+      .map((k) => pythonJsonString(k) + ':' + canonicalJson(value[k]))
+      .join(',') +
+    '}'
+  );
+}
+
+async function canonicalHashHex(value) {
+  return toHex(await sha256(utf8(canonicalJson(value))));
+}
+
+// ─── 3. checks and results ──────────────────────────────────────────────────
+
+const PASS = 'pass';
+const FAIL = 'fail';
+const NOT_IMPLEMENTED = 'not_implemented';
+
+function check(name, status, detail = '') {
+  return { name, status, detail };
+}
+
+/** A check that ran: pass or fail, never anything in between. */
+function outcome(name, passed, detail = '') {
+  return check(name, passed ? PASS : FAIL, detail);
+}
+
+/**
+ * A check whose inputs are not there. Not a pass — the absence of data is never
+ * reported as agreement.
+ */
+function noData(name, detail) {
+  return check(name, NOT_IMPLEMENTED, detail);
+}
+
+function result(checks) {
+  const list = checks.slice();
+  return {
+    checks: list,
+    get ok() {
+      return !list.some((c) => c.status === FAIL);
+    },
+    get complete() {
+      return !list.some((c) => c.status === NOT_IMPLEMENTED);
+    },
+    get failures() {
+      return list.filter((c) => c.status === FAIL);
+    },
+    get deferred() {
+      return list.filter((c) => c.status === NOT_IMPLEMENTED);
+    },
+    get(name) {
+      return list.find((c) => c.name === name) ?? null;
+    },
+  };
+}
+
+function replaceCheck(checks, name, replacement) {
+  const i = checks.findIndex((c) => c.name === name);
+  if (i === -1) checks.push(replacement);
+  else checks[i] = replacement;
+}
+
+function insertBefore(checks, name, extra) {
+  const i = checks.findIndex((c) => c.name === name);
+  if (i === -1) checks.push(...extra);
+  else checks.splice(i, 0, ...extra);
+}
+
+// ─── 4. Merkle folds ────────────────────────────────────────────────────────
+
+/** `SHA-256(left || right)` over raw 32-byte digests. The only interior rule. */
+async function hashPair(left, right) {
+  return sha256(concatBytes([left, right]));
+}
+
+/** Fold a leaf up a path of siblings and directions. Null when malformed. */
+async function deriveRoot(leafHex, siblings, directions) {
+  let current = fromHex(leafHex);
+  if (current === null || current.length !== 32) return null;
+  if (!Array.isArray(siblings) || !Array.isArray(directions)) return null;
+  if (siblings.length !== directions.length) return null;
+  for (let i = 0; i < siblings.length; i++) {
+    const sibling = fromHex(siblings[i]);
+    if (sibling === null || sibling.length !== 32) return null;
+    if (directions[i] === 'left') current = await hashPair(sibling, current);
+    else if (directions[i] === 'right') current = await hashPair(current, sibling);
+    else return null;
+  }
+  return toHex(current);
+}
+
+/** Merkl's tree: pad to the next power of two by repeating the last leaf. */
+async function merkleRoot(leafHexes) {
+  if (!leafHexes.length) return null;
+  let level = leafHexes.map((h) => fromHex(h));
+  if (level.some((l) => l === null || l.length !== 32)) return null;
+  let size = 1;
+  while (size < level.length) size *= 2;
+  while (level.length < size) level.push(level[level.length - 1]);
+  while (level.length > 1) {
+    const next = [];
+    for (let i = 0; i < level.length; i += 2) next.push(await hashPair(level[i], level[i + 1]));
+    level = next;
+  }
+  return toHex(level[0]);
+}
+
+// ─── 5. session log encodings (merkl-api/docs/SPEC.md, frozen) ──────────────
+
+const ACTION_LEAF_TAG = utf8('merkl-leaf-v1');
+const BINDING_TAG = utf8('merkl-binding-v1');
+const ENTRY_TAG = utf8('merkl-entry-v1');
+
+/**
+ * `merkl-leaf-v1`. Two fields decide whether a non-Python verifier agrees:
+ * `drift_score` is Python's `str()` of the float — take `drift_score_str` when
+ * the bundle carries it, because JSON parsing has already destroyed `"0.0"` —
+ * and `timestamp` is the exact string that was transmitted, never re-rendered
+ * from a Date.
+ */
+async function actionLeafHash(action) {
+  const drift =
+    action.drift_score_str !== undefined && action.drift_score_str !== null
+      ? String(action.drift_score_str)
+      : String(action.drift_score ?? 0);
+  const fields = [
+    String(action.action_id ?? ''),
+    String(action.session_id ?? ''),
+    String(action.action_type ?? ''),
+    String(action.tool_name ?? ''),
+    String(action.input_hash ?? ''),
+    String(action.output_hash ?? ''),
+    String(action.timestamp ?? ''),
+    drift,
+    String(action.guardrail_result ?? ''),
+    String(action.display_name ?? ''),
+    (action.depends_on ?? []).map(String).slice().sort().join(','),
+    String(action.status ?? 'success'),
+    String(action.category ?? ''),
+  ];
+  const body = concatBytes([ACTION_LEAF_TAG, NUL_BYTE, utf8(fields.join(NUL_CHAR))]);
+  return toHex(await sha256(body));
+}
+
+/** `SHA-256("merkl-binding-v1" || NUL || parent_id || parent_root || reason)`. */
+async function bindingLeafHash(parentSessionId, parentRoot, reason) {
+  const root = fromHex(parentRoot);
+  if (root === null) return null;
+  const body = concatBytes([BINDING_TAG, NUL_BYTE, utf8(parentSessionId), root, utf8(reason)]);
+  return toHex(await sha256(body));
+}
+
+function uuidBytes(value) {
+  return fromHex(String(value ?? '').replace(/-/g, ''));
+}
+
+/** The audit-log entry hash. Counts are eight-byte big-endian; hashes are raw. */
+async function auditEntryHash(entry) {
+  const workspace = uuidBytes(entry.workspace_id);
+  const root = fromHex(entry.session_root);
+  const prev = fromHex(entry.prev_log_hash);
+  if (!workspace || workspace.length !== 16 || !root || !prev) return null;
+  const body = concatBytes([
+    ENTRY_TAG,
+    NUL_BYTE,
+    workspace,
+    utf8(entry.session_id),
+    root,
+    uintBE(entry.leaf_count, 8),
+    utf8(entry.sealed_at_iso),
+    uintBE(entry.sequence, 8),
+    prev,
+  ]);
+  return toHex(await sha256(body));
+}
+
+/** RFC 6962 leaf: `SHA-256(0x00 || entry_hash)`. */
+async function rfc6962Leaf(entryHash) {
+  const raw = fromHex(entryHash);
+  if (raw === null) return null;
+  return sha256(concatBytes([new Uint8Array([0]), raw]));
+}
+
+async function rfc6962Node(left, right) {
+  return sha256(concatBytes([new Uint8Array([1]), left, right]));
+}
+
+/** RFC 9162 section 2.1.3.2 inclusion verification. Returns `{ok, detail}`. */
+async function verifyLogInclusion(inclusion) {
+  const leaf = await rfc6962Leaf(inclusion?.entry_hash);
+  if (leaf === null) return { ok: false, detail: 'the entry hash is not hex' };
+  if (toHex(leaf) !== String(inclusion.leaf_hash)) {
+    return { ok: false, detail: 'the log leaf is not SHA-256(0x00 || entry_hash)' };
+  }
+  let fn = Number(inclusion.sequence);
+  let sn = Number(inclusion.tree_size) - 1;
+  const path = Array.isArray(inclusion.path) ? inclusion.path : null;
+  if (!Number.isInteger(fn) || !Number.isInteger(sn) || path === null) {
+    return { ok: false, detail: 'the inclusion proof is malformed' };
+  }
+  if (fn < 0 || fn > sn) {
+    return { ok: false, detail: `sequence ${fn} is outside a tree of size ${sn + 1}` };
+  }
+  let node = leaf;
+  for (const sibling of path) {
+    if (sn === 0) return { ok: false, detail: 'the path is longer than the tree is deep' };
+    const raw = fromHex(sibling);
+    if (raw === null) return { ok: false, detail: 'a path element is not hex' };
+    if (fn % 2 === 1 || fn === sn) {
+      node = await rfc6962Node(raw, node);
+      while (fn % 2 === 0 && fn !== 0) {
+        fn = Math.floor(fn / 2);
+        sn = Math.floor(sn / 2);
+      }
+    } else {
+      node = await rfc6962Node(node, raw);
+    }
+    fn = Math.floor(fn / 2);
+    sn = Math.floor(sn / 2);
+  }
+  if (sn !== 0) return { ok: false, detail: 'the path ended before the root' };
+  const root = String(inclusion.root_hash ?? '');
+  return {
+    ok: toHex(node) === root,
+    detail: `the entry folds to ${toHex(node)}, the log root is ${root}`,
+  };
+}
+
+/** The signed note must claim the tree size and root the bundle states. */
+function checkpointBodyMatches(checkpoint) {
+  const body = checkpoint?.body;
+  if (typeof body !== 'string') return { ok: false, detail: 'the checkpoint carries no body' };
+  const lines = body.split('\n');
+  if (lines.length < 3) return { ok: false, detail: 'the signed note has fewer than three lines' };
+  if (lines[0] !== String(checkpoint.origin ?? '')) {
+    return { ok: false, detail: `the body's origin is ${JSON.stringify(lines[0])}` };
+  }
+  if (lines[1] !== String(checkpoint.tree_size ?? '')) {
+    return { ok: false, detail: `the body's tree size is ${JSON.stringify(lines[1])}` };
+  }
+  const root = fromBase64(lines[2]);
+  if (root === null) return { ok: false, detail: "the body's root is not base64" };
+  const claimed = String(checkpoint.root_hash ?? '');
+  return {
+    ok: toHex(root) === claimed,
+    detail: `the body claims root ${toHex(root)}, the bundle states ${claimed}`,
+  };
+}
+
+// ─── 6. receipt tree ────────────────────────────────────────────────────────
+
+const RECEIPT_LEAF_TAG = utf8('merkl-receipt-leaf-v1');
+const RECEIPT_VERSION = 'merkl-receipt-v1';
+
+const LEAF_NAMES = [
+  'instruction',
+  'intent',
+  'policy_decision',
+  'signer_attestation',
+  'settlement',
+  'result',
+  'reasoning',
+];
+
+const REQUIRED_LEAVES = ['instruction', 'intent', 'policy_decision'];
+
+/**
+ * `SHA-256("merkl-receipt-leaf-v1" || NUL || leaf_name || NUL || canonical(content))`.
+ * Absent content is the literal `null`, so a receipt with no attestation still
+ * commits to *having* none.
+ */
+async function receiptLeafHash(name, content) {
+  const body = utf8(canonicalJson(content === undefined ? null : content));
+  return toHex(await sha256(concatBytes([RECEIPT_LEAF_TAG, NUL_BYTE, utf8(name), NUL_BYTE, body])));
+}
+
+async function foldFour(hexes) {
+  const a = await hashPair(hexBytes(hexes[0]), hexBytes(hexes[1]));
+  const b = await hashPair(hexBytes(hexes[2]), hexBytes(hexes[3]));
+  return toHex(await hashPair(a, b));
+}
+
+async function buildLeft(leafHashes) {
+  return foldFour(leafHashes.slice(0, 4));
+}
+
+async function buildRight(leafHashes) {
+  return foldFour(leafHashes.slice(4, 8));
+}
+
+async function buildRoot(left, right) {
+  return toHex(await hashPair(hexBytes(left), hexBytes(right)));
+}
+
+/**
+ * `LEFT_pre` — the digest approvers sign (spec section 3.2).
+ *
+ * LEFT over leaves 0-3 with leaf 2's `escalation` omitted and `outcome` forced
+ * to `escalate`. Those two edits are exactly what resolving an escalation
+ * changes, which is what lets a reader holding only the finished receipt check
+ * that the approvers signed *this* payment and not another one.
+ */
+async function escalationChallenge(contents) {
+  if (!Array.isArray(contents) || contents.length < 4) return null;
+  const decision = contents[2];
+  if (decision === null || typeof decision !== 'object' || Array.isArray(decision)) return null;
+  const pre = {};
+  for (const k of Object.keys(decision)) if (k !== 'escalation') pre[k] = decision[k];
+  pre.outcome = 'escalate';
+  const head = [contents[0], contents[1], pre, contents[3]];
+  const hashes = [];
+  for (let i = 0; i < 4; i++) hashes.push(await receiptLeafHash(LEAF_NAMES[i], head[i]));
+  return foldFour(hashes);
+}
+
+// ─── 7. signatures ──────────────────────────────────────────────────────────
+
+/**
+ * Ed25519 over Web Crypto. Returns `true`, `false`, or `null` when this runtime
+ * has no Ed25519 — which some browsers still do not. `null` becomes a named
+ * `not_implemented` check upstream, never a quiet pass.
+ */
+async function ed25519Verify(publicKeyHex, signatureHex, message) {
+  const key = fromHex(publicKeyHex);
+  const sig = fromHex(signatureHex);
+  if (!key || key.length !== 32 || !sig || sig.length !== 64) return false;
+  try {
+    const imported = await crypto.subtle.importKey('raw', key, { name: 'Ed25519' }, false, [
+      'verify',
+    ]);
+    return await crypto.subtle.verify({ name: 'Ed25519' }, imported, sig, message);
+  } catch (e) {
+    if (e && (e.name === 'NotSupportedError' || /unsupported|unrecognized/i.test(String(e)))) {
+      return null;
+    }
+    return false;
+  }
+}
+
+/** DER `SEQUENCE {r INTEGER, s INTEGER}` to the fixed-width `r || s` Web Crypto wants. */
+function derSignatureToRaw(der, size) {
+  if (!der || der.length < 8 || der[0] !== 0x30) return null;
+  let i = 1;
+  let len = der[i++];
+  if (len & 0x80) {
+    const n = len & 0x7f;
+    if (n < 1 || n > 2) return null;
+    len = 0;
+    for (let k = 0; k < n; k++) len = (len << 8) | der[i++];
+  }
+  const out = new Uint8Array(size * 2);
+  for (const half of [0, 1]) {
+    if (der[i++] !== 0x02) return null;
+    const ilen = der[i++];
+    if (ilen & 0x80) return null;
+    let value = der.subarray(i, i + ilen);
+    i += ilen;
+    while (value.length && value[0] === 0x00) value = value.subarray(1);
+    if (value.length > size) return null;
+    out.set(value, half * size + (size - value.length));
+  }
+  return out;
+}
+
+async function ecdsaVerify(spki, curve, hash, signatureRaw, message) {
+  const key = await crypto.subtle.importKey(
+    'spki',
+    spki,
+    { name: 'ECDSA', namedCurve: curve },
+    false,
+    ['verify'],
+  );
+  return crypto.subtle.verify({ name: 'ECDSA', hash }, key, signatureRaw, message);
+}
+
+const P256_SPKI_PREFIX = new Uint8Array([
+  0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a,
+  0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03, 0x42, 0x00,
+]);
+
+/** ECDSA P-256 / SHA-256 over an uncompressed SEC1 point and a DER signature. */
+async function p256Verify(publicKeyHex, derSignatureHex, message) {
+  const point = fromHex(publicKeyHex);
+  const der = fromHex(derSignatureHex);
+  if (!point || point.length !== 65 || point[0] !== 0x04 || !der) return false;
+  const raw = derSignatureToRaw(der, 32);
+  if (raw === null) return false;
+  try {
+    return await ecdsaVerify(
+      concatBytes([P256_SPKI_PREFIX, point]),
+      'P-256',
+      'SHA-256',
+      raw,
+      message,
+    );
+  } catch {
+    return false;
+  }
+}
+
+// ─── 8. approvals (plan D11, spec section 3.3) ─────────────────────────────
+
+const WEBAUTHN_GET = 'webauthn.get';
+const FLAG_USER_PRESENT = 0x01;
+const FLAG_USER_VERIFIED = 0x04;
+
+function effectiveRpId(credential) {
+  if (credential.rp_id) return credential.rp_id;
+  for (const origin of credential.origins ?? []) {
+    const host = String(origin).split('://').pop().split('/')[0].split(':')[0];
+    if (host) return host;
+  }
+  return null;
+}
+
+/**
+ * One assertion against one credential and one challenge.
+ *
+ * Never throws for a bad signature or a mismatched origin: those are findings,
+ * reported next to the approvals that did count. Returns
+ * `{approver_id, valid, detail}`.
+ */
+async function verifyAssertion(assertion, challengeBytes, credential) {
+  const no = (detail) => ({ approver_id: assertion?.approver_id ?? '', valid: false, detail });
+  if (!assertion || !credential) return no('assertion or credential missing');
+  if (assertion.approver_id !== credential.id) {
+    return no(
+      `assertion names ${JSON.stringify(assertion.approver_id)}, credential is ` +
+        `${JSON.stringify(credential.id)}`,
+    );
+  }
+  if (assertion.credential_type !== credential.credential_type) {
+    return no(
+      `policy registers ${credential.id} as ${credential.credential_type}, ` +
+        `assertion is ${assertion.credential_type}`,
+    );
+  }
+  if (!challengeBytes || challengeBytes.length !== 32) return no('challenge must be 32 bytes');
+
+  if (assertion.credential_type === 'ed25519') {
+    const ok = await ed25519Verify(credential.public_key, assertion.signature, challengeBytes);
+    if (ok === null) {
+      return {
+        approver_id: assertion.approver_id,
+        valid: false,
+        detail: 'this runtime has no Ed25519 in Web Crypto, so the assertion is unchecked',
+        unsupported: true,
+      };
+    }
+    return {
+      approver_id: assertion.approver_id,
+      valid: ok,
+      detail: ok ? 'ed25519 signature over the challenge' : 'ed25519 signature does not verify',
+    };
+  }
+
+  const clientDataBytes = fromHex(assertion.client_data_json);
+  const authenticatorData = fromHex(assertion.authenticator_data);
+  if (!clientDataBytes || !authenticatorData) {
+    return no('clientDataJSON and authenticatorData must both be hex');
+  }
+  let clientData;
+  try {
+    clientData = JSON.parse(new TextDecoder().decode(clientDataBytes));
+  } catch (e) {
+    return no(`clientDataJSON is not JSON: ${e}`);
+  }
+  if (clientData === null || typeof clientData !== 'object' || Array.isArray(clientData)) {
+    return no('clientDataJSON is not an object');
+  }
+  if (clientData.type !== WEBAUTHN_GET) {
+    return no(`clientDataJSON type is ${JSON.stringify(clientData.type)}, expected "webauthn.get"`);
+  }
+  if (typeof clientData.challenge !== 'string') return no('clientDataJSON has no challenge');
+  const signed = fromBase64Url(clientData.challenge);
+  if (signed === null) return no('clientDataJSON.challenge is not base64url');
+  if (!bytesEqual(signed, challengeBytes)) return no('the approver signed a different challenge');
+
+  const origins = credential.origins ?? [];
+  if (origins.length && !origins.includes(clientData.origin)) {
+    return no(
+      `origin ${JSON.stringify(clientData.origin)} is not one of the approver's allowed origins`,
+    );
+  }
+  if (authenticatorData.length < 37) {
+    return no(`authenticatorData is ${authenticatorData.length} bytes, expected at least 37`);
+  }
+  const rpId = effectiveRpId(credential);
+  if (rpId === null) return no("the approver's credential has no rp_id");
+  const rpHash = await sha256(utf8(rpId));
+  if (!bytesEqual(authenticatorData.subarray(0, 32), rpHash)) {
+    return no(`rpIdHash does not match ${JSON.stringify(rpId)}`);
+  }
+  const flags = authenticatorData[32];
+  if (!(flags & FLAG_USER_PRESENT)) return no('the user-present flag is not set');
+  if (credential.user_verification && !(flags & FLAG_USER_VERIFIED)) {
+    return no('the policy requires user verification and the flag is not set');
+  }
+  const message = concatBytes([authenticatorData, await sha256(clientDataBytes)]);
+  const ok = await p256Verify(credential.public_key, assertion.signature, message);
+  return {
+    approver_id: assertion.approver_id,
+    valid: ok,
+    detail: ok ? 'webauthn assertion verified' : 'webauthn signature does not verify',
+  };
+}
+
+/**
+ * Count *distinct* valid approvers against the required quorum.
+ *
+ * Distinct is the point: five assertions from one approver are one approval. An
+ * approver the policy does not name contributes nothing, and a second assertion
+ * from an approver who already counted is a retry, not an attack.
+ */
+async function verifyQuorum(assertions, challengeBytes, approvers, quorum) {
+  const byId = new Map((approvers ?? []).map((a) => [a.id, a]));
+  const checks = [];
+  const accepted = [];
+  for (const assertion of assertions ?? []) {
+    const credential = byId.get(assertion?.approver_id);
+    if (!credential) {
+      checks.push({
+        approver_id: assertion?.approver_id ?? '',
+        valid: false,
+        detail: `${JSON.stringify(assertion?.approver_id)} is not an approver in this policy`,
+      });
+      continue;
+    }
+    if (accepted.includes(assertion.approver_id)) {
+      checks.push({
+        approver_id: assertion.approver_id,
+        valid: true,
+        detail: 'duplicate assertion, already counted',
+      });
+      continue;
+    }
+    const one = await verifyAssertion(assertion, challengeBytes, credential);
+    checks.push(one);
+    if (one.valid) accepted.push(assertion.approver_id);
+  }
+  return { quorum, checks, accepted, reached: accepted.length >= quorum };
+}
+
+// ─── 9. CBOR — exactly the profile an attestation may use ──────────────────
+
+/**
+ * A reader for the subset of RFC 8949 that `docs/ATTESTATION-VERIFY.md`
+ * section 2 allows, and a deterministic writer for the one array section 5
+ * re-encodes.
+ *
+ * Deliberately not a general decoder. The document comes from an untrusted
+ * party, and a general reader accepts shapes an attestation may not contain —
+ * indefinite lengths and duplicate map keys being the two that matter. Every
+ * refusal below is a shape a permissive parser would have silently accepted.
+ */
+class CborError extends Error {}
+
+const CBOR_MAX_DEPTH = 16;
+
+class CborReader {
+  constructor(bytes) {
+    this.b = bytes;
+    this.i = 0;
+  }
+
+  byte() {
+    if (this.i >= this.b.length) throw new CborError('truncated CBOR');
+    return this.b[this.i++];
+  }
+
+  take(n) {
+    if (n < 0 || this.i + n > this.b.length) throw new CborError('truncated CBOR');
+    const out = this.b.subarray(this.i, this.i + n);
+    this.i += n;
+    return out;
+  }
+
+  /** Head: returns [majorType, argument]. Shortest form enforced. */
+  head() {
+    const initial = this.byte();
+    const major = initial >> 5;
+    const info = initial & 0x1f;
+    if (major === 7 && info >= 25 && info <= 27) throw new CborError('floats are not allowed');
+    if (info < 24) return [major, info];
+    if (info === 24) {
+      const v = this.byte();
+      if (v < 24) throw new CborError('integer not in shortest form');
+      return [major, v];
+    }
+    if (info === 25) {
+      const raw = this.take(2);
+      const v = (raw[0] << 8) | raw[1];
+      if (v <= 0xff) throw new CborError('integer not in shortest form');
+      return [major, v];
+    }
+    if (info === 26) {
+      const raw = this.take(4);
+      const v = ((raw[0] << 24) >>> 0) + (raw[1] << 16) + (raw[2] << 8) + raw[3];
+      if (v <= 0xffff) throw new CborError('integer not in shortest form');
+      return [major, v];
+    }
+    if (info === 27) {
+      const raw = this.take(8);
+      let v = 0n;
+      for (const byte of raw) v = (v << 8n) | BigInt(byte);
+      if (v <= 0xffffffffn) throw new CborError('integer not in shortest form');
+      if (v > BigInt(Number.MAX_SAFE_INTEGER)) throw new CborError('integer too large');
+      return [major, Number(v)];
+    }
+    if (info === 31) throw new CborError('indefinite lengths are not allowed');
+    throw new CborError(`reserved additional information ${info}`);
+  }
+
+  value(depth = 0) {
+    if (depth > CBOR_MAX_DEPTH) throw new CborError('CBOR nested too deeply');
+    const [major, arg] = this.head();
+    switch (major) {
+      case 0:
+        return arg;
+      case 1:
+        return -1 - arg;
+      case 2:
+        return this.take(arg).slice();
+      case 3: {
+        const raw = this.take(arg);
+        return new TextDecoder('utf-8', { fatal: true }).decode(raw);
+      }
+      case 4: {
+        const out = [];
+        for (let i = 0; i < arg; i++) out.push(this.value(depth + 1));
+        return out;
+      }
+      case 5: {
+        const map = new Map();
+        for (let i = 0; i < arg; i++) {
+          const key = this.value(depth + 1);
+          if (typeof key !== 'number' && typeof key !== 'string') {
+            throw new CborError('map keys must be integers or text strings');
+          }
+          if (map.has(key)) throw new CborError(`duplicate map key ${JSON.stringify(key)}`);
+          map.set(key, this.value(depth + 1));
+        }
+        return map;
+      }
+      case 6:
+        if (arg !== 18) throw new CborError(`tag ${arg} is not allowed`);
+        return this.value(depth + 1);
+      case 7:
+        if (arg === 20) return false;
+        if (arg === 21) return true;
+        if (arg === 22) return null;
+        throw new CborError(`simple value ${arg} is not allowed`);
+      default:
+        throw new CborError(`major type ${major} is not allowed`);
+    }
+  }
+}
+
+function cborLoads(bytes) {
+  const reader = new CborReader(bytes);
+  const value = reader.value();
+  if (reader.i !== bytes.length) throw new CborError('trailing bytes after the CBOR item');
+  return value;
+}
+
+function cborHead(major, arg) {
+  if (arg < 24) return new Uint8Array([(major << 5) | arg]);
+  if (arg <= 0xff) return new Uint8Array([(major << 5) | 24, arg]);
+  if (arg <= 0xffff) return new Uint8Array([(major << 5) | 25, arg >> 8, arg & 0xff]);
+  return new Uint8Array([
+    (major << 5) | 26,
+    (arg >>> 24) & 0xff,
+    (arg >>> 16) & 0xff,
+    (arg >>> 8) & 0xff,
+    arg & 0xff,
+  ]);
+}
+
+/** Deterministic encoding (RFC 8949 section 4.2.1) of the subset above. */
+function cborDumps(value) {
+  if (value === null) return new Uint8Array([0xf6]);
+  if (value === false) return new Uint8Array([0xf4]);
+  if (value === true) return new Uint8Array([0xf5]);
+  if (typeof value === 'number') {
+    if (!Number.isInteger(value)) throw new CborError('floats are not allowed');
+    return value >= 0 ? cborHead(0, value) : cborHead(1, -1 - value);
+  }
+  if (typeof value === 'string') {
+    const raw = utf8(value);
+    return concatBytes([cborHead(3, raw.length), raw]);
+  }
+  if (value instanceof Uint8Array) {
+    return concatBytes([cborHead(2, value.length), value]);
+  }
+  if (Array.isArray(value)) {
+    return concatBytes([cborHead(4, value.length), ...value.map(cborDumps)]);
+  }
+  throw new CborError(`cannot encode ${typeof value}`);
+}
+
+// ─── 10. DER and X.509 — the four fields a chain check needs ───────────────
+
+/**
+ * Web Crypto has no X.509 parser, so here is one for exactly what
+ * `attestation.certificate_chain` and `attestation.certificate_validity` read:
+ * the `tbsCertificate` byte range (the bytes the signature covers), the issuer
+ * and subject as raw DER, the validity window, and the `subjectPublicKeyInfo` to
+ * hand to `importKey`. Nothing else is parsed, because nothing else is used, and
+ * an ASN.1 reader that parses more is more that can go wrong.
+ */
+function derRead(bytes, offset) {
+  if (offset + 2 > bytes.length) throw new Error('truncated DER');
+  const tag = bytes[offset];
+  let i = offset + 1;
+  let length = bytes[i++];
+  if (length & 0x80) {
+    const n = length & 0x7f;
+    if (n === 0 || n > 4) throw new Error('unsupported DER length');
+    length = 0;
+    for (let k = 0; k < n; k++) length = length * 256 + bytes[i++];
+  }
+  if (i + length > bytes.length) throw new Error('DER length runs past the end');
+  return { tag, start: offset, contentStart: i, end: i + length, length };
+}
+
+/** The full tag-length-value slice, which is what "the issuer DER" means. */
+function derTlv(bytes, node) {
+  return bytes.subarray(node.start, node.end);
+}
+
+function derChildren(bytes, node) {
+  const out = [];
+  let at = node.contentStart;
+  while (at < node.end) {
+    const child = derRead(bytes, at);
+    out.push(child);
+    at = child.end;
+  }
+  return out;
+}
+
+function parseDerTime(bytes, node) {
+  const text = new TextDecoder().decode(bytes.subarray(node.contentStart, node.end));
+  // UTCTime YYMMDDHHMMSSZ (tag 0x17) or GeneralizedTime YYYYMMDDHHMMSSZ (0x18)
+  const m =
+    node.tag === 0x17
+      ? /^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})Z$/.exec(text)
+      : /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})Z$/.exec(text);
+  if (!m) return null;
+  let year = Number(m[1]);
+  if (node.tag === 0x17) year += year < 50 ? 2000 : 1900;
+  return Date.UTC(year, Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+}
+
+const OID_EC_PUBLIC_KEY = '2a8648ce3d0201';
+const OID_P384 = '2b81040022';
+const OID_P256 = '2a8648ce3d030107';
+
+/** Parse the fields a chain check reads. Throws on anything it cannot read. */
+function parseCertificate(der) {
+  const cert = derRead(der, 0);
+  const [tbs, , signatureBits] = derChildren(der, cert);
+  const parts = derChildren(der, tbs);
+  // [0] EXPLICIT version is optional; when present it is context tag 0xa0.
+  let at = parts[0].tag === 0xa0 ? 1 : 0;
+  at += 1; // serialNumber
+  at += 1; // signature AlgorithmIdentifier
+  const issuer = parts[at++];
+  const validity = parts[at++];
+  const subject = parts[at++];
+  const spki = parts[at++];
+  const [notBefore, notAfter] = derChildren(der, validity);
+  const spkiAlg = derChildren(der, spki)[0];
+  const algOids = derChildren(der, spkiAlg).map((n) => toHex(der.subarray(n.contentStart, n.end)));
+  return {
+    tbsBytes: derTlv(der, tbs),
+    issuerDer: derTlv(der, issuer),
+    subjectDer: derTlv(der, subject),
+    notBefore: parseDerTime(der, notBefore),
+    notAfter: parseDerTime(der, notAfter),
+    spkiDer: derTlv(der, spki),
+    curve: algOids.includes(OID_P384) ? 'P-384' : algOids.includes(OID_P256) ? 'P-256' : null,
+    isEc: algOids.includes(OID_EC_PUBLIC_KEY),
+    // BIT STRING: skip the unused-bits octet to reach the DER ECDSA signature.
+    signature: der.subarray(signatureBits.contentStart + 1, signatureBits.end),
+  };
+}
+
+function pemToDer(pem) {
+  const body = String(pem)
+    .replace(/-----BEGIN CERTIFICATE-----/g, '')
+    .replace(/-----END CERTIFICATE-----/g, '');
+  return fromBase64(body);
+}
+
+/** The AWS Nitro Enclaves root, embedded. Never fetched: see ATTESTATION-VERIFY section 5. */
+const NITRO_ROOT_G1_PEM = `-----BEGIN CERTIFICATE-----
+MIICETCCAZagAwIBAgIRAPkxdWgbkK/hHUbMtOTn+FYwCgYIKoZIzj0EAwMwSTEL
+MAkGA1UEBhMCVVMxDzANBgNVBAoMBkFtYXpvbjEMMAoGA1UECwwDQVdTMRswGQYD
+VQQDDBJhd3Mubml0cm8tZW5jbGF2ZXMwHhcNMTkxMDI4MTMyODA1WhcNNDkxMDI4
+MTQyODA1WjBJMQswCQYDVQQGEwJVUzEPMA0GA1UECgwGQW1hem9uMQwwCgYDVQQL
+DANBV1MxGzAZBgNVBAMMEmF3cy5uaXRyby1lbmNsYXZlczB2MBAGByqGSM49AgEG
+BSuBBAAiA2IABPwCVOumCMHzaHDimtqQvkY4MpJzbolL//Zy2YlES1BR5TSksfbb
+48C8WBoyt7F2Bw7eEtaaP+ohG2bnUs990d0JX28TcPQXCEPZ3BABIeTPYwEoCWZE
+h8l5YoQwTcU/9KNCMEAwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUkCW1DdkF
+R+eWw5b6cp3PmanfS5YwDgYDVR0PAQH/BAQDAgGGMAoGCCqGSM49BAMDA2kAMGYC
+MQCjfy+Rocm9Xue4YnwWmNJVA44fA0P5W2OpYow9OYCVRaEevL8uO1XYru5xtMPW
+rfMCMQCi85sWBbJwKKXdS6BptQFuZbT73o/gBh1qUxl/nNr12UO8Yfwr6wPLb+6N
+IwLz3/Y=
+-----END CERTIFICATE-----`;
+
+const NITRO_ROOT_G1_SHA256 =
+  '641a0321a3e244efe456463195d606317ed7cdcc3c1756e09893f3c68f79bb5b';
+
+// ─── 11. attestation documents (docs/ATTESTATION-VERIFY.md) ────────────────
+
+const CHECK_ATT_FORMAT = 'attestation.format';
+const CHECK_ATT_CHAIN = 'attestation.certificate_chain';
+const CHECK_ATT_VALIDITY = 'attestation.certificate_validity';
+const CHECK_ATT_SIGNATURE = 'attestation.signature';
+const CHECK_ATT_TIMESTAMP = 'attestation.timestamp';
+const CHECK_ATT_PCRS = 'attestation.pcrs';
+const CHECK_ATT_DEBUG = 'attestation.debug_mode';
+const CHECK_ATT_PUBLIC_KEY = 'attestation.public_key';
+const CHECK_ATT_USER_DATA = 'attestation.user_data';
+
+const ATTESTATION_CHECKS = [
+  CHECK_ATT_FORMAT,
+  CHECK_ATT_CHAIN,
+  CHECK_ATT_VALIDITY,
+  CHECK_ATT_SIGNATURE,
+  CHECK_ATT_TIMESTAMP,
+  CHECK_ATT_PCRS,
+  CHECK_ATT_DEBUG,
+  CHECK_ATT_PUBLIC_KEY,
+  CHECK_ATT_USER_DATA,
+];
+
+const ATTESTATION_FORMATS = ['aws-nitro', 'aws-nitro-v1'];
+
+const COSE_ES384 = -35;
+const PCR_LENGTHS = [32, 48, 64];
+
+function mapText(map, key) {
+  const value = map.get(key);
+  if (typeof value !== 'string' || !value) throw new Error(`attestation ${key} must be text`);
+  return value;
+}
+
+function mapBytes(map, key) {
+  const value = map.get(key);
+  if (!(value instanceof Uint8Array) || !value.length) {
+    throw new Error(`attestation ${key} must be a non-empty byte string`);
+  }
+  return value;
+}
+
+function mapOptionalBytes(map, key) {
+  const value = map.get(key);
+  if (value === undefined || value === null) return null;
+  if (!(value instanceof Uint8Array)) throw new Error(`attestation ${key} must be bytes or null`);
+  return value;
+}
+
+/** Decode COSE_Sign1 and its CBOR payload. Throws on anything malformed. */
+function parseAttestation(documentBytes) {
+  const message = cborLoads(documentBytes);
+  if (!Array.isArray(message) || message.length !== 4) {
+    throw new Error('COSE_Sign1 is a four-element array');
+  }
+  const [protectedBytes, unprotected, payloadBytes, signature] = message;
+  if (
+    !(protectedBytes instanceof Uint8Array) ||
+    !(payloadBytes instanceof Uint8Array) ||
+    !(signature instanceof Uint8Array)
+  ) {
+    throw new Error('protected, payload and signature must be byte strings');
+  }
+  if (!(unprotected instanceof Map)) throw new Error('the unprotected header must be a map');
+  const header = cborLoads(protectedBytes);
+  if (!(header instanceof Map)) throw new Error('the protected header must be a CBOR map');
+  const alg = header.get(1);
+
+  const body = cborLoads(payloadBytes);
+  if (!(body instanceof Map)) throw new Error('the payload must be a CBOR map');
+  const pcrsRaw = body.get('pcrs');
+  if (!(pcrsRaw instanceof Map) || pcrsRaw.size === 0) {
+    throw new Error('attestation pcrs must be a non-empty map');
+  }
+  const pcrs = new Map();
+  for (const [index, value] of pcrsRaw) {
+    if (typeof index !== 'number' || index < 0 || index > 31) {
+      throw new Error('PCR indices are integers 0-31');
+    }
+    if (!(value instanceof Uint8Array) || !PCR_LENGTHS.includes(value.length)) {
+      throw new Error(`PCR${index} must be 32, 48 or 64 bytes`);
+    }
+    pcrs.set(index, value);
+  }
+  const cabundle = body.get('cabundle');
+  if (!Array.isArray(cabundle) || !cabundle.length) {
+    throw new Error('attestation cabundle must be a non-empty array');
+  }
+  for (const cert of cabundle) {
+    if (!(cert instanceof Uint8Array) || !cert.length) {
+      throw new Error('every cabundle entry is a byte string');
+    }
+  }
+  const timestamp = body.get('timestamp');
+  if (typeof timestamp !== 'number' || !Number.isInteger(timestamp) || timestamp <= 0) {
+    throw new Error('attestation timestamp must be a positive integer');
+  }
+  return {
+    alg,
+    protectedBytes,
+    payloadBytes,
+    signature,
+    moduleId: mapText(body, 'module_id'),
+    digest: mapText(body, 'digest'),
+    timestamp,
+    pcrs,
+    certificate: mapBytes(body, 'certificate'),
+    cabundle,
+    publicKey: mapOptionalBytes(body, 'public_key'),
+    userData: mapOptionalBytes(body, 'user_data'),
+    nonce: mapOptionalBytes(body, 'nonce'),
+  };
+}
+
+function formatCheck(parsed) {
+  const problems = [];
+  if (parsed.alg !== COSE_ES384) problems.push(`COSE alg is ${parsed.alg}, expected -35 (ES384)`);
+  if (parsed.digest !== 'SHA384') problems.push(`digest is ${JSON.stringify(parsed.digest)}`);
+  if (parsed.signature.length !== 96) {
+    problems.push(`signature is ${parsed.signature.length} bytes, expected 96`);
+  }
+  return outcome(
+    CHECK_ATT_FORMAT,
+    problems.length === 0,
+    problems.length ? problems.join('; ') : 'COSE_Sign1 with ES384 and a SHA384 payload',
+  );
+}
+
+async function chainCheck(parsed, trust) {
+  const rootDer = pemToDer(trust.rootPem ?? NITRO_ROOT_G1_PEM);
+  if (rootDer === null) return { chain: null, check: check(CHECK_ATT_CHAIN, FAIL, 'bad root PEM') };
+  if (!bytesEqual(parsed.cabundle[0], rootDer)) {
+    return {
+      chain: null,
+      check: check(
+        CHECK_ATT_CHAIN,
+        FAIL,
+        "the document's first CA certificate is not the pinned root",
+      ),
+    };
+  }
+  const derChain = [...parsed.cabundle, parsed.certificate];
+  let parsedChain;
+  try {
+    parsedChain = derChain.map(parseCertificate);
+  } catch (e) {
+    return { chain: null, check: check(CHECK_ATT_CHAIN, FAIL, `a certificate does not parse: ${e}`) };
+  }
+  for (let i = 1; i < parsedChain.length; i++) {
+    const child = parsedChain[i];
+    const parent = parsedChain[i - 1];
+    if (!bytesEqual(child.issuerDer, parent.subjectDer)) {
+      return {
+        chain: parsedChain,
+        check: check(CHECK_ATT_CHAIN, FAIL, `certificate ${i} is not issued by certificate ${i - 1}`),
+      };
+    }
+    if (!parent.isEc || parent.curve === null) {
+      return {
+        chain: parsedChain,
+        check: check(CHECK_ATT_CHAIN, FAIL, `certificate ${i - 1} is not an EC key this verifier knows`),
+      };
+    }
+    const size = parent.curve === 'P-384' ? 48 : 32;
+    const raw = derSignatureToRaw(child.signature, size);
+    let ok = false;
+    if (raw !== null) {
+      try {
+        ok = await ecdsaVerify(
+          parent.spkiDer,
+          parent.curve,
+          parent.curve === 'P-384' ? 'SHA-384' : 'SHA-256',
+          raw,
+          child.tbsBytes,
+        );
+      } catch {
+        ok = false;
+      }
+    }
+    if (!ok) {
+      return {
+        chain: parsedChain,
+        check: check(CHECK_ATT_CHAIN, FAIL, `certificate ${i}'s signature does not verify`),
+      };
+    }
+  }
+  return {
+    chain: parsedChain,
+    check: outcome(
+      CHECK_ATT_CHAIN,
+      true,
+      `${parsedChain.length} certificates chain to the pinned AWS Nitro root`,
+    ),
+  };
+}
+
+function validityCheck(chain, parsed) {
+  if (chain === null) return noData(CHECK_ATT_VALIDITY, 'the chain could not be built');
+  // T is the document's own timestamp, not the reader's clock: an NSM leaf lives
+  // about three hours and a receipt is read months later.
+  const t = parsed.timestamp;
+  for (let i = 0; i < chain.length; i++) {
+    const cert = chain[i];
+    if (cert.notBefore === null || cert.notAfter === null) {
+      return check(CHECK_ATT_VALIDITY, FAIL, `certificate ${i} has an unreadable validity window`);
+    }
+    if (t < cert.notBefore || t > cert.notAfter) {
+      return check(
+        CHECK_ATT_VALIDITY,
+        FAIL,
+        `certificate ${i} was not valid at the document's timestamp ` +
+          `${new Date(t).toISOString()}`,
+      );
+    }
+  }
+  return outcome(
+    CHECK_ATT_VALIDITY,
+    true,
+    `every certificate was valid at ${new Date(t).toISOString()}`,
+  );
+}
+
+async function signatureCheck(chain, parsed) {
+  if (chain === null) return noData(CHECK_ATT_SIGNATURE, 'the chain could not be built');
+  const leaf = chain[chain.length - 1];
+  if (leaf.curve !== 'P-384') {
+    return check(CHECK_ATT_SIGNATURE, FAIL, 'the leaf certificate key is not P-384');
+  }
+  // RFC 9052 section 4.4: Sig_structure = ["Signature1", protected, aad, payload],
+  // re-encoded as deterministic CBOR. Never sliced out of the document.
+  const sigStructure = cborDumps([
+    'Signature1',
+    parsed.protectedBytes,
+    new Uint8Array(0),
+    parsed.payloadBytes,
+  ]);
+  let ok = false;
+  try {
+    ok = await ecdsaVerify(leaf.spkiDer, 'P-384', 'SHA-384', parsed.signature, sigStructure);
+  } catch {
+    ok = false;
+  }
+  return outcome(
+    CHECK_ATT_SIGNATURE,
+    ok,
+    ok ? 'the leaf certificate signed this document' : 'the ES384 signature does not verify',
+  );
+}
+
+function timestampCheck(parsed, trust, nowMs) {
+  const age = (nowMs - parsed.timestamp) / 1000;
+  if (age < 0) {
+    return check(CHECK_ATT_TIMESTAMP, FAIL, `the document is dated ${-age}s after now`);
+  }
+  const max = trust.maxAgeSeconds;
+  if (max === null || max === undefined) {
+    return outcome(
+      CHECK_ATT_TIMESTAMP,
+      true,
+      `the document is ${Math.round(age)}s old; no freshness bound was asked for`,
+    );
+  }
+  return outcome(
+    CHECK_ATT_TIMESTAMP,
+    age <= max,
+    `the document is ${Math.round(age)}s old, the bound is ${max}s`,
+  );
+}
+
+function pcrCheck(parsed, trust) {
+  const allow = trust.pcrs ?? {};
+  const indices = Object.keys(allow);
+  if (!indices.length) {
+    return noData(
+      CHECK_ATT_PCRS,
+      'no PCR allowlist was pinned, so nothing says which enclave this is',
+    );
+  }
+  for (const key of indices) {
+    const index = Number(key);
+    const expected = String(allow[key]).toLowerCase();
+    const actual = parsed.pcrs.get(index);
+    if (!actual) return check(CHECK_ATT_PCRS, FAIL, `the document carries no PCR${index}`);
+    if (toHex(actual) !== expected) {
+      return check(CHECK_ATT_PCRS, FAIL, `PCR${index} is ${toHex(actual)}, expected ${expected}`);
+    }
+  }
+  return outcome(
+    CHECK_ATT_PCRS,
+    true,
+    `PCR${indices.map(Number).sort((a, b) => a - b).join(', PCR')} match the allowlist`,
+  );
+}
+
+function debugCheck(parsed, trust) {
+  if (trust.requireProductionMode === false) {
+    return noData(CHECK_ATT_DEBUG, 'the verifier chose not to require production mode');
+  }
+  const pcr0 = parsed.pcrs.get(0);
+  if (!pcr0) return check(CHECK_ATT_DEBUG, FAIL, 'the document carries no PCR0');
+  const zeroed = pcr0.every((b) => b === 0);
+  return outcome(
+    CHECK_ATT_DEBUG,
+    !zeroed,
+    zeroed
+      ? 'PCR0 is all zero: this enclave ran in debug mode and was never measured'
+      : 'PCR0 is non-zero, so the enclave was measured',
+  );
+}
+
+function bindingCheck(name, actual, expected, what) {
+  if (expected === null || expected === undefined) {
+    return noData(name, `no expected ${what} was supplied, so this document is about no receipt`);
+  }
+  if (actual === null) {
+    return check(name, FAIL, `a ${what} was expected and the document carries none`);
+  }
+  return outcome(
+    name,
+    bytesEqual(actual, expected),
+    bytesEqual(actual, expected)
+      ? `the document's ${what} is the one expected`
+      : `the document's ${what} is ${toHex(actual)}, expected ${toHex(expected)}`,
+  );
+}
+
+/**
+ * Verify one attestation document and report all nine checks by name.
+ *
+ * `trust` is what the *verifier* pinned before it saw the document:
+ * `{pcrs, rootPem, maxAgeSeconds, requireProductionMode}`. `now` is an ISO
+ * string or epoch milliseconds. `expectedPublicKey` and `expectedUserData` are
+ * `Uint8Array`s — for a receipt, `envelope.signer_public_key` and
+ * `envelope.policy_hash`, hex-decoded. Leave either out and that binding reports
+ * `not_implemented`: a document that vouches for *a* key says nothing about
+ * *this* receipt until the two are held together.
+ */
+async function verifyAttestation(
+  documentBytes,
+  { trust = {}, now, expectedPublicKey = null, expectedUserData = null } = {},
+) {
+  const nowMs = typeof now === 'number' ? now : Date.parse(String(now));
+  if (!Number.isFinite(nowMs)) throw new Error('now must be an ISO instant or epoch millis');
+  let parsed;
+  try {
+    parsed = parseAttestation(documentBytes);
+  } catch (e) {
+    return result(
+      ATTESTATION_CHECKS.map((name) =>
+        name === CHECK_ATT_FORMAT
+          ? check(name, FAIL, String(e && e.message ? e.message : e))
+          : noData(name, 'the document could not be parsed'),
+      ),
+    );
+  }
+  const { chain, check: chainResult } = await chainCheck(parsed, trust);
+  return result([
+    formatCheck(parsed),
+    chainResult,
+    validityCheck(chain, parsed),
+    await signatureCheck(chain, parsed),
+    timestampCheck(parsed, trust, nowMs),
+    pcrCheck(parsed, trust),
+    debugCheck(parsed, trust),
+    bindingCheck(CHECK_ATT_PUBLIC_KEY, parsed.publicKey, expectedPublicKey, 'public key'),
+    bindingCheck(CHECK_ATT_USER_DATA, parsed.userData, expectedUserData, 'user data'),
+  ]);
+}
+
+// ─── 12. settlement proofs (plan D20, spec section 7.2) ────────────────────
+
+const CHECK_PROOF_MATCHES = 'settlement.proof_matches_receipt';
+const CHECK_LEDGER_HEADER = 'settlement.ledger_header';
+const CHECK_VALIDATOR_QUORUM = 'settlement.validator_quorum';
+
+const LEDGER_PROVEN_OFFLINE = 'proven-offline';
+const LEDGER_VERIFIED_LIVE = 'verified-live';
+const LEDGER_SUPPLIED_UNVERIFIED = 'supplied-unverified';
+const LEDGER_UNCHECKED = 'unchecked';
+
+const RAIL_XRPL = 'xrpl';
+const RAIL_FAKE = 'fake';
+
+const XRPL_LEDGER_PREFIX = new Uint8Array([0x4c, 0x57, 0x52, 0x00]); // "LWR\0"
+const FAKE_LEDGER_TAG = utf8('merkl-fake-ledger-v1');
+const FAKE_VALIDATION_TAG = utf8('merkl-fake-validation-v1');
+
+function hash32(value) {
+  const raw = fromHex(value);
+  if (raw === null || raw.length !== 32) throw new Error('expected a 32-byte hex value');
+  return raw;
+}
+
+function uint(value, size) {
+  if (value === null || value === undefined || value === '' || typeof value === 'boolean') {
+    throw new Error('expected an integer');
+  }
+  const n = BigInt(value);
+  if (n < 0n) throw new Error('expected a non-negative integer');
+  return uintBE(n, size);
+}
+
+/** The ledger hash XRPL derives from a ledger header, lowercase hex. */
+async function xrplLedgerHash(header) {
+  const index = header.ledger_index ?? header.seq;
+  const body = concatBytes([
+    XRPL_LEDGER_PREFIX,
+    uint(index, 4),
+    uint(header.total_coins, 8),
+    hash32(header.parent_hash),
+    hash32(header.transaction_hash),
+    hash32(header.account_hash),
+    uint(header.parent_close_time, 4),
+    uint(header.close_time, 4),
+    uint(header.close_time_resolution, 1),
+    uint(header.close_flags, 1),
+  ]);
+  return toHex(await sha512Half(body));
+}
+
+/** The fake rail's ledger identity. Not a real rail's encoding; see spec 7.2. */
+async function fakeLedgerHash(header) {
+  const body = concatBytes([
+    FAKE_LEDGER_TAG,
+    NUL_BYTE,
+    uint(header.ledger_index, 8),
+    hash32(header.transaction_hash),
+  ]);
+  return toHex(await sha256(body));
+}
+
+const LEDGER_HASH_RULES = { [RAIL_XRPL]: xrplLedgerHash, [RAIL_FAKE]: fakeLedgerHash };
+
+/** The bytes a fake-rail validator signs. */
+function fakeValidationMessage(ledgerHash, ledgerIndex) {
+  return concatBytes([FAKE_VALIDATION_TAG, NUL_BYTE, hash32(ledgerHash), uint(ledgerIndex, 8)]);
+}
+
+const VALIDATION_MESSAGE_RULES = { [RAIL_FAKE]: fakeValidationMessage };
+
+function validatorId(entry) {
+  for (const key of ['validator', 'validation_public_key', 'master_key', 'signing_key']) {
+    if (typeof entry[key] === 'string' && entry[key]) return entry[key];
+  }
+  return null;
+}
+
+function proofMatchesCheck(proof, rail, txHash, ledgerIndex) {
+  const proofTx = proof.tx_hash;
+  if (typeof proofTx !== 'string' || proofTx.toLowerCase() !== String(txHash).toLowerCase()) {
+    return check(
+      CHECK_PROOF_MATCHES,
+      FAIL,
+      `the proof is for transaction ${JSON.stringify(proofTx)}, the receipt names ${txHash}`,
+    );
+  }
+  if (proof.rail !== rail) {
+    return check(
+      CHECK_PROOF_MATCHES,
+      FAIL,
+      `the proof is for rail ${JSON.stringify(proof.rail)}, the receipt names ` +
+        `${JSON.stringify(rail)}`,
+    );
+  }
+  if (ledgerIndex !== null && ledgerIndex !== undefined && proof.ledger_index !== ledgerIndex) {
+    return check(
+      CHECK_PROOF_MATCHES,
+      FAIL,
+      `the proof is for ledger ${proof.ledger_index}, the receipt names ${ledgerIndex}`,
+    );
+  }
+  return outcome(
+    CHECK_PROOF_MATCHES,
+    true,
+    `the proof is about ${rail} transaction ${txHash} in ledger ${proof.ledger_index}`,
+  );
+}
+
+async function ledgerHeaderCheck(proof, rail) {
+  const header = proof.ledger_header;
+  const claimed = typeof proof.ledger_hash === 'string' ? proof.ledger_hash : null;
+  const rule = LEDGER_HASH_RULES[rail];
+  if (!rule) {
+    return [
+      noData(CHECK_LEDGER_HEADER, `this verifier has no ledger-hash rule for rail "${rail}"`),
+      claimed,
+    ];
+  }
+  if (header === null || typeof header !== 'object' || Array.isArray(header)) {
+    return [noData(CHECK_LEDGER_HEADER, 'the proof carries no ledger header'), claimed];
+  }
+  let derived;
+  try {
+    derived = await rule(header);
+  } catch (e) {
+    return [check(CHECK_LEDGER_HEADER, FAIL, `the ledger header does not hash: ${e.message}`), null];
+  }
+  if (!claimed) {
+    return [
+      outcome(
+        CHECK_LEDGER_HEADER,
+        true,
+        `the header hashes to ${derived}; the proof names no ledger hash to compare`,
+      ),
+      derived,
+    ];
+  }
+  return [
+    outcome(
+      CHECK_LEDGER_HEADER,
+      derived.toLowerCase() === claimed.toLowerCase(),
+      `the header hashes to ${derived}, the proof names ${claimed.toLowerCase()}`,
+    ),
+    derived,
+  ];
+}
+
+async function validatorQuorumCheck(proof, ledgerHash, trust, rail) {
+  if (!trust || !trust.validators || !Object.keys(trust.validators).length) {
+    return noData(
+      CHECK_VALIDATOR_QUORUM,
+      'no validator key set was pinned, so nothing says whose agreement would count',
+    );
+  }
+  const entries = Array.isArray(proof.validations)
+    ? proof.validations.filter((v) => v && typeof v === 'object' && !Array.isArray(v))
+    : [];
+  if (!entries.length) {
+    return noData(CHECK_VALIDATOR_QUORUM, 'the capture carries no validation messages');
+  }
+  if (ledgerHash === null) {
+    return noData(CHECK_VALIDATOR_QUORUM, 'there is no ledger hash for the validations to agree about');
+  }
+  const rule = VALIDATION_MESSAGE_RULES[rail];
+  const agreed = new Set();
+  const unchecked = new Set();
+  const disagreed = [];
+  for (const entry of entries) {
+    const name = validatorId(entry);
+    if (name === null || !(name in trust.validators)) continue;
+    const claimed = entry.ledger_hash;
+    if (typeof claimed !== 'string' || claimed.toLowerCase() !== ledgerHash.toLowerCase()) {
+      disagreed.push(name);
+      continue;
+    }
+    const key = trust.validators[name];
+    const signature = entry.signature;
+    const index = entry.ledger_index;
+    if (!rule || !key || typeof signature !== 'string' || !Number.isInteger(index)) {
+      unchecked.add(name);
+      continue;
+    }
+    let valid = false;
+    try {
+      valid = (await ed25519Verify(key, signature, rule(claimed, index))) === true;
+    } catch {
+      valid = false;
+    }
+    if (valid) agreed.add(name);
+    else disagreed.push(name);
+  }
+  const total = Object.keys(trust.validators).length;
+  if (disagreed.length) {
+    const names = [...new Set(disagreed)].sort().slice(0, 4).join(', ');
+    return check(
+      CHECK_VALIDATOR_QUORUM,
+      FAIL,
+      `${disagreed.length} pinned validator(s) did not sign ${ledgerHash}: ${names}`,
+    );
+  }
+  if (unchecked.size) {
+    return noData(
+      CHECK_VALIDATOR_QUORUM,
+      `${unchecked.size} of ${total} pinned validators named this ledger, but the capture ` +
+        'carries no signature this verifier can check — agreement counted, not proved',
+    );
+  }
+  return outcome(
+    CHECK_VALIDATOR_QUORUM,
+    agreed.size >= trust.quorum,
+    `${agreed.size} of ${total} pinned validators signed ledger ${ledgerHash}, ` +
+      `quorum is ${trust.quorum}`,
+  );
+}
+
+/** Read a settlement proof and say exactly how far it gets. */
+async function readSettlementProof(
+  proof,
+  { rail, txHash, ledgerIndex = null, trust = null, live = false } = {},
+) {
+  if (proof === null || typeof proof !== 'object' || Array.isArray(proof)) {
+    return {
+      checks: [
+        noData(CHECK_PROOF_MATCHES, 'no settlement proof was supplied'),
+        noData(CHECK_LEDGER_HEADER, 'no settlement proof was supplied'),
+        noData(CHECK_VALIDATOR_QUORUM, 'no settlement proof was supplied'),
+      ],
+      ledger_inclusion: live ? LEDGER_VERIFIED_LIVE : LEDGER_UNCHECKED,
+      detail: live
+        ? 'a live rail query reported this transaction validated'
+        : 'no settlement proof was supplied with this receipt',
+    };
+  }
+  const match = proofMatchesCheck(proof, rail, txHash, ledgerIndex);
+  const [header, ledgerHash] = await ledgerHeaderCheck(proof, rail);
+  const quorum = await validatorQuorumCheck(proof, ledgerHash, trust, rail);
+  const checks = [match, header, quorum];
+
+  const missing = Array.isArray(proof.missing) ? proof.missing.filter((m) => typeof m === 'string') : [];
+  const headerMap = proof.ledger_header;
+  const txRoot =
+    headerMap && typeof headerMap === 'object' && typeof headerMap.transaction_hash === 'string'
+      ? headerMap.transaction_hash
+      : null;
+  const path = proof.tx_path;
+  let pathOk = false;
+  let pathDetail = "the proof carries no path from this transaction to the ledger's transaction set";
+  if (path && typeof path === 'object' && txRoot !== null) {
+    const derived = await deriveRoot(String(txHash).toLowerCase(), path.siblings, path.directions);
+    pathOk = derived !== null && derived.toLowerCase() === txRoot.toLowerCase();
+    pathDetail = pathOk
+      ? `the transaction folds to the header's transaction root ${txRoot.toLowerCase()}`
+      : `the supplied path folds to ${derived}, the header names ${txRoot.toLowerCase()}`;
+  }
+
+  if (match.status === FAIL) {
+    return { checks, ledger_inclusion: LEDGER_SUPPLIED_UNVERIFIED, detail: match.detail };
+  }
+  if (pathOk && header.status === PASS && quorum.status === PASS && !missing.includes('shamap_path')) {
+    return {
+      checks,
+      ledger_inclusion: LEDGER_PROVEN_OFFLINE,
+      detail: `${quorum.detail}; ${pathDetail}`,
+    };
+  }
+  if (live) {
+    return {
+      checks,
+      ledger_inclusion: LEDGER_VERIFIED_LIVE,
+      detail: 'a live rail query reported this transaction validated',
+    };
+  }
+  const gaps = missing.length ? missing.join(', ') : pathDetail;
+  return {
+    checks,
+    ledger_inclusion: LEDGER_SUPPLIED_UNVERIFIED,
+    detail: `the capture does not prove inclusion offline; missing: ${gaps}`,
+  };
+}
+
+// ─── 13. the receipt verdict ───────────────────────────────────────────────
+
+const CHECK_VERSION = 'receipt.version';
+const CHECK_LEAF_COUNT = 'leaves.count';
+const CHECK_REQUIRED_LEAVES = 'leaves.required_present';
+const CHECK_PADDING = 'leaves.padding';
+const CHECK_LEFT = 'commitment.left';
+const CHECK_RIGHT = 'commitment.right';
+const CHECK_ROOT = 'commitment.root';
+const CHECK_POLICY_DOCUMENT = 'policy.document';
+const CHECK_ESCALATION_CHALLENGE = 'policy.escalation_challenge';
+const CHECK_APPROVAL_QUORUM = 'policy.approval_quorum';
+const CHECK_POLICY_SIGNATURE = 'policy.signature';
+const CHECK_ATTESTATION = 'signer.attestation';
+const CHECK_INTENT_MATCHES = 'intent.matches_settled_fields';
+const CHECK_ANCHOR = 'settlement.anchor_equals_left';
+const CHECK_SIGNED_BLOB = 'settlement.signed_blob';
+const CHECK_LEDGER_INCLUSION = 'settlement.ledger_inclusion';
+const CHECK_ENVELOPE_RAIL = 'envelope.rail';
+const CHECK_ENVELOPE_TREASURY = 'envelope.treasury';
+const CHECK_ENVELOPE_POLICY_HASH = 'envelope.policy_hash';
+const CHECK_LOG_JOIN = 'session.log_join';
+
+const AUTHORIZATION_VERIFIED = 'verified';
+const AUTHORIZATION_ABSENT = 'absent';
+const AUTHORIZATION_CONTRADICTED = 'contradicted';
+
+const LEVEL_RECEIPT = 1;
+const LEVEL_SESSION = 2;
+
+const POLICY_TAG = utf8('merkl-policy-v1');
+const XRPL_TX_PREFIX = new Uint8Array([0x54, 0x58, 0x4e, 0x00]); // "TXN\0"
+const FAKE_TX_TAG = utf8('merkl-fake-tx-v1');
+
+/** Re-derive a transaction id from its signed blob, or null for an unknown rail. */
+async function txIdFromBlob(rail, signedBlobHex) {
+  const blob = fromHex(signedBlobHex);
+  if (blob === null) return null;
+  if (rail === RAIL_XRPL) return toHex(await sha512Half(concatBytes([XRPL_TX_PREFIX, blob]))).toUpperCase();
+  if (rail === RAIL_FAKE) {
+    return toHex(await sha256(concatBytes([FAKE_TX_TAG, NUL_BYTE, blob]))).toUpperCase();
+  }
+  return null;
+}
+
+/** `SHA-256("merkl-policy-v1" || NUL || canonical(document))`, lowercase hex. */
+async function policyHash(document) {
+  return toHex(await sha256(concatBytes([POLICY_TAG, NUL_BYTE, utf8(canonicalJson(document))])));
+}
+
+function member(content, key) {
+  return content && typeof content === 'object' && !Array.isArray(content) ? content[key] : null;
+}
+
+function contentAt(contents, index) {
+  return index < contents.length ? contents[index] : null;
+}
+
+// -- the checks that need only the receipt ---------------------------------
+
+async function leafChecks(envelope, contents) {
+  const committed = envelope.leaf_hashes ?? [];
+  const checks = [];
+  const computed = [];
+  for (let i = 0; i < LEAF_NAMES.length; i++) {
+    const name = LEAF_NAMES[i];
+    if (i >= contents.length) {
+      computed.push(null);
+      checks.push(check(`leaf.${name}`, FAIL, 'leaf content missing'));
+      continue;
+    }
+    let digest = null;
+    try {
+      digest = await receiptLeafHash(name, contents[i]);
+    } catch (e) {
+      computed.push(null);
+      checks.push(check(`leaf.${name}`, FAIL, String(e)));
+      continue;
+    }
+    computed.push(digest);
+    checks.push(
+      outcome(
+        `leaf.${name}`,
+        digest === committed[i],
+        `recomputed ${digest} vs committed ${committed[i]}`,
+      ),
+    );
+  }
+  return { checks, computed };
+}
+
+function policySignatureCheck(settlement, envelope) {
+  if (settlement === null) {
+    return noData(CHECK_POLICY_SIGNATURE, 'nothing settled, so there is no policy signature to check');
+  }
+  const signature = member(settlement, 'policy_signature');
+  if (!signature) {
+    return check(
+      CHECK_POLICY_SIGNATURE,
+      FAIL,
+      'a settled receipt must carry the policy signature that authorized it',
+    );
+  }
+  if (signature.public_key !== envelope.signer_public_key) {
+    return check(CHECK_POLICY_SIGNATURE, FAIL, 'signed by a key the envelope does not name');
+  }
+  if (signature.algorithm !== 'ed25519') {
+    return noData(
+      CHECK_POLICY_SIGNATURE,
+      `this verifier only knows ed25519, the receipt says "${signature.algorithm}"`,
+    );
+  }
+  return null; // the cryptographic half runs async, below
+}
+
+async function finishPolicySignature(settlement, envelope) {
+  const signature = member(settlement, 'policy_signature');
+  const payload = fromHex(signature.payload);
+  if (payload === null) return check(CHECK_POLICY_SIGNATURE, FAIL, 'the signed payload is not hex');
+  if (!toHex(payload).includes(String(envelope.left).toLowerCase())) {
+    return check(
+      CHECK_POLICY_SIGNATURE,
+      FAIL,
+      'the signed payload does not contain LEFT, so the signature authorizes ' +
+        'something other than this receipt',
+    );
+  }
+  const ok = await ed25519Verify(signature.public_key, signature.signature, payload);
+  if (ok === null) {
+    return noData(
+      CHECK_POLICY_SIGNATURE,
+      'this runtime has no Ed25519 in Web Crypto, so the policy signature is unchecked',
+    );
+  }
+  return outcome(
+    CHECK_POLICY_SIGNATURE,
+    ok,
+    ok
+      ? 'the policy key signed a payload carrying LEFT'
+      : 'the policy signature does not verify',
+  );
+}
+
+async function attestationCheck(content, envelope, trust, now) {
+  if (content === null || content === undefined) {
+    return noData(
+      CHECK_ATTESTATION,
+      'leaf 3 is null: this receipt proves it was produced by an unattested signer',
+    );
+  }
+  const format = member(content, 'format');
+  if (!ATTESTATION_FORMATS.includes(format)) {
+    return noData(CHECK_ATTESTATION, `this verifier does not know the format "${format}"`);
+  }
+  if (member(content, 'policy_public_key') !== envelope.signer_public_key) {
+    return check(CHECK_ATTESTATION, FAIL, 'leaf 3 vouches for a key the envelope does not name');
+  }
+  if (!trust || !now) {
+    return noData(
+      CHECK_ATTESTATION,
+      'no PCR allowlist and moment were pinned, so nothing says which enclave this is',
+    );
+  }
+  const document = fromBase64(member(content, 'document'));
+  if (document === null) return check(CHECK_ATTESTATION, FAIL, "leaf 3's document is not base64");
+  let inner;
+  try {
+    inner = await verifyAttestation(document, {
+      trust,
+      now,
+      expectedPublicKey: fromHex(envelope.signer_public_key),
+      expectedUserData: fromHex(envelope.policy_hash),
+    });
+  } catch (e) {
+    return check(CHECK_ATTESTATION, FAIL, String(e && e.message ? e.message : e));
+  }
+  if (inner.failures.length) {
+    return check(CHECK_ATTESTATION, FAIL, inner.failures.map((c) => `${c.name}: ${c.detail}`).join('; '));
+  }
+  if (inner.deferred.length) {
+    return noData(CHECK_ATTESTATION, inner.deferred.map((c) => `${c.name}: ${c.detail}`).join('; '));
+  }
+  return outcome(
+    CHECK_ATTESTATION,
+    true,
+    'an attested enclave matching the pinned measurements held this policy key',
+  );
+}
+
+function decimalEqual(a, b) {
+  // Amounts are decimal strings, never floats. Compare by normalizing the
+  // scale rather than by parsing to a double, which is how "250.00" and
+  // "250.000" end up disagreeing with themselves.
+  const norm = (s) => {
+    const m = /^([+-]?)(\d*)(?:\.(\d*))?$/.exec(String(s).trim());
+    if (!m) return null;
+    const sign = m[1] === '-' ? '-' : '';
+    const whole = (m[2] || '0').replace(/^0+(?=\d)/, '');
+    const frac = (m[3] || '').replace(/0+$/, '');
+    const body = frac ? `${whole}.${frac}` : whole;
+    return body === '0' ? '0' : sign + body;
+  };
+  return norm(a) !== null && norm(a) === norm(b);
+}
+
+function decimalSum(values) {
+  // Fixed-point addition over the two decimal scales receipts use.
+  let scale = 0;
+  for (const v of values) {
+    const dot = String(v).indexOf('.');
+    if (dot >= 0) scale = Math.max(scale, String(v).length - dot - 1);
+  }
+  let total = 0n;
+  for (const v of values) {
+    const s = String(v).trim();
+    const negative = s.startsWith('-');
+    const body = negative ? s.slice(1) : s;
+    const [whole, frac = ''] = body.split('.');
+    const scaled = BigInt(whole + frac.padEnd(scale, '0'));
+    total += negative ? -scaled : scaled;
+  }
+  const negative = total < 0n;
+  const digits = (negative ? -total : total).toString().padStart(scale + 1, '0');
+  const out = scale
+    ? `${digits.slice(0, digits.length - scale)}.${digits.slice(digits.length - scale)}`
+    : digits;
+  return (negative ? '-' : '') + out;
+}
+
+function currencyKey(currency) {
+  if (typeof currency === 'string') return currency;
+  if (currency && typeof currency === 'object') return `${currency.code}.${currency.issuer}`;
+  return '?';
+}
+
+function intentMatchesCheck(intent, settlement, settled) {
+  const name = CHECK_INTENT_MATCHES;
+  if (settlement === null) {
+    return noData(name, 'nothing settled, so there are no settled fields to compare');
+  }
+  if (intent === null) return check(name, FAIL, 'the intent leaf does not parse');
+  const deltas = member(settled, 'balance_deltas');
+  if (!Array.isArray(deltas) || !deltas.length) {
+    return noData(name, 'the receipt records no balance deltas to compare the intent to');
+  }
+  const amount = member(intent, 'amount');
+  const wanted = currencyKey(member(amount, 'currency'));
+  const destination = member(intent, 'destination');
+  const treasury = member(intent, 'treasury');
+  const credited = deltas.filter(
+    (d) => d.account === destination && currencyKey(d.currency) === wanted,
+  );
+  if (!credited.length) {
+    return check(name, FAIL, `no balance delta credits ${destination} in the intent's currency`);
+  }
+  const total = decimalSum(credited.map((d) => d.value));
+  if (!decimalEqual(total, amount.value)) {
+    return check(name, FAIL, `${destination} received ${total}, the intent asked for ${amount.value}`);
+  }
+  const debited = deltas.filter((d) => d.account === treasury && currencyKey(d.currency) === wanted);
+  if (debited.length) {
+    const paid = decimalSum(debited.map((d) => d.value));
+    if (!decimalEqual(paid, `-${amount.value}`)) {
+      return check(name, FAIL, `${treasury} paid ${paid}, the intent asked for -${amount.value}`);
+    }
+  }
+  return outcome(name, true, `${destination} received ${amount.value}`);
+}
+
+function anchorCheck(settlement, envelope) {
+  const name = CHECK_ANCHOR;
+  if (settlement === null) return noData(name, 'nothing settled, so there is no anchor to compare');
+  const observed = member(settlement, 'observed_anchor');
+  if (!observed) {
+    return noData(name, 'the settlement leaf records no anchor read back from the rail');
+  }
+  return outcome(
+    name,
+    String(observed).toLowerCase() === String(envelope.left).toLowerCase(),
+    `the rail carried ${String(observed).toLowerCase()}, LEFT is ${envelope.left}`,
+  );
+}
+
+async function signedBlobCheck(settlement) {
+  const name = CHECK_SIGNED_BLOB;
+  if (settlement === null) return noData(name, 'nothing settled, so there is no signed blob');
+  const blob = member(settlement, 'signed_tx_blob');
+  if (!blob) return noData(name, 'the settlement leaf carries no signed transaction blob');
+  const derived = await txIdFromBlob(member(settlement, 'rail'), blob);
+  if (derived === null) {
+    return noData(name, `this verifier has no transaction-id rule for rail "${member(settlement, 'rail')}"`);
+  }
+  const claimed = String(member(settlement, 'tx_hash') ?? '');
+  return outcome(
+    name,
+    derived.toLowerCase() === claimed.toLowerCase(),
+    `the blob hashes to ${derived}, the receipt names ${claimed}`,
+  );
+}
+
+// -- the checks that need material the verifier brought --------------------
+
+async function policyDocumentCheck(envelope, supplied, adminPublicKey) {
+  if (supplied === null || supplied === undefined) {
+    return [
+      noData(
+        CHECK_POLICY_DOCUMENT,
+        'no policy document was supplied, so the rules that ran cannot be re-read',
+      ),
+      null,
+    ];
+  }
+  const signed = member(supplied, 'document') ? supplied : null;
+  const document = signed ? signed.document : supplied;
+  let note = '';
+  if (signed) {
+    if (adminPublicKey) {
+      if (signed.signer_public_key !== adminPublicKey) {
+        return [check(CHECK_POLICY_DOCUMENT, FAIL, 'the policy is signed by another key'), document];
+      }
+      const preImage = concatBytes([POLICY_TAG, NUL_BYTE, utf8(canonicalJson(document))]);
+      const ok = await ed25519Verify(signed.signer_public_key, signed.signature, preImage);
+      if (ok === null) {
+        return [
+          noData(
+            CHECK_POLICY_DOCUMENT,
+            'this runtime has no Ed25519 in Web Crypto, so the policy signature is unchecked',
+          ),
+          document,
+        ];
+      }
+      if (!ok) {
+        return [
+          check(CHECK_POLICY_DOCUMENT, FAIL, "the policy document's admin signature does not verify"),
+          document,
+        ];
+      }
+      note = ' and the pinned admin key signed it';
+    } else {
+      note = '; no admin key was pinned, so who authorized these rules is unchecked';
+    }
+  } else {
+    note = '; this document carries no signature to check';
+  }
+  const derived = await policyHash(document);
+  if (derived !== envelope.policy_hash) {
+    return [
+      check(
+        CHECK_POLICY_DOCUMENT,
+        FAIL,
+        `the supplied policy hashes to ${derived}, the receipt names ${envelope.policy_hash}`,
+      ),
+      document,
+    ];
+  }
+  return [
+    outcome(
+      CHECK_POLICY_DOCUMENT,
+      true,
+      `the supplied policy hashes to the ${envelope.policy_hash.slice(0, 16)}… the decision ` +
+        `names${note}`,
+    ),
+    document,
+  ];
+}
+
+async function escalationChallengeCheck(contents, escalation) {
+  if (!escalation) {
+    return noData(CHECK_ESCALATION_CHALLENGE, 'this decision did not escalate, so nothing was signed');
+  }
+  const derived = await escalationChallenge(contents);
+  if (derived === null) {
+    return check(CHECK_ESCALATION_CHALLENGE, FAIL, 'LEFT_pre does not compute');
+  }
+  return outcome(
+    CHECK_ESCALATION_CHALLENGE,
+    derived === String(escalation.challenge).toLowerCase(),
+    `LEFT_pre over these leaves is ${derived}, the escalation names ${escalation.challenge}`,
+  );
+}
+
+async function approvalQuorumCheck(escalation, challengeOk, policy) {
+  if (!escalation) {
+    return [noData(CHECK_APPROVAL_QUORUM, 'this decision did not escalate, so nobody approved'), []];
+  }
+  if (!policy) {
+    return [
+      noData(
+        CHECK_APPROVAL_QUORUM,
+        'no policy document was supplied, so nothing says whose signature counts',
+      ),
+      [],
+    ];
+  }
+  if (!challengeOk) {
+    return [
+      check(
+        CHECK_APPROVAL_QUORUM,
+        FAIL,
+        'the challenge is not LEFT_pre, so the approvals are over another payment',
+      ),
+      [],
+    ];
+  }
+  const challenge = fromHex(escalation.challenge);
+  const quorum = await verifyQuorum(
+    escalation.approvals ?? [],
+    challenge,
+    policy.approvers ?? [],
+    escalation.quorum,
+  );
+  const rejected = quorum.checks.filter((c) => !c.valid);
+  let detail = `${quorum.accepted.length} of ${escalation.quorum} required approvals verify`;
+  if (rejected.length) {
+    detail += `; rejected: ${rejected.map((c) => c.detail).join('; ').slice(0, 160)}`;
+  }
+  return [outcome(CHECK_APPROVAL_QUORUM, quorum.reached, detail), quorum.accepted];
+}
+
+async function logJoinCheck(envelope, bundle, log) {
+  if (!bundle) {
+    return noData(CHECK_LOG_JOIN, 'no session bundle was supplied, so this is a level-1 verdict');
+  }
+  const locator = envelope.session_locator;
+  if (!locator) {
+    return noData(CHECK_LOG_JOIN, 'this receipt names no session, so there is nothing to join it to');
+  }
+  const rows = Array.isArray(bundle.actions) ? bundle.actions : [];
+  const sessionId = bundle.session ? String(bundle.session.session_id ?? '') : '';
+  if (sessionId && sessionId !== locator.session_id) {
+    return check(
+      CHECK_LOG_JOIN,
+      FAIL,
+      `the receipt names session ${locator.session_id}, the bundle is ${sessionId}`,
+    );
+  }
+  if (locator.leaf_index >= rows.length) {
+    return check(
+      CHECK_LOG_JOIN,
+      FAIL,
+      `the receipt names leaf ${locator.leaf_index}, the bundle has ${rows.length} actions`,
+    );
+  }
+  const committed = String(rows[locator.leaf_index].input_hash ?? '');
+  const derived = await canonicalHashHex(envelope);
+  if (derived !== committed) {
+    return check(
+      CHECK_LOG_JOIN,
+      FAIL,
+      `the envelope hashes to ${derived}, action ${locator.leaf_index} committed ${committed}`,
+    );
+  }
+  const actionOk = log.actions.some((a) => a.index === locator.leaf_index && a.ok);
+  return outcome(
+    CHECK_LOG_JOIN,
+    actionOk,
+    `the envelope hash is action ${locator.leaf_index} of session ${locator.session_id}, ` +
+      (actionOk
+        ? 'and that action proves into the session root'
+        : 'but that action does not prove into the session root'),
+  );
+}
+
+// -- plain language --------------------------------------------------------
+
+const SOURCE_WORDS = {
+  human_input: 'a person typed it',
+  mandate: 'a standing mandate authorized it',
+  system: 'a system triggered it',
+};
+
+function amountWords(intent) {
+  const amount = member(intent, 'amount');
+  const value = member(amount, 'value') || '?';
+  const currency = member(amount, 'currency');
+  let code = '?';
+  if (typeof currency === 'string') code = currency;
+  else if (currency && typeof currency === 'object') code = String(currency.code ?? '?');
+  return `${value} ${code}`;
+}
+
+/**
+ * The five sentences a non-technical reader needs, before any hash.
+ *
+ * Every member is a sentence or `null`. `null` means the receipt does not say,
+ * and the page prints that rather than an empty line, because a blank line reads
+ * as "nothing to report" and absence is a finding.
+ */
+function summarize(contents, envelope, approvedIds = []) {
+  const instruction = contentAt(contents, 0);
+  const intent = contentAt(contents, 1);
+  const decision = contentAt(contents, 2);
+  const attestation = contentAt(contents, 3);
+  const settlement = contentAt(contents, 4);
+  const settled = contentAt(contents, 5);
+  const reasoning = contentAt(contents, 6);
+
+  const source = String(member(instruction, 'source') ?? '');
+  const ref = member(instruction, 'ref');
+  let instructed = null;
+  if (source) {
+    const words = SOURCE_WORDS[source] ?? `the instruction came from ${source}`;
+    instructed = `The agent was told to make this payment — ${words}.`;
+    if (ref) instructed += ` It traces back to ${ref}.`;
+  }
+
+  let rule = null;
+  if (decision && typeof decision === 'object') {
+    const outcomeWord = String(decision.outcome ?? '?');
+    const tier = String(decision.tier ?? '?');
+    const rules = Array.isArray(decision.rules) ? decision.rules : [];
+    const names = rules.filter((r) => r && typeof r === 'object');
+    const blocked = names.filter((r) => r.outcome !== 'pass' && r.outcome !== null && r.outcome !== undefined);
+    if (outcomeWord === 'allow') {
+      rule = `The policy allowed it at the ${tier} tier; ${names.length} rules ran and all of them passed.`;
+    } else if (outcomeWord === 'deny') {
+      rule =
+        `The policy refused it at the ${tier} tier` +
+        (blocked.length ? ` — ${blocked.map((r) => String(r.name)).join(', ')} blocked it.` : '.');
+    } else {
+      rule = `The policy escalated it at the ${tier} tier: it needed a person.`;
+    }
+  }
+
+  let approved = null;
+  const escalation = member(decision, 'escalation');
+  if (escalation && typeof escalation === 'object') {
+    if (approvedIds.length) {
+      approved =
+        `${approvedIds.length} of ${escalation.quorum} required approvers signed it: ` +
+        `${approvedIds.join(', ')}.`;
+    } else {
+      approved =
+        `It needed ${escalation.quorum} approver(s); no approval in this receipt verifies ` +
+        'against a policy this verifier was given.';
+    }
+  } else if (member(decision, 'outcome') === 'allow') {
+    approved = 'No person was asked: the policy allowed it outright.';
+  }
+
+  let settledLine = null;
+  if (settlement && typeof settlement === 'object') {
+    const destination = member(intent, 'destination') || '?';
+    settledLine =
+      `${amountWords(intent)} went to ${destination} on ${settlement.rail ?? envelope.rail}, ` +
+      `transaction ${String(settlement.tx_hash ?? '').slice(0, 16)}…`;
+  } else if (member(settled, 'outcome') === 'denied') {
+    settledLine = 'Nothing settled. The refusal is what this receipt records.';
+  }
+
+  let when = null;
+  const closeTime = member(settlement, 'close_time');
+  const expiresAt = member(intent, 'expires_at');
+  if (typeof closeTime === 'string') when = `The ledger closed it at ${closeTime}.`;
+  else if (typeof expiresAt === 'string') when = `The intent was valid until ${expiresAt}.`;
+
+  const signer =
+    attestation === null || attestation === undefined
+      ? 'The signer is unattested: leaf 3 is null, so nothing proves which machine held the policy key.'
+      : 'The signer published an enclave attestation for its policy key.';
+
+  const testimony =
+    reasoning && typeof reasoning === 'object'
+      ? "The receipt also commits to a hash of the model's reasoning. That is testimony, " +
+        'not proof: it shows the account was not edited afterwards, never that it was true.'
+      : null;
+
+  return { instructed, rule, approved, settled: settledLine, when, signer, testimony };
+}
+
+// ─── 14. the bundle: session, log, evidence ────────────────────────────────
+
+const CHECK_ACTIONS = 'log.actions';
+const CHECK_SESSION_ROOT = 'log.session_root';
+const CHECK_CONTINUATION = 'log.continuation';
+const CHECK_AUDIT_ENTRY = 'log.audit_entry';
+const CHECK_LOG_INCLUSION = 'log.inclusion';
+const CHECK_CHECKPOINT_BODY = 'log.checkpoint_body';
+const CHECK_CHECKPOINT_SIGNATURE = 'log.checkpoint_signature';
+const CHECK_EVIDENCE = 'log.evidence';
+
+async function readAction(index, action, sessionRoot) {
+  let computed = '';
+  try {
+    computed = await actionLeafHash(action);
+  } catch {
+    computed = '';
+  }
+  const committed = String(action.leaf_hash ?? '');
+  const proof = action.proof;
+  let derived = '';
+  let proofOk = false;
+  if (proof && typeof proof === 'object' && committed) {
+    const landed = await deriveRoot(committed, proof.siblings, proof.directions);
+    if (landed !== null) {
+      derived = landed;
+      proofOk = derived === String(proof.root ?? sessionRoot);
+    }
+  }
+  return {
+    index,
+    action_id: String(action.action_id ?? ''),
+    tool_name: String(action.tool_name ?? ''),
+    computed_leaf: computed,
+    committed_leaf: committed,
+    leaf_matches: Boolean(computed) && computed === committed,
+    proof_ok: proofOk,
+    derived_root: derived,
+    receipt_id: action.receipt_id ?? null,
+    get ok() {
+      return this.leaf_matches && this.proof_ok;
+    },
+  };
+}
+
+/** Re-hash each disclosed evidence record against the leaf the bundle committed. */
+async function verifyEvidence(records, actions) {
+  const byId = new Map(actions.map((a, i) => [String(a.action_id ?? ''), [i, a]]));
+  const readings = [];
+  for (const record of records ?? []) {
+    if (!record || typeof record !== 'object' || Array.isArray(record)) {
+      readings.push({ action_id: '', label: '(unparseable line)', verdict: 'bad', detail: 'not valid JSON', index: null });
+      continue;
+    }
+    const actionId = String(record.action_id ?? '');
+    const hit = byId.get(actionId);
+    if (!hit) {
+      readings.push({
+        action_id: actionId,
+        label: actionId || '(no action_id)',
+        verdict: 'unknown',
+        detail: 'no such action in this bundle',
+        index: null,
+      });
+      continue;
+    }
+    const [index, action] = hit;
+    const inputOk = (await canonicalHashHex(record.input ?? null)) === String(action.input_hash ?? '');
+    const outputOk = (await canonicalHashHex(record.output ?? null)) === String(action.output_hash ?? '');
+    const label = `${action.tool_name ?? '?'} · ${actionId.slice(0, 8)}`;
+    if (inputOk && outputOk) {
+      readings.push({
+        action_id: actionId,
+        label,
+        verdict: 'ok',
+        detail: 'input and output match the committed hashes',
+        index,
+      });
+    } else {
+      const detail = [
+        inputOk ? '' : 'INPUT hash mismatch — record altered or fabricated.',
+        outputOk ? '' : 'OUTPUT hash mismatch — record altered or fabricated.',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      readings.push({ action_id: actionId, label, verdict: 'bad', detail, index });
+    }
+  }
+  return readings;
+}
+
+/** Parse a JSONL evidence file. Unparseable lines become `null`, never skipped. */
+function evidenceRecords(text) {
+  const out = [];
+  for (const line of String(text).split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      out.push(JSON.parse(line));
+    } catch {
+      out.push(null);
+    }
+  }
+  return out;
+}
+
+/**
+ * Verify a v1.1 or v1.2 proof bundle's session, log and checkpoint claims.
+ *
+ * A bundle with no transparency block is not failing — it is a level-1 export,
+ * and the checks that need a log report `not_implemented` by name. That is plan
+ * D9 in one function.
+ */
+async function verifyLogBundle(bundle, { evidence = [] } = {}) {
+  const session = bundle.session && typeof bundle.session === 'object' ? bundle.session : null;
+  const root = session ? String(session.root_hash ?? '') : '';
+  const actions = Array.isArray(bundle.actions)
+    ? bundle.actions.filter((a) => a && typeof a === 'object')
+    : [];
+
+  const readings = [];
+  for (let i = 0; i < actions.length; i++) readings.push(await readAction(i, actions[i], root));
+
+  const checks = [];
+  if (!actions.length) {
+    checks.push(noData(CHECK_ACTIONS, 'this bundle carries no actions'));
+  } else {
+    const good = readings.filter((r) => r.ok).length;
+    checks.push(
+      outcome(
+        CHECK_ACTIONS,
+        good === readings.length,
+        `${good} of ${readings.length} actions rehash to their leaf and prove into the root`,
+      ),
+    );
+  }
+
+  if (!root) {
+    checks.push(noData(CHECK_SESSION_ROOT, 'the bundle states no session root'));
+  } else {
+    const roots = [...new Set(readings.filter((r) => r.proof_ok).map((r) => r.derived_root))];
+    const agrees = roots.length === 1 && roots[0] === root;
+    checks.push(
+      outcome(
+        CHECK_SESSION_ROOT,
+        agrees,
+        agrees
+          ? `every verified proof lands on ${root}`
+          : `proofs land on ${JSON.stringify(roots.sort())}, the session states ${root}`,
+      ),
+    );
+  }
+
+  const continuation = bundle.continuation;
+  if (continuation && typeof continuation === 'object') {
+    const computed = await bindingLeafHash(
+      String(continuation.parent_session_id),
+      String(continuation.parent_root),
+      String(continuation.reason),
+    );
+    const committed = String(continuation.binding_leaf_hash ?? '');
+    if (computed === null) {
+      checks.push(check(CHECK_CONTINUATION, FAIL, 'the binding does not hash'));
+    } else if (computed !== committed) {
+      checks.push(
+        check(
+          CHECK_CONTINUATION,
+          FAIL,
+          `the binding recomputes to ${computed}, the bundle commits ${committed}`,
+        ),
+      );
+    } else if (!continuation.proof || typeof continuation.proof !== 'object') {
+      checks.push(noData(CHECK_CONTINUATION, 'the bundle carries no proof for the binding leaf'));
+    } else {
+      const derived = await deriveRoot(
+        committed,
+        continuation.proof.siblings,
+        continuation.proof.directions,
+      );
+      const proofRoot = String(continuation.proof.root ?? '');
+      checks.push(
+        outcome(
+          CHECK_CONTINUATION,
+          derived === proofRoot,
+          `the binding leaf folds to ${derived}, the successor root is ${proofRoot}`,
+        ),
+      );
+    }
+  } else {
+    checks.push(noData(CHECK_CONTINUATION, 'this session did not continue another one'));
+  }
+
+  const audit = bundle.audit_log;
+  if (audit && typeof audit === 'object') {
+    const computed = await auditEntryHash(audit);
+    const committed = String(audit.current_hash ?? '');
+    checks.push(
+      computed === null
+        ? check(CHECK_AUDIT_ENTRY, FAIL, 'the entry does not hash')
+        : outcome(
+            CHECK_AUDIT_ENTRY,
+            computed === committed,
+            `the entry recomputes to ${computed}, the bundle records ${committed}`,
+          ),
+    );
+  } else {
+    checks.push(noData(CHECK_AUDIT_ENTRY, 'this bundle carries no audit-log entry'));
+  }
+
+  const transparency =
+    bundle.transparency && typeof bundle.transparency === 'object' ? bundle.transparency : {};
+  const inclusion = transparency.log_inclusion;
+  if (inclusion && typeof inclusion === 'object') {
+    const read = await verifyLogInclusion(inclusion);
+    checks.push(outcome(CHECK_LOG_INCLUSION, read.ok, read.detail));
+  } else {
+    checks.push(noData(CHECK_LOG_INCLUSION, 'this bundle carries no log inclusion proof'));
+  }
+
+  const checkpoint = transparency.checkpoint;
+  if (checkpoint && typeof checkpoint === 'object') {
+    const body = checkpointBodyMatches(checkpoint);
+    checks.push(outcome(CHECK_CHECKPOINT_BODY, body.ok, body.detail));
+    const key = checkpoint.public_key;
+    const signature = checkpoint.signature;
+    if (typeof checkpoint.body !== 'string' || typeof key !== 'string' || typeof signature !== 'string') {
+      checks.push(noData(CHECK_CHECKPOINT_SIGNATURE, 'the checkpoint carries no body, key or signature'));
+    } else {
+      const ok = await ed25519Verify(key, signature, utf8(checkpoint.body));
+      checks.push(
+        ok === null
+          ? noData(
+              CHECK_CHECKPOINT_SIGNATURE,
+              'this runtime has no Ed25519 in Web Crypto — verify the body and signature ' +
+                'with any external Ed25519 tool',
+            )
+          : outcome(
+              CHECK_CHECKPOINT_SIGNATURE,
+              ok,
+              `key ${key.slice(0, 16)}… ${ok ? 'signed' : 'did not sign'} this checkpoint body`,
+            ),
+      );
+    }
+  } else {
+    checks.push(noData(CHECK_CHECKPOINT_BODY, 'this bundle carries no checkpoint'));
+    checks.push(noData(CHECK_CHECKPOINT_SIGNATURE, 'this bundle carries no checkpoint'));
+  }
+
+  const evidenceReadings = await verifyEvidence(evidence, actions);
+  if (evidenceReadings.length) {
+    const bad = evidenceReadings.filter((e) => e.verdict === 'bad').length;
+    const good = evidenceReadings.filter((e) => e.verdict === 'ok').length;
+    checks.push(
+      outcome(
+        CHECK_EVIDENCE,
+        bad === 0 && good > 0,
+        `${good} record(s) match their committed hashes, ${bad} do not`,
+      ),
+    );
+  }
+
+  return { result: result(checks), actions: readings, evidence: evidenceReadings };
+}
+
+// -- the whole receipt -----------------------------------------------------
+
+function authorizationLine(res, settled) {
+  const signature = res.get(CHECK_POLICY_SIGNATURE);
+  const blob = res.get(CHECK_SIGNED_BLOB);
+  if (!settled) return [AUTHORIZATION_ABSENT, 'nothing settled, so no transaction was authorized'];
+  if (!signature || signature.status === NOT_IMPLEMENTED) {
+    return [AUTHORIZATION_ABSENT, signature ? signature.detail : 'no policy signature was checked'];
+  }
+  if (signature.status === FAIL) return [AUTHORIZATION_CONTRADICTED, signature.detail];
+  if (blob && blob.status === FAIL) return [AUTHORIZATION_CONTRADICTED, blob.detail];
+  if (blob && blob.status === PASS) {
+    return [
+      AUTHORIZATION_VERIFIED,
+      'the policy key signed a payload carrying LEFT, and the transaction id ' +
+        're-derives from the blob that was submitted',
+    ];
+  }
+  return [
+    AUTHORIZATION_VERIFIED,
+    'the policy key signed a payload carrying LEFT; the blob itself was not supplied',
+  ];
+}
+
+/**
+ * Verify a receipt as far as the supplied material allows, and say how far.
+ *
+ * `receipt` is a v1.2 `receipts[]` entry: `{envelope, leaves}`. Everything in
+ * `options` is something the *verifier* brought — the PCR allowlist and the
+ * moment to judge it at, the validator key set, the policy document and the
+ * admin key that signed it, the session bundle to join. Each one absent turns
+ * its checks into named `not_implemented` entries: never a pass, never silence.
+ *
+ * Returns the same shape `merkl.core.verify.receipt.ReceiptVerdict.to_content()`
+ * produces, so the two implementations are compared object to object.
+ */
+async function verifyReceipt(receipt, options = {}) {
+  const {
+    attestationTrust = null,
+    now = null,
+    validatorTrust = null,
+    settlementProof = null,
+    policyDocument = null,
+    adminPublicKey = null,
+    sessionBundle = null,
+    liveSettlement = false,
+  } = options;
+
+  const envelope = receipt.envelope ?? {};
+  const contents = Array.isArray(receipt.leaves) ? receipt.leaves : [];
+  const committed = envelope.leaf_hashes ?? [];
+
+  const checks = [];
+  checks.push(
+    outcome(CHECK_VERSION, envelope.version === RECEIPT_VERSION, `version "${envelope.version}"`),
+  );
+  checks.push(outcome(CHECK_LEAF_COUNT, contents.length === 7, `${contents.length} leaf contents`));
+  checks.push(
+    outcome(
+      CHECK_REQUIRED_LEAVES,
+      REQUIRED_LEAVES.every((n) => {
+        const i = LEAF_NAMES.indexOf(n);
+        return i < contents.length && contents[i] !== null && contents[i] !== undefined;
+      }),
+      `${JSON.stringify(REQUIRED_LEAVES)} are present in every receipt`,
+    ),
+  );
+
+  const { checks: leaves, computed } = await leafChecks(envelope, contents);
+  checks.push(...leaves);
+  checks.push(outcome(CHECK_PADDING, committed[7] === committed[6], 'leaf 7 must repeat leaf 6'));
+
+  let committedLeft = null;
+  try {
+    committedLeft = await buildLeft(committed);
+  } catch {
+    committedLeft = null;
+  }
+  const head = computed.slice(0, 4);
+  if (head.some((h) => h === null) || committedLeft === null) {
+    checks.push(check(CHECK_LEFT, FAIL, 'LEFT cannot be recomputed: a leaf in 0-3 does not hash'));
+  } else {
+    const recomputed = await buildLeft(head);
+    checks.push(
+      outcome(
+        CHECK_LEFT,
+        committedLeft === envelope.left && recomputed === envelope.left,
+        `LEFT over leaves 0-3 is ${committedLeft}`,
+      ),
+    );
+  }
+
+  const settlement = contentAt(contents, 4);
+  const settledResult = contentAt(contents, 5);
+  const intent = contentAt(contents, 1);
+  const decision = contentAt(contents, 2);
+  const escalation = member(decision, 'escalation');
+
+  const [documentCheck, policy] = await policyDocumentCheck(envelope, policyDocument, adminPublicKey);
+  const challengeCheck = await escalationChallengeCheck(contents, escalation);
+  const [quorumCheck, approvedIds] = await approvalQuorumCheck(
+    escalation,
+    challengeCheck.status === PASS,
+    policy,
+  );
+  checks.push(documentCheck, challengeCheck, quorumCheck);
+
+  const early = policySignatureCheck(settlement, envelope);
+  checks.push(early !== null ? early : await finishPolicySignature(settlement, envelope));
+  checks.push(await attestationCheck(contentAt(contents, 3), envelope, attestationTrust, now));
+  checks.push(intentMatchesCheck(intent, settlement, settledResult));
+  checks.push(anchorCheck(settlement, envelope));
+  checks.push(await signedBlobCheck(settlement));
+
+  let reading;
+  if (settlement === null || settlement === undefined) {
+    reading = {
+      checks: [
+        noData(CHECK_PROOF_MATCHES, 'nothing settled, so there is no proof to read'),
+        noData(CHECK_LEDGER_HEADER, 'nothing settled, so there is no ledger to check'),
+        noData(CHECK_VALIDATOR_QUORUM, 'nothing settled, so no validators signed anything'),
+      ],
+      ledger_inclusion: LEDGER_UNCHECKED,
+      detail: 'nothing settled, so there is no ledger inclusion to establish',
+    };
+  } else {
+    reading = await readSettlementProof(settlementProof, {
+      rail: settlement.rail,
+      txHash: settlement.tx_hash,
+      ledgerIndex: settlement.ledger_index,
+      trust: validatorTrust,
+      live: liveSettlement,
+    });
+  }
+  checks.push(...reading.checks);
+  const inclusionStatus =
+    reading.ledger_inclusion === LEDGER_PROVEN_OFFLINE ||
+    reading.ledger_inclusion === LEDGER_VERIFIED_LIVE
+      ? PASS
+      : reading.checks.some((c) => c.status === FAIL)
+        ? FAIL
+        : NOT_IMPLEMENTED;
+  checks.push(
+    check(CHECK_LEDGER_INCLUSION, inclusionStatus, `${reading.ledger_inclusion}: ${reading.detail}`),
+  );
+
+  let committedRight = null;
+  try {
+    committedRight = await buildRight(committed);
+  } catch {
+    committedRight = null;
+  }
+  const tail = computed.slice(4, 7);
+  if (tail.some((h) => h === null) || committedRight === null) {
+    checks.push(check(CHECK_RIGHT, FAIL, 'RIGHT cannot be recomputed: a leaf in 4-6 does not hash'));
+  } else {
+    const recomputed = await buildRight([...committed.slice(0, 4), ...tail, tail[2]]);
+    checks.push(
+      outcome(CHECK_RIGHT, recomputed === committedRight, `RIGHT over leaves 4-7 is ${committedRight}`),
+    );
+  }
+
+  let recomputedRoot = null;
+  if (committedLeft !== null && committedRight !== null) {
+    recomputedRoot = await buildRoot(committedLeft, committedRight);
+  }
+  checks.push(
+    outcome(
+      CHECK_ROOT,
+      recomputedRoot === envelope.root,
+      `SHA-256(LEFT || RIGHT) is ${recomputedRoot}`,
+    ),
+  );
+
+  checks.push(
+    outcome(CHECK_ENVELOPE_RAIL, member(intent, 'rail') === envelope.rail, `envelope rail "${envelope.rail}"`),
+  );
+  checks.push(
+    outcome(
+      CHECK_ENVELOPE_TREASURY,
+      member(intent, 'treasury') === envelope.treasury,
+      `envelope treasury "${envelope.treasury}"`,
+    ),
+  );
+  checks.push(
+    outcome(
+      CHECK_ENVELOPE_POLICY_HASH,
+      member(decision, 'policy_hash') === envelope.policy_hash,
+      `envelope policy_hash ${envelope.policy_hash}`,
+    ),
+  );
+
+  let log = null;
+  if (sessionBundle) log = await verifyLogBundle(sessionBundle);
+  const join = await logJoinCheck(envelope, sessionBundle, log ?? { actions: [] });
+  checks.push(join);
+
+  const res = result(checks);
+  const [authorization, authorizationDetail] = authorizationLine(res, settlement !== null && settlement !== undefined);
+  const level = join.status === PASS ? LEVEL_SESSION : LEVEL_RECEIPT;
+  const attestationResult = res.get(CHECK_ATTESTATION);
+  const leafThree = contentAt(contents, 3);
+  const attested =
+    leafThree === null || leafThree === undefined
+      ? false
+      : attestationResult && attestationResult.status === PASS
+        ? true
+        : null;
+
+  return {
+    receipt_id: envelope.receipt_id,
+    ok: res.ok && (log ? log.result.ok : true),
+    complete: res.complete && (log ? log.result.complete : true),
+    level,
+    level_detail:
+      level === LEVEL_SESSION
+        ? 'level 2: this receipt is committed in a session log whose checkpoint and ' +
+          'inclusion proof were checked here'
+        : 'level 1: verified against the signer key, the rail and this receipt alone — ' +
+          'joining a session log would add completeness, a notary signature and an anchor',
+    settlement: {
+      transaction_authorization: authorization,
+      transaction_authorization_detail: authorizationDetail,
+      ledger_inclusion: reading.ledger_inclusion,
+      ledger_inclusion_detail: reading.detail,
+    },
+    attested,
+    summary: summarize(contents, envelope, approvedIds),
+    checks: res.checks,
+    log: log
+      ? {
+          ok: log.result.ok,
+          complete: log.result.complete,
+          checks: log.result.checks.map((c) => ({ name: c.name, status: c.status })),
+          actions: log.actions.map((a) => ({ ...a, ok: a.ok })),
+          evidence: log.evidence,
+        }
+      : undefined,
+    result: res,
+  };
+}
+
+/**
+ * The one call a page makes: verify a whole bundle, receipts included.
+ *
+ * Accepts a session bundle (v1.1 or v1.2) or a receipt-only bundle
+ * (`{version, receipts:[…], session: null}`) — the two shapes merkl-api renders
+ * and `merkl disclose` writes. Returns `{log, receipts, ok, complete}`; the page
+ * renders words out of that and computes nothing of its own.
+ */
+async function verifyBundle(bundle, options = {}) {
+  const { evidence = [], receiptOptions = {} } = options;
+  const hasSession = Boolean(bundle && bundle.session);
+  const log = hasSession ? await verifyLogBundle(bundle, { evidence }) : null;
+  const receipts = [];
+  for (const entry of bundle?.receipts ?? []) {
+    if (!entry || typeof entry !== 'object') continue;
+    receipts.push(
+      await verifyReceipt(entry, {
+        settlementProof: entry.settlement_proof ?? null,
+        policyDocument: entry.policy_document ?? null,
+        sessionBundle: hasSession ? bundle : null,
+        ...receiptOptions,
+      }),
+    );
+  }
+  return {
+    log,
+    receipts,
+    ok: (log ? log.result.ok : true) && receipts.every((r) => r.ok),
+    complete: (log ? log.result.complete : true) && receipts.every((r) => r.complete),
+  };
+}
+
+// -- selective disclosure --------------------------------------------------
+
+const CHECK_DISCLOSURE_ROOT = 'disclosure.root';
+
+/**
+ * Check a disclosure against a root the reader already trusts.
+ *
+ * The root is an input, not something the disclosure gets to assert: it comes
+ * from the envelope, from the session log, or from wherever the reader pinned
+ * it. A disclosure that supplied its own root would verify against itself.
+ */
+async function verifyDisclosure(disclosure, root) {
+  const leafHashes = disclosure.leaf_hashes ?? [];
+  const checks = [
+    outcome(CHECK_VERSION, disclosure.version === RECEIPT_VERSION, `version is "${disclosure.version}"`),
+    outcome(
+      CHECK_DISCLOSURE_ROOT,
+      disclosure.root === root,
+      `disclosure root ${disclosure.root} vs expected ${root}`,
+    ),
+    outcome(CHECK_LEAF_COUNT, leafHashes.length === 8, `${leafHashes.length} leaf hashes`),
+    outcome(CHECK_PADDING, leafHashes[7] === leafHashes[6], 'leaf 7 must repeat leaf 6'),
+  ];
+  for (const leaf of disclosure.leaves ?? []) {
+    let computed = null;
+    try {
+      computed = await receiptLeafHash(leaf.name, leaf.content);
+    } catch (e) {
+      checks.push(check(`leaf.${leaf.name}`, FAIL, String(e)));
+      checks.push(check(`proof.${leaf.name}`, FAIL, 'leaf hash unavailable'));
+      continue;
+    }
+    const committed = leafHashes[leaf.index];
+    checks.push(
+      outcome(`leaf.${leaf.name}`, computed === committed, `recomputed ${computed} vs committed ${committed}`),
+    );
+    const derived = await deriveRoot(computed, leaf.proof.siblings, leaf.proof.directions);
+    checks.push(outcome(`proof.${leaf.name}`, derived === root, `proof folds to ${derived}`));
+  }
+  const left = await buildLeft(leafHashes);
+  const right = await buildRight(leafHashes);
+  checks.push(outcome(CHECK_LEFT, left === disclosure.left, `recomputed LEFT ${left}`));
+  const recomputedRoot = await buildRoot(left, right);
+  checks.push(outcome(CHECK_ROOT, recomputedRoot === root, `recomputed ROOT ${recomputedRoot}`));
+  return result(checks);
+}
+
+
+// ─── DOM helpers ───────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function stateClass(status) {
+  return status === 'pass' ? 'ok' : status === 'fail' ? 'bad' : 'unknown';
+}
+
+function stateWord(status) {
+  return status === 'pass' ? 'checked' : status === 'fail' ? 'failed' : 'not checked';
+}
+
+function checksTable(checks) {
+  const rows = checks
+    .map(
+      (c) =>
+        `<tr><td class="cname">${esc(c.name)}</td>` +
+        `<td class="cstate ${stateClass(c.status)}">${stateWord(c.status)}</td>` +
+        `<td class="cdetail">${esc(c.detail)}</td></tr>`,
+    )
+    .join('');
+  return (
+    '<table class="checks"><thead><tr><th>Check</th><th>Result</th>' +
+    '<th>What was compared</th></tr></thead><tbody>' + rows + '</tbody></table>'
+  );
+}
+
+// ─── The story: sentences first, hashes never ──────────────────────────────
+
+const STORY_LABELS = [
+  ['instructed', 'What the agent was told'],
+  ['rule', 'Which rule allowed it'],
+  ['approved', 'Who approved'],
+  ['settled', 'What settled'],
+  ['when', 'When'],
+  ['signer', 'Who signed it'],
+  ['testimony', 'Reasoning'],
+];
+
+function storyHtml(verdict) {
+  const s = verdict.summary;
+  const lines = STORY_LABELS.map(([key, label]) => {
+    const text = s[key];
+    const absent = !text;
+    // An unattested signer is the one line that must not read as routine.
+    const loud = key === 'signer' && verdict.attested === false;
+    const cls = ['story-line', absent ? 'absent' : '', loud ? 'loud' : '', key === 'testimony' ? 'testimony' : '']
+      .filter(Boolean)
+      .join(' ');
+    const body = absent ? 'The receipt does not say.' : text;
+    const prefix = key === 'testimony' ? '<b>Testimony, not proof.</b> ' : '';
+    return (
+      `<div class="${cls}"><span class="story-label">${esc(label)}</span>` +
+      `<span class="story-text">${prefix}${esc(body)}</span></div>`
+    );
+  }).join('');
+  return `<div class="story">${lines}</div>`;
+}
+
+const LEAF_PLAIN = {
+  instruction: 'Who asked for this, and the hash of what they said.',
+  intent: 'The payment as the agent proposed it: rail, treasury, destination, amount.',
+  policy_decision: 'Every rule the signer ran, the verdict, and any escalation.',
+  signer_attestation: 'The enclave document vouching for the policy key, or its absence.',
+  settlement: 'The transaction the rail validated, and the policy signature over it.',
+  result: 'How the attempt ended, and what moved.',
+  reasoning: 'A hash of the model trace. Testimony, not proof.',
+};
+
+function leavesHtml(receipt, verdict) {
+  const contents = receipt.leaves || [];
+  return LEAF_NAMES.map((name, i) => {
+    const c = verdict.result.get(`leaf.${name}`);
+    const status = c ? c.status : 'not_implemented';
+    const content = i < contents.length ? contents[i] : null;
+    const body =
+      content === null || content === undefined
+        ? 'null — this leaf is absent, and the receipt commits to its absence'
+        : JSON.stringify(content, null, 2);
+    return (
+      `<div class="leaf"><div class="leaf-head">` +
+      `<span class="leaf-index">${i}</span>` +
+      `<span class="leaf-name">${esc(name)}</span>` +
+      `<span class="leaf-plain">${esc(LEAF_PLAIN[name])}</span>` +
+      `<span class="leaf-state ${stateClass(status)}">${stateWord(status)}</span></div>` +
+      `<div class="leaf-body"><div class="hash">${esc(c ? c.detail : '')}</div>` +
+      `<pre>${esc(body)}</pre></div></div>`
+    );
+  }).join('');
+}
+
+// ─── Selective disclosure ──────────────────────────────────────────────────
+
+function disclosureHtml(disclosure) {
+  const revealed = new Map((disclosure.leaves || []).map((l) => [l.index, l]));
+  return LEAF_NAMES.map((name, i) => {
+    const leaf = revealed.get(i);
+    const hidden = leaf === undefined;
+    const body = hidden
+      ? 'Withheld. Only its hash is in this file — enough to prove this leaf was ' +
+        'committed and has not been changed, and nothing at all about what it says.'
+      : leaf.content === null || leaf.content === undefined
+        ? 'null — this leaf is absent, and the receipt commits to its absence'
+        : JSON.stringify(leaf.content, null, 2);
+    return (
+      `<div class="leaf${hidden ? '' : ' open'}"><div class="leaf-head">` +
+      `<span class="leaf-index">${i}</span>` +
+      `<span class="leaf-name">${esc(name)}</span>` +
+      `<span class="leaf-plain">${esc(LEAF_PLAIN[name])}</span>` +
+      `<span class="leaf-state ${hidden ? 'unknown' : 'ok'}">${hidden ? 'withheld' : 'revealed'}</span>` +
+      `</div><div class="leaf-body"><div class="hash">${esc(disclosure.leaf_hashes[i])}</div>` +
+      `<pre>${esc(body)}</pre></div></div>`
+    );
+  }).join('');
+}
+
+function lineCard(label, state, detail) {
+  return (
+    `<div class="line-card"><div class="k">${esc(label)}</div>` +
+    `<div class="v state-${esc(state)}">${esc(state)}</div>` +
+    `<div class="d">${esc(detail)}</div></div>`
+  );
+}
+
+// ─── Session actions ───────────────────────────────────────────────────────
+
+function renderActions(log, actions) {
+  if (!actions.length) return;
+  $('actions-section').style.display = '';
+  const tbody = $('actions-tbody');
+  $('total-count').textContent = actions.length;
+  let verified = 0;
+  actions.forEach((a, i) => {
+    const reading = log.actions[i];
+    if (reading.ok) verified++;
+    const tr = document.createElement('tr');
+    tr.className = 'action-row';
+    tr.innerHTML =
+      `<td style="color:var(--text-3);font-family:var(--mono);font-size:11px">${i + 1}</td>` +
+      `<td><div class="action-name">${esc(a.display_name || a.tool_name)}</div>` +
+      `<div class="action-meta">${esc(a.tool_name)} · ${esc(a.category || '—')}` +
+      (a.receipt_id ? ' · carries a receipt' : '') + `</div></td>` +
+      `<td style="font-family:var(--mono);font-size:11px">${esc(a.action_type)}</td>` +
+      `<td><span class="status-dot status-${esc(a.status || 'success')}"></span>` +
+      `<span style="font-family:var(--mono);font-size:11px">${esc(a.status)}</span></td>` +
+      `<td style="text-align:center">` +
+      (reading.ok ? '<span class="check-mark">✓</span>' : '<span class="cross-mark">✗</span>') +
+      `</td>`;
+    const proofTr = document.createElement('tr');
+    proofTr.className = 'proof-row';
+    const proof = a.proof || { siblings: [], directions: [] };
+    proofTr.innerHTML =
+      `<td colspan="5" style="padding:0 12px 16px"><div class="proof-box">` +
+      `<div><span class="label">Recomputed leaf:</span><span class="val ${reading.leaf_matches ? 'ok' : 'bad'}">${esc(reading.computed_leaf)}</span></div>` +
+      `<div><span class="label">Bundle leaf:</span><span class="val">${esc(reading.committed_leaf)}</span></div>` +
+      `<div><span class="label">Proof lands on:</span><span class="val ${reading.proof_ok ? 'ok' : 'bad'}">${esc(reading.derived_root)}</span></div>` +
+      (proof.siblings.length
+        ? `<div style="margin-top:8px"><b>Merkle path</b> (${proof.siblings.length} levels)</div>` +
+          proof.siblings
+            .map(
+              (s, j) =>
+                `<div class="path-step"><span class="dir">${esc(proof.directions[j])}</span>` +
+                `<span class="sib">${esc(s)}</span></div>`,
+            )
+            .join('')
+        : '<div style="margin-top:8px;color:var(--text-3)">A single-leaf tree: the leaf is the root.</div>') +
+      `</div></td>`;
+    tr.onclick = () => proofTr.classList.toggle('open');
+    tbody.appendChild(tr);
+    tbody.appendChild(proofTr);
+  });
+  $('verified-count').textContent = verified;
+}
+
+// ─── Evidence ──────────────────────────────────────────────────────────────
+
+let SESSION_ACTIONS = [];
+
+async function runEvidence(text) {
+  const readings = await verifyEvidence(evidenceRecords(text), SESSION_ACTIONS);
+  const bad = readings.filter((r) => r.verdict === 'bad').length;
+  const good = readings.filter((r) => r.verdict === 'ok').length;
+  const unknown = readings.filter((r) => r.verdict === 'unknown').length;
+  const head =
+    bad === 0 && good > 0
+      ? `<div class="ok" style="margin-bottom:8px">✓ ${good} record(s) match the hashes committed in the tree${unknown ? ` · ${unknown} not in this bundle` : ''}</div>`
+      : `<div class="bad" style="margin-bottom:8px">✗ ${bad} record(s) do not match · ${good} do${unknown ? ` · ${unknown} not in this bundle` : ''}</div>`;
+  $('evidence-results').innerHTML =
+    head +
+    readings
+      .map((r) => {
+        const cls = r.verdict === 'ok' ? 'ok' : r.verdict === 'bad' ? 'bad' : '';
+        const mark = r.verdict === 'ok' ? '✓' : r.verdict === 'bad' ? '✗' : '◦';
+        return `<div class="audit-row"><span class="audit-label">${esc(r.label)}</span><span class="audit-val ${cls}">${mark} ${esc(r.detail)}</span></div>`;
+      })
+      .join('');
+}
+
+// ─── Main ──────────────────────────────────────────────────────────────────
+
+async function run() {
+  const session = BUNDLE.session || null;
+  const actions = Array.isArray(BUNDLE.actions) ? BUNDLE.actions : [];
+  const receipts = Array.isArray(BUNDLE.receipts) ? BUNDLE.receipts : [];
+  SESSION_ACTIONS = actions;
+
+  const whole = await verifyBundle(BUNDLE);
+  const log = whole.log;
+
+  // Header
+  const meta = [];
+  if (session) {
+    $('headline').textContent = session.goal || 'Agent session';
+    meta.push(['Session', String(session.session_id || '').slice(0, 8) + '…']);
+    meta.push(['Agent', session.agent_id || '—']);
+    meta.push(['Actions', actions.length]);
+  }
+  if (receipts.length === 1 && !session) {
+    $('headline').textContent = 'One co-signed payment, and everything behind it';
+  } else if (receipts.length) {
+    meta.push(['Receipts', receipts.length]);
+  }
+  if (BUNDLE.exported_at) meta.push(['Exported', new Date(BUNDLE.exported_at).toLocaleString()]);
+  $('meta').innerHTML = meta
+    .map(([k, v]) => `<span><b>${esc(k)}</b> ${esc(v)}</span>`)
+    .join('');
+  $('footer-time').textContent = 'Verified in your browser at ' + new Date().toLocaleString();
+
+  // Stories, settlement lines and checks, per receipt
+  if (receipts.length) {
+    $('story-section').style.display = '';
+    $('lines-section').style.display = '';
+    $('checks-section').style.display = '';
+    const stories = [];
+    const lines = [];
+    const checkBlocks = [];
+    whole.receipts.forEach((verdict, i) => {
+      const receipt = receipts[i];
+      const heading =
+        receipts.length > 1
+          ? `<div class="section-title" style="margin-top:20px">Receipt ${i + 1} — ${esc(verdict.receipt_id)}</div>`
+          : '';
+      stories.push(heading + storyHtml(verdict));
+      lines.push(
+        heading +
+          '<div class="lines">' +
+          lineCard(
+            'Transaction authorization',
+            verdict.settlement.transaction_authorization,
+            verdict.settlement.transaction_authorization_detail,
+          ) +
+          lineCard(
+            'Ledger inclusion',
+            verdict.settlement.ledger_inclusion,
+            verdict.settlement.ledger_inclusion_detail,
+          ) +
+          '</div>' +
+          `<div class="level-note"><b>Level ${verdict.level}.</b> ${esc(verdict.level_detail)}</div>`,
+      );
+      checkBlocks.push(
+        heading +
+          checksTable(verdict.checks) +
+          '<details class="more"><summary>The seven leaves, and what each one hashes to</summary>' +
+          leavesHtml(receipt, verdict) +
+          '</details>',
+      );
+    });
+    $('stories').innerHTML = stories.join('');
+    $('lines').innerHTML = lines.join('');
+    $('checks').innerHTML = checkBlocks.join('');
+  }
+
+  // A partial receipt, rendered for what it is
+  let disclosureOk = true;
+  let disclosureComplete = true;
+  const disclosures = Array.isArray(BUNDLE.disclosures)
+    ? BUNDLE.disclosures
+    : BUNDLE.disclosure
+      ? [BUNDLE.disclosure]
+      : [];
+  if (disclosures.length) {
+    $('disclosure-section').style.display = '';
+    $('checks-section').style.display = '';
+    const notes = [];
+    const bodies = [];
+    const tables = [];
+    for (const disclosure of disclosures) {
+      const res = await verifyDisclosure(disclosure, disclosure.root);
+      const shown = (disclosure.leaves || []).length;
+      notes.push(
+        `<p><b>${shown} of ${LEAF_NAMES.length} leaves were disclosed.</b> Each one was ` +
+          'rehashed here and folded back to the receipt root, so what you can read is ' +
+          'provably part of that receipt and provably unedited. The rest are present as ' +
+          'hashes only.</p>' +
+          '<p style="margin-top:8px">This page cannot tell you the root is the right one. ' +
+          `It is <span class="hash">${esc(disclosure.root)}</span> — compare it against the ` +
+          'receipt or the session log the discloser pointed you at.</p>',
+      );
+      bodies.push(disclosureHtml(disclosure));
+      tables.push(checksTable(res.checks));
+      disclosureOk = disclosureOk && res.ok;
+      disclosureComplete = disclosureComplete && res.complete;
+    }
+    $('disclosure-note').innerHTML = notes.join('');
+    $('disclosure-leaves').innerHTML = bodies.join('');
+    $('checks').innerHTML += tables.join('');
+    if (!$('headline').textContent || $('headline').textContent.startsWith('Verifying')) {
+      $('headline').textContent = 'A partial receipt, and the proof it belongs to a whole one';
+    }
+  }
+
+  // Session, log and evidence
+  if (log) {
+    renderActions(log, actions);
+    $('evidence-section').style.display = '';
+    if (!receipts.length) {
+      $('checks-section').style.display = '';
+      $('checks').innerHTML = checksTable(log.result.checks);
+    } else {
+      $('checks').innerHTML += '<div class="section-title" style="margin-top:20px">The session log</div>' + checksTable(log.result.checks);
+    }
+    const audit = BUNDLE.audit_log;
+    const transparency = BUNDLE.transparency || {};
+    const cp = transparency.checkpoint;
+    if (audit || cp) {
+      $('log-section').style.display = '';
+      const rows = [];
+      if (session) rows.push(['Session root', session.root_hash]);
+      if (audit) {
+        rows.push(['Log entry', audit.entry_id]);
+        rows.push(['Sequence', audit.sequence]);
+        rows.push(['Sealed at', audit.sealed_at_iso]);
+        rows.push(['Entry hash', audit.current_hash]);
+        rows.push(['Previous entry', audit.prev_log_hash]);
+      }
+      if (cp) {
+        rows.push(['Checkpoint origin', cp.origin]);
+        rows.push(['Log size', cp.tree_size + ' entries']);
+        rows.push(['Log root', cp.root_hash]);
+        rows.push(['Notary key', cp.public_key]);
+      }
+      $('log-box').innerHTML = rows
+        .map(
+          ([k, v]) =>
+            `<div class="audit-row"><span class="audit-label">${esc(k)}</span><span class="audit-val">${esc(v)}</span></div>`,
+        )
+        .join('');
+    }
+    const anchor = transparency.anchor;
+    if (anchor) {
+      $('anchor-section').style.display = '';
+      const confirmed = anchor.status === 'confirmed';
+      $('anchor-box').innerHTML = [
+        ['Status', confirmed ? '✓ Confirmed in the Bitcoin blockchain' : '◦ Pending — submitted, awaiting the calendar’s next aggregation'],
+        ['Calendar', anchor.calendar],
+        ['Anchored digest', anchor.body_digest],
+        ['Log size', anchor.tree_size + ' entries'],
+        ['Submitted', anchor.submitted_at || '—'],
+        ['Verify yourself', anchor.how_to_verify || ''],
+      ]
+        .map(
+          ([k, v]) =>
+            `<div class="audit-row"><span class="audit-label">${esc(k)}</span><span class="audit-val">${esc(v)}</span></div>`,
+        )
+        .join('');
+    }
+  }
+
+  // Everything nobody checked, named
+  const deferred = [];
+  for (const verdict of whole.receipts) {
+    for (const c of verdict.checks) if (c.status === 'not_implemented') deferred.push([c.name, c.detail]);
+  }
+  if (log) for (const c of log.result.deferred) deferred.push([c.name, c.detail]);
+  if (deferred.length) {
+    $('gaps-section').style.display = '';
+    $('gaps').innerHTML =
+      '<p style="margin-bottom:8px">A check whose inputs are not in this file is reported here by ' +
+      'name. None of these is a failure, and none of them is a pass.</p>' +
+      deferred
+        .map(([n, d]) => `<div class="audit-row"><span class="audit-label" style="min-width:230px">${esc(n)}</span><span class="audit-val">${esc(d)}</span></div>`)
+        .join('');
+  }
+
+  // How to check it yourself
+  $('algo-box').innerHTML =
+    '<p>Everything above was recomputed in your browser from the data embedded in this ' +
+    'file. Nothing was fetched, and no answer came from Merkl.</p>' +
+    '<p style="margin-top:8px">The same checks run from the command line with ' +
+    '<code>pip install merkl-sdk &amp;&amp; merkl verify &lt;this file&gt;</code>, and from ' +
+    'JavaScript with <code>npm i @merkl/verify</code>. Both implementations are held ' +
+    'against the same published test vectors, so if they ever disagreed, one of them would ' +
+    'be wrong — and you can check that too.</p>';
+
+  // The badge
+  const badge = $('global-verdict');
+  const ok = whole.ok && disclosureOk;
+  const complete = whole.complete && disclosureComplete;
+  if (!ok) {
+    badge.textContent = '✗ Contradicted';
+    badge.className = 'verdict-badge failed';
+    $('headline').textContent = 'This record does not hold together';
+  } else if (!complete) {
+    badge.textContent = '✓ Consistent · partly unchecked';
+    badge.className = 'verdict-badge partial';
+  } else {
+    badge.textContent = '✓ Verified';
+    badge.className = 'verdict-badge verified';
+  }
+
+  $('evidence-file').addEventListener('change', async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (file) await runEvidence(await file.text());
+  });
+  $('evidence-paste-btn').addEventListener('click', async () => {
+    const text = $('evidence-paste').value;
+    if (text.trim()) await runEvidence(text);
+  });
+  document.querySelectorAll('.leaf-head').forEach((h) =>
+    h.addEventListener('click', () => h.parentElement.classList.toggle('open')),
+  );
+}
+
+run().catch((e) => {
+  console.error('Verifier error:', e);
+  const badge = $('global-verdict');
+  badge.textContent = 'Verifier error';
+  badge.className = 'verdict-badge failed';
+  $('headline').textContent = String(e && e.message ? e.message : e);
+});
+</script>
+</body>
+</html>

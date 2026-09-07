@@ -45,11 +45,35 @@ jobs:
           fi
           echo "version=${pkg}" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      # @merkl-ai/verify is versioned in lockstep with merkl-sdk: they are two
+      # implementations of one spec, and a reader holding one of them must be
+      # able to assume the other agrees. A mismatch here would ship a pair that
+      # was never tested together.
+      - name: npm package version must match the tag
+        run: |
+          js=$(node -p "require('./merkl/core/verify/js/package.json').version")
+          if [ "$js" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::@merkl-ai/verify declares ${js}, this release is ${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+
       - name: Install and test
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
           python -m pytest -q
+
+      - name: Both implementations agree on every vector
+        run: |
+          python -m merkl.core.vectors.generate --check
+          python -m merkl.core.vectors.attestation.generate --check
+          python -m merkl.core.vectors.bundles.generate --check
+          npm test
 
       - name: Build
         run: |
@@ -98,6 +122,58 @@ jobs:
           # Lets a re-run of a partially failed release succeed instead of
           # dying on an already-uploaded file.
           skip-existing: true
+
+  # Published from the same tag as the PyPI distribution (plan D19), with npm
+  # provenance so the package can be traced back to this workflow run.
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    # Non-blocking until NPM_TOKEN exists on the repo; PyPI and the GitHub
+    # Release must not wait on npm.
+    continue-on-error: true
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/@merkl-ai/verify
+    permissions:
+      id-token: write # OIDC identity for npm provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      - name: Publish @merkl-ai/verify
+        working-directory: merkl/core/verify/js
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+  # The signer as an image, from the same tag. Pulled by anyone's compose file;
+  # our own production box runs it beside merkl-api.
+  publish-image:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.signer
+          push: true
+          tags: |
+            ghcr.io/ramcav/merkl-signer:${{ needs.build.outputs.version }}
+            ghcr.io/ramcav/merkl-signer:latest
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.build.outputs.version }}
 
   github-release:
     needs: [build, publish-pypi]

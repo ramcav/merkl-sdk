@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 from typing import Any
 
@@ -61,9 +62,7 @@ class SessionContext:
         return payload
 
     async def __aenter__(self) -> SessionContext:
-        resp = await self._transport.post(
-            "/v1/sessions", json=self._create_session_payload()
-        )
+        resp = await self._transport.post("/v1/sessions", json=self._create_session_payload())
         self._session_id = resp["session_id"]
         # Bind this session to the contextvar so @trace/@guardrail inside
         # the `async with` block see it automatically. Inner contexts
@@ -87,15 +86,13 @@ class SessionContext:
             self._session_token = None
         if not self._session_id:
             return
-        try:
+        # Session may already be closed (force-seal, idle timeout).
+        # __aexit__ is best-effort cleanup — don't raise inside it.
+        with contextlib.suppress(Exception):
             await self._transport.post(
                 f"/v1/sessions/{self._session_id}/close",
                 json={},
             )
-        except Exception:
-            # Session may already be closed (force-seal, idle timeout).
-            # __aexit__ is best-effort cleanup — don't raise inside it.
-            pass
 
     async def record_action(
         self,

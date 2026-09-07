@@ -1,0 +1,43 @@
+{
+  "name": "@merkl-ai/verify",
+  "version": "0.2.0",
+  "description": "Verify Merkl receipts and proof bundles offline. No dependencies, Web Crypto only.",
+  "type": "module",
+  "main": "./merkl-verify.js",
+  "module": "./merkl-verify.js",
+  "exports": {
+    ".": "./merkl-verify.js",
+    "./cli": "./cli.mjs"
+  },
+  "bin": {
+    "merkl-verify": "./cli.mjs"
+  },
+  "files": [
+    "merkl-verify.js",
+    "cli.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "merkle",
+    "verification",
+    "receipts",
+    "attestation",
+    "nitro",
+    "audit"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ramcav/merkl-sdk.git",
+    "directory": "merkl/core/verify/js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
