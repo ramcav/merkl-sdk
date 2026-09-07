@@ -2308,6 +2308,1139 @@
         "complete": false,
         "ok": true
       }
+    },
+    {
+      "description": "A trade: a cross-currency payment to the treasury itself. Leaf 1 carries sell and buy instead of amount, and leaf 5 carries what the ledger actually delivered and what it actually cost — delivered is exactly the buy side, spent is below the sell ceiling.",
+      "disclosure": {
+        "leaf_hashes": [
+          "e078af319bb041a06f011fcfe051863a806bb891c5a33bdeff6ae8113534009a",
+          "eb0670ff043b58f76701da2f4005ecb662bd73fde31f8b6a485bb7c399b46dab",
+          "565563f169e337a69ccbb80c455cd74b02cb1c695a44e9bf18e85e4c2a91f38b",
+          "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+          "37adedc12411e43e71307daa888ac41630c02fb2fe4fb48a56152f77488c1131",
+          "a1ed4c8af8c479c8a966d19ec87a3219584afbb07390efa2165bfca342455e9c",
+          "ef7d980a8db58dc93d04e5884bd0fdc00b276010d90843ebe322238a511d96ec",
+          "ef7d980a8db58dc93d04e5884bd0fdc00b276010d90843ebe322238a511d96ec"
+        ],
+        "leaves": [
+          {
+            "content": {
+              "agent_public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+              "buy": {
+                "amount": "1000",
+                "currency": "XRP"
+              },
+              "destination": "rTREASURY0000000000000000000000000",
+              "expires_at": "2026-01-02T03:09:05Z",
+              "nonce": "5c6d7e8f90a1b2c3d4e5f60718293a4b",
+              "policy_version": "2026.01.0",
+              "rail": "xrpl",
+              "sell": {
+                "currency": {
+                  "code": "RLUSD",
+                  "issuer": "rISSUER000000000000000000000000000"
+                },
+                "max_amount": "500.00"
+              },
+              "treasury": "rTREASURY0000000000000000000000000",
+              "type": "swap"
+            },
+            "index": 1,
+            "name": "intent",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "right"
+              ],
+              "siblings": [
+                "e078af319bb041a06f011fcfe051863a806bb891c5a33bdeff6ae8113534009a",
+                "c00cc42edd0cbb7ccd8795798dedadcfeb711ad893128d0d20055172f7d3becc",
+                "efbd91185d3de62e2b135c07bc2f5f6c417bc5153b88da54aa8e1ada0071d0d4"
+              ]
+            }
+          },
+          {
+            "content": {
+              "balance_deltas": [
+                {
+                  "account": "rTREASURY0000000000000000000000000",
+                  "currency": {
+                    "code": "RLUSD",
+                    "issuer": "rISSUER000000000000000000000000000"
+                  },
+                  "value": "-492.50"
+                },
+                {
+                  "account": "rTREASURY0000000000000000000000000",
+                  "currency": "XRP",
+                  "value": "1000"
+                }
+              ],
+              "delivered": {
+                "currency": "XRP",
+                "value": "1000"
+              },
+              "detail": "",
+              "engine_result": "tesSUCCESS",
+              "outcome": "settled",
+              "spent": {
+                "currency": {
+                  "code": "RLUSD",
+                  "issuer": "rISSUER000000000000000000000000000"
+                },
+                "value": "492.50"
+              }
+            },
+            "index": 5,
+            "name": "result",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "left"
+              ],
+              "siblings": [
+                "37adedc12411e43e71307daa888ac41630c02fb2fe4fb48a56152f77488c1131",
+                "04ac12f26c4c2e1340c7e260d9e0640aad52f4ed644e2659e8aa991756f27053",
+                "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa"
+              ]
+            }
+          }
+        ],
+        "left": "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa",
+        "receipt_id": "01936b2e-2222-7000-8000-000000000005",
+        "root": "9e38b1386659b652d1291b317c31a797da45a7d5b8483951277b3fadc05953f2",
+        "version": "merkl-receipt-v1"
+      },
+      "disclosure_verification": {
+        "checks": [
+          {
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "name": "disclosure.root",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "name": "proof.intent",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "name": "proof.result",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.root",
+            "status": "pass"
+          }
+        ],
+        "complete": true,
+        "ok": true
+      },
+      "envelope": {
+        "agent_id": "agent-accounts-payable",
+        "leaf_hashes": [
+          "e078af319bb041a06f011fcfe051863a806bb891c5a33bdeff6ae8113534009a",
+          "eb0670ff043b58f76701da2f4005ecb662bd73fde31f8b6a485bb7c399b46dab",
+          "565563f169e337a69ccbb80c455cd74b02cb1c695a44e9bf18e85e4c2a91f38b",
+          "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+          "37adedc12411e43e71307daa888ac41630c02fb2fe4fb48a56152f77488c1131",
+          "a1ed4c8af8c479c8a966d19ec87a3219584afbb07390efa2165bfca342455e9c",
+          "ef7d980a8db58dc93d04e5884bd0fdc00b276010d90843ebe322238a511d96ec",
+          "ef7d980a8db58dc93d04e5884bd0fdc00b276010d90843ebe322238a511d96ec"
+        ],
+        "left": "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+        "rail": "xrpl",
+        "receipt_id": "01936b2e-2222-7000-8000-000000000005",
+        "root": "9e38b1386659b652d1291b317c31a797da45a7d5b8483951277b3fadc05953f2",
+        "signer_public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
+        "treasury": "rTREASURY0000000000000000000000000",
+        "version": "merkl-receipt-v1"
+      },
+      "envelope_hash": "72c459bb06d2551c4dba92f0b5e484f88db873b7bd86ccd29f09d12a7b99a96f",
+      "half_proofs": {
+        "instruction": {
+          "directions": [
+            "right",
+            "right"
+          ],
+          "half": "left",
+          "index": 0,
+          "level": 2,
+          "siblings": [
+            "eb0670ff043b58f76701da2f4005ecb662bd73fde31f8b6a485bb7c399b46dab",
+            "c00cc42edd0cbb7ccd8795798dedadcfeb711ad893128d0d20055172f7d3becc"
+          ],
+          "subtree_root": "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa"
+        },
+        "intent": {
+          "directions": [
+            "left",
+            "right"
+          ],
+          "half": "left",
+          "index": 1,
+          "level": 2,
+          "siblings": [
+            "e078af319bb041a06f011fcfe051863a806bb891c5a33bdeff6ae8113534009a",
+            "c00cc42edd0cbb7ccd8795798dedadcfeb711ad893128d0d20055172f7d3becc"
+          ],
+          "subtree_root": "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa"
+        },
+        "policy_decision": {
+          "directions": [
+            "right",
+            "left"
+          ],
+          "half": "left",
+          "index": 2,
+          "level": 2,
+          "siblings": [
+            "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "984b9ddbc80ac19168b7002ae21e4fd62892f448085fd5adb87d4cd207c6d93c"
+          ],
+          "subtree_root": "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa"
+        },
+        "reasoning": {
+          "directions": [
+            "right",
+            "left"
+          ],
+          "half": "right",
+          "index": 6,
+          "level": 2,
+          "siblings": [
+            "ef7d980a8db58dc93d04e5884bd0fdc00b276010d90843ebe322238a511d96ec",
+            "c973e411b344597f992867d319b7261ffd89ce1eb3ee0b6046e89d8ff112a149"
+          ],
+          "subtree_root": "efbd91185d3de62e2b135c07bc2f5f6c417bc5153b88da54aa8e1ada0071d0d4"
+        },
+        "result": {
+          "directions": [
+            "left",
+            "right"
+          ],
+          "half": "right",
+          "index": 5,
+          "level": 2,
+          "siblings": [
+            "37adedc12411e43e71307daa888ac41630c02fb2fe4fb48a56152f77488c1131",
+            "04ac12f26c4c2e1340c7e260d9e0640aad52f4ed644e2659e8aa991756f27053"
+          ],
+          "subtree_root": "efbd91185d3de62e2b135c07bc2f5f6c417bc5153b88da54aa8e1ada0071d0d4"
+        },
+        "settlement": {
+          "directions": [
+            "right",
+            "right"
+          ],
+          "half": "right",
+          "index": 4,
+          "level": 2,
+          "siblings": [
+            "a1ed4c8af8c479c8a966d19ec87a3219584afbb07390efa2165bfca342455e9c",
+            "04ac12f26c4c2e1340c7e260d9e0640aad52f4ed644e2659e8aa991756f27053"
+          ],
+          "subtree_root": "efbd91185d3de62e2b135c07bc2f5f6c417bc5153b88da54aa8e1ada0071d0d4"
+        },
+        "signer_attestation": {
+          "directions": [
+            "left",
+            "left"
+          ],
+          "half": "left",
+          "index": 3,
+          "level": 2,
+          "siblings": [
+            "565563f169e337a69ccbb80c455cd74b02cb1c695a44e9bf18e85e4c2a91f38b",
+            "984b9ddbc80ac19168b7002ae21e4fd62892f448085fd5adb87d4cd207c6d93c"
+          ],
+          "subtree_root": "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa"
+        }
+      },
+      "leaf_hashes": [
+        "e078af319bb041a06f011fcfe051863a806bb891c5a33bdeff6ae8113534009a",
+        "eb0670ff043b58f76701da2f4005ecb662bd73fde31f8b6a485bb7c399b46dab",
+        "565563f169e337a69ccbb80c455cd74b02cb1c695a44e9bf18e85e4c2a91f38b",
+        "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+        "37adedc12411e43e71307daa888ac41630c02fb2fe4fb48a56152f77488c1131",
+        "a1ed4c8af8c479c8a966d19ec87a3219584afbb07390efa2165bfca342455e9c",
+        "ef7d980a8db58dc93d04e5884bd0fdc00b276010d90843ebe322238a511d96ec",
+        "ef7d980a8db58dc93d04e5884bd0fdc00b276010d90843ebe322238a511d96ec"
+      ],
+      "leaf_names": [
+        "instruction",
+        "intent",
+        "policy_decision",
+        "signer_attestation",
+        "settlement",
+        "result",
+        "reasoning"
+      ],
+      "leaves": [
+        {
+          "content_hash": "98f61ecbdce4b5ef90787bb9d85fb38c231c694835160408574d30d696344c3d",
+          "ref": "01936b2e-3333-7000-8000-000000000005",
+          "source": "mandate"
+        },
+        {
+          "agent_public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+          "buy": {
+            "amount": "1000",
+            "currency": "XRP"
+          },
+          "destination": "rTREASURY0000000000000000000000000",
+          "expires_at": "2026-01-02T03:09:05Z",
+          "nonce": "5c6d7e8f90a1b2c3d4e5f60718293a4b",
+          "policy_version": "2026.01.0",
+          "rail": "xrpl",
+          "sell": {
+            "currency": {
+              "code": "RLUSD",
+              "issuer": "rISSUER000000000000000000000000000"
+            },
+            "max_amount": "500.00"
+          },
+          "treasury": "rTREASURY0000000000000000000000000",
+          "type": "swap"
+        },
+        {
+          "outcome": "allow",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+          "rules": [
+            {
+              "detail": "agent-accounts-payable may trade",
+              "name": "may_swap",
+              "outcome": "pass"
+            },
+            {
+              "detail": "a trade settles to the treasury itself, so no destination is allowlisted",
+              "name": "destination_allowlist",
+              "outcome": "skip"
+            },
+            {
+              "detail": "RLUSD.rISSUER000000000000000000000000000 and XRP are both allowed assets",
+              "name": "asset_allowlist",
+              "outcome": "pass"
+            },
+            {
+              "detail": "500.00 is within the per-transaction cap 1000.00",
+              "name": "per_tx_cap",
+              "outcome": "pass"
+            }
+          ],
+          "tier": "instant"
+        },
+        null,
+        {
+          "close_time": "2026-01-02T03:21:12Z",
+          "ledger_index": 94211402,
+          "observed_anchor": "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa",
+          "policy_signature": {
+            "algorithm": "ed25519",
+            "payload": "810ef6aa76b59965ac9dff7635a48591b83064a5b63420e6b895504ab3ab01dfe45a1ea91ccec592b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa4ef70468a565dae2400544f073414630bf5b78fb",
+            "public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
+            "signature": "e0d217df79d9a7a56e51c4f5060d61424f1eeef202aaa0aea542758b5ab86ed779123befc400fb18b69eafc620b31c558b1d36029fbf4097e0dcac8f5668e209"
+          },
+          "rail": "xrpl",
+          "settlement_proof_ref": "settlement-proof-0005",
+          "signed_tx_blob": "12000022b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aaf34eb14f70b4f6a2387cf7e69c70ef6b7d9ed60bec91608be30c4624f5ecaad5bcad953a522a8734d1f8d410adf6661ccb0a520d70ec64db5c5b60b8",
+          "tx_hash": "6EDC178FAB584344932BC94AB58CB484D9CF442282302655B2BE45EFE74567B3"
+        },
+        {
+          "balance_deltas": [
+            {
+              "account": "rTREASURY0000000000000000000000000",
+              "currency": {
+                "code": "RLUSD",
+                "issuer": "rISSUER000000000000000000000000000"
+              },
+              "value": "-492.50"
+            },
+            {
+              "account": "rTREASURY0000000000000000000000000",
+              "currency": "XRP",
+              "value": "1000"
+            }
+          ],
+          "delivered": {
+            "currency": "XRP",
+            "value": "1000"
+          },
+          "detail": "",
+          "engine_result": "tesSUCCESS",
+          "outcome": "settled",
+          "spent": {
+            "currency": {
+              "code": "RLUSD",
+              "issuer": "rISSUER000000000000000000000000000"
+            },
+            "value": "492.50"
+          }
+        },
+        {
+          "content_hash": "88bfd1fdc9197dcc1704dbe8cecf71ecfd2315929b1c186f2d7e5faa07f16bf4",
+          "note": "The book was inside the mandate's limit price, so the trade was taken.",
+          "source": "claude-code",
+          "testimony": true
+        }
+      ],
+      "left": "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa",
+      "name": "swap-settled",
+      "proofs": {
+        "instruction": {
+          "directions": [
+            "right",
+            "right",
+            "right"
+          ],
+          "index": 0,
+          "siblings": [
+            "eb0670ff043b58f76701da2f4005ecb662bd73fde31f8b6a485bb7c399b46dab",
+            "c00cc42edd0cbb7ccd8795798dedadcfeb711ad893128d0d20055172f7d3becc",
+            "efbd91185d3de62e2b135c07bc2f5f6c417bc5153b88da54aa8e1ada0071d0d4"
+          ]
+        },
+        "intent": {
+          "directions": [
+            "left",
+            "right",
+            "right"
+          ],
+          "index": 1,
+          "siblings": [
+            "e078af319bb041a06f011fcfe051863a806bb891c5a33bdeff6ae8113534009a",
+            "c00cc42edd0cbb7ccd8795798dedadcfeb711ad893128d0d20055172f7d3becc",
+            "efbd91185d3de62e2b135c07bc2f5f6c417bc5153b88da54aa8e1ada0071d0d4"
+          ]
+        },
+        "policy_decision": {
+          "directions": [
+            "right",
+            "left",
+            "right"
+          ],
+          "index": 2,
+          "siblings": [
+            "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "984b9ddbc80ac19168b7002ae21e4fd62892f448085fd5adb87d4cd207c6d93c",
+            "efbd91185d3de62e2b135c07bc2f5f6c417bc5153b88da54aa8e1ada0071d0d4"
+          ]
+        },
+        "reasoning": {
+          "directions": [
+            "right",
+            "left",
+            "left"
+          ],
+          "index": 6,
+          "siblings": [
+            "ef7d980a8db58dc93d04e5884bd0fdc00b276010d90843ebe322238a511d96ec",
+            "c973e411b344597f992867d319b7261ffd89ce1eb3ee0b6046e89d8ff112a149",
+            "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa"
+          ]
+        },
+        "result": {
+          "directions": [
+            "left",
+            "right",
+            "left"
+          ],
+          "index": 5,
+          "siblings": [
+            "37adedc12411e43e71307daa888ac41630c02fb2fe4fb48a56152f77488c1131",
+            "04ac12f26c4c2e1340c7e260d9e0640aad52f4ed644e2659e8aa991756f27053",
+            "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa"
+          ]
+        },
+        "settlement": {
+          "directions": [
+            "right",
+            "right",
+            "left"
+          ],
+          "index": 4,
+          "siblings": [
+            "a1ed4c8af8c479c8a966d19ec87a3219584afbb07390efa2165bfca342455e9c",
+            "04ac12f26c4c2e1340c7e260d9e0640aad52f4ed644e2659e8aa991756f27053",
+            "b658d3e6deaee91e8f1d797fe16bef18ab8a408cba00d40b7ef840663492e7aa"
+          ]
+        },
+        "signer_attestation": {
+          "directions": [
+            "left",
+            "left",
+            "right"
+          ],
+          "index": 3,
+          "siblings": [
+            "565563f169e337a69ccbb80c455cd74b02cb1c695a44e9bf18e85e4c2a91f38b",
+            "984b9ddbc80ac19168b7002ae21e4fd62892f448085fd5adb87d4cd207c6d93c",
+            "efbd91185d3de62e2b135c07bc2f5f6c417bc5153b88da54aa8e1ada0071d0d4"
+          ]
+        }
+      },
+      "right": "efbd91185d3de62e2b135c07bc2f5f6c417bc5153b88da54aa8e1ada0071d0d4",
+      "root": "9e38b1386659b652d1291b317c31a797da45a7d5b8483951277b3fadc05953f2",
+      "verification": {
+        "checks": [
+          {
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "name": "policy.signature",
+            "status": "pass"
+          },
+          {
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "name": "intent.matches_settled_fields",
+            "status": "pass"
+          },
+          {
+            "name": "settlement.anchor_equals_left",
+            "status": "pass"
+          },
+          {
+            "name": "settlement.signed_blob",
+            "status": "pass"
+          },
+          {
+            "name": "settlement.ledger_inclusion",
+            "status": "not_implemented"
+          },
+          {
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "name": "session.log_join",
+            "status": "not_implemented"
+          }
+        ],
+        "complete": false,
+        "ok": true
+      }
+    },
+    {
+      "description": "A trade by an agent whose policy section does not grant may_swap. Refused before any question about assets or size, because whether an agent may trade at all is a separate authority from what it may trade.",
+      "disclosure": {
+        "leaf_hashes": [
+          "117c5e41c330691ff7b29871ba43b343a9cb4db4206d1d288bd18ec1e7dd71e7",
+          "5773842369bbd8de65c3174d3b190290352d44890722f2bdc85e4041a8db56c8",
+          "29fb3904ea1759aeeb76be32d5047477069a393b3fd0af7f7902bec13776efe9",
+          "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+          "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+          "1bd145ff8459d45f4462091ad8b805b2dbe761538bf1cb56f0a94b36a22db00d",
+          "f54595d99dce01f6de383476f6a185bdd1548a0d678134a419f0f39de08c3f63",
+          "f54595d99dce01f6de383476f6a185bdd1548a0d678134a419f0f39de08c3f63"
+        ],
+        "leaves": [
+          {
+            "content": {
+              "agent_public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+              "buy": {
+                "amount": "200",
+                "currency": "XRP"
+              },
+              "destination": "rTREASURY0000000000000000000000000",
+              "expires_at": "2026-01-02T03:09:05Z",
+              "nonce": "6d7e8f90a1b2c3d4e5f60718293a4b5c",
+              "policy_version": "2026.01.0",
+              "rail": "xrpl",
+              "sell": {
+                "currency": {
+                  "code": "RLUSD",
+                  "issuer": "rISSUER000000000000000000000000000"
+                },
+                "max_amount": "100.00"
+              },
+              "treasury": "rTREASURY0000000000000000000000000",
+              "type": "swap"
+            },
+            "index": 1,
+            "name": "intent",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "right"
+              ],
+              "siblings": [
+                "117c5e41c330691ff7b29871ba43b343a9cb4db4206d1d288bd18ec1e7dd71e7",
+                "0503f5dd0c37768215c218cd663eaecf16d94aefaebf300d77f550396eb017e4",
+                "39c1b9991cff0a04d372e418084d4ba786882234d7c4fd4ed2edbadd82a5917f"
+              ]
+            }
+          },
+          {
+            "content": {
+              "outcome": "deny",
+              "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+              "rules": [
+                {
+                  "detail": "key belongs to agent-accounts-payable",
+                  "name": "agent_known",
+                  "outcome": "pass"
+                },
+                {
+                  "detail": "agent may not trade",
+                  "name": "may_swap",
+                  "outcome": "fail"
+                }
+              ],
+              "tier": "instant"
+            },
+            "index": 2,
+            "name": "policy_decision",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "siblings": [
+                "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+                "e38515084c956fedaf93998bd24829a2cb0697c9d5c41359c401c686b8e565fd",
+                "39c1b9991cff0a04d372e418084d4ba786882234d7c4fd4ed2edbadd82a5917f"
+              ]
+            }
+          }
+        ],
+        "left": "de1a244b330b6175ba20459a840697ecfe09cc992b9980fefb4998e41c9fffe0",
+        "receipt_id": "01936b2e-2222-7000-8000-000000000006",
+        "root": "c06cefe3d803592e4d394ed747f2c3386a34608fd8f602a4c0efd953d38c09fb",
+        "version": "merkl-receipt-v1"
+      },
+      "disclosure_verification": {
+        "checks": [
+          {
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "name": "disclosure.root",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "name": "proof.intent",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "name": "proof.policy_decision",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.root",
+            "status": "pass"
+          }
+        ],
+        "complete": true,
+        "ok": true
+      },
+      "envelope": {
+        "agent_id": "agent-accounts-payable",
+        "leaf_hashes": [
+          "117c5e41c330691ff7b29871ba43b343a9cb4db4206d1d288bd18ec1e7dd71e7",
+          "5773842369bbd8de65c3174d3b190290352d44890722f2bdc85e4041a8db56c8",
+          "29fb3904ea1759aeeb76be32d5047477069a393b3fd0af7f7902bec13776efe9",
+          "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+          "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+          "1bd145ff8459d45f4462091ad8b805b2dbe761538bf1cb56f0a94b36a22db00d",
+          "f54595d99dce01f6de383476f6a185bdd1548a0d678134a419f0f39de08c3f63",
+          "f54595d99dce01f6de383476f6a185bdd1548a0d678134a419f0f39de08c3f63"
+        ],
+        "left": "de1a244b330b6175ba20459a840697ecfe09cc992b9980fefb4998e41c9fffe0",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+        "rail": "xrpl",
+        "receipt_id": "01936b2e-2222-7000-8000-000000000006",
+        "root": "c06cefe3d803592e4d394ed747f2c3386a34608fd8f602a4c0efd953d38c09fb",
+        "signer_public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
+        "treasury": "rTREASURY0000000000000000000000000",
+        "version": "merkl-receipt-v1"
+      },
+      "envelope_hash": "aeaec4b64199cfb92a13aba6516695d43669431fc4057f0b082eb6471df44dbc",
+      "half_proofs": {
+        "instruction": {
+          "directions": [
+            "right",
+            "right"
+          ],
+          "half": "left",
+          "index": 0,
+          "level": 2,
+          "siblings": [
+            "5773842369bbd8de65c3174d3b190290352d44890722f2bdc85e4041a8db56c8",
+            "0503f5dd0c37768215c218cd663eaecf16d94aefaebf300d77f550396eb017e4"
+          ],
+          "subtree_root": "de1a244b330b6175ba20459a840697ecfe09cc992b9980fefb4998e41c9fffe0"
+        },
+        "intent": {
+          "directions": [
+            "left",
+            "right"
+          ],
+          "half": "left",
+          "index": 1,
+          "level": 2,
+          "siblings": [
+            "117c5e41c330691ff7b29871ba43b343a9cb4db4206d1d288bd18ec1e7dd71e7",
+            "0503f5dd0c37768215c218cd663eaecf16d94aefaebf300d77f550396eb017e4"
+          ],
+          "subtree_root": "de1a244b330b6175ba20459a840697ecfe09cc992b9980fefb4998e41c9fffe0"
+        },
+        "policy_decision": {
+          "directions": [
+            "right",
+            "left"
+          ],
+          "half": "left",
+          "index": 2,
+          "level": 2,
+          "siblings": [
+            "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "e38515084c956fedaf93998bd24829a2cb0697c9d5c41359c401c686b8e565fd"
+          ],
+          "subtree_root": "de1a244b330b6175ba20459a840697ecfe09cc992b9980fefb4998e41c9fffe0"
+        },
+        "reasoning": {
+          "directions": [
+            "right",
+            "left"
+          ],
+          "half": "right",
+          "index": 6,
+          "level": 2,
+          "siblings": [
+            "f54595d99dce01f6de383476f6a185bdd1548a0d678134a419f0f39de08c3f63",
+            "9a9b1f12aab8edd7563077fb135b20df1a14751a8a56699f61c328bf535ad23f"
+          ],
+          "subtree_root": "39c1b9991cff0a04d372e418084d4ba786882234d7c4fd4ed2edbadd82a5917f"
+        },
+        "result": {
+          "directions": [
+            "left",
+            "right"
+          ],
+          "half": "right",
+          "index": 5,
+          "level": 2,
+          "siblings": [
+            "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+            "1db42301e62a6230467496a31ffa203373a184cca7f8c25705fd2e0e0ce77f9e"
+          ],
+          "subtree_root": "39c1b9991cff0a04d372e418084d4ba786882234d7c4fd4ed2edbadd82a5917f"
+        },
+        "settlement": {
+          "directions": [
+            "right",
+            "right"
+          ],
+          "half": "right",
+          "index": 4,
+          "level": 2,
+          "siblings": [
+            "1bd145ff8459d45f4462091ad8b805b2dbe761538bf1cb56f0a94b36a22db00d",
+            "1db42301e62a6230467496a31ffa203373a184cca7f8c25705fd2e0e0ce77f9e"
+          ],
+          "subtree_root": "39c1b9991cff0a04d372e418084d4ba786882234d7c4fd4ed2edbadd82a5917f"
+        },
+        "signer_attestation": {
+          "directions": [
+            "left",
+            "left"
+          ],
+          "half": "left",
+          "index": 3,
+          "level": 2,
+          "siblings": [
+            "29fb3904ea1759aeeb76be32d5047477069a393b3fd0af7f7902bec13776efe9",
+            "e38515084c956fedaf93998bd24829a2cb0697c9d5c41359c401c686b8e565fd"
+          ],
+          "subtree_root": "de1a244b330b6175ba20459a840697ecfe09cc992b9980fefb4998e41c9fffe0"
+        }
+      },
+      "leaf_hashes": [
+        "117c5e41c330691ff7b29871ba43b343a9cb4db4206d1d288bd18ec1e7dd71e7",
+        "5773842369bbd8de65c3174d3b190290352d44890722f2bdc85e4041a8db56c8",
+        "29fb3904ea1759aeeb76be32d5047477069a393b3fd0af7f7902bec13776efe9",
+        "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+        "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+        "1bd145ff8459d45f4462091ad8b805b2dbe761538bf1cb56f0a94b36a22db00d",
+        "f54595d99dce01f6de383476f6a185bdd1548a0d678134a419f0f39de08c3f63",
+        "f54595d99dce01f6de383476f6a185bdd1548a0d678134a419f0f39de08c3f63"
+      ],
+      "leaf_names": [
+        "instruction",
+        "intent",
+        "policy_decision",
+        "signer_attestation",
+        "settlement",
+        "result",
+        "reasoning"
+      ],
+      "leaves": [
+        {
+          "content_hash": "748169bee0b2c4725db7cc0410d4aad159ed89730fd438e3bc801764ffe74132",
+          "source": "system"
+        },
+        {
+          "agent_public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+          "buy": {
+            "amount": "200",
+            "currency": "XRP"
+          },
+          "destination": "rTREASURY0000000000000000000000000",
+          "expires_at": "2026-01-02T03:09:05Z",
+          "nonce": "6d7e8f90a1b2c3d4e5f60718293a4b5c",
+          "policy_version": "2026.01.0",
+          "rail": "xrpl",
+          "sell": {
+            "currency": {
+              "code": "RLUSD",
+              "issuer": "rISSUER000000000000000000000000000"
+            },
+            "max_amount": "100.00"
+          },
+          "treasury": "rTREASURY0000000000000000000000000",
+          "type": "swap"
+        },
+        {
+          "outcome": "deny",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+          "rules": [
+            {
+              "detail": "key belongs to agent-accounts-payable",
+              "name": "agent_known",
+              "outcome": "pass"
+            },
+            {
+              "detail": "agent may not trade",
+              "name": "may_swap",
+              "outcome": "fail"
+            }
+          ],
+          "tier": "instant"
+        },
+        null,
+        null,
+        {
+          "balance_deltas": [],
+          "detail": "Denied by policy; nothing was submitted. may_swap: agent may not trade",
+          "outcome": "denied"
+        },
+        {
+          "content_hash": "236d34a30b815ed24f2a09c94b8cdbe7b68e720a8b9df1dd734caff709b680c7",
+          "note": "The rebalance job asked for a trade this agent has never been granted.",
+          "source": "claude-code",
+          "testimony": true
+        }
+      ],
+      "left": "de1a244b330b6175ba20459a840697ecfe09cc992b9980fefb4998e41c9fffe0",
+      "name": "swap-denied-may-not-trade",
+      "proofs": {
+        "instruction": {
+          "directions": [
+            "right",
+            "right",
+            "right"
+          ],
+          "index": 0,
+          "siblings": [
+            "5773842369bbd8de65c3174d3b190290352d44890722f2bdc85e4041a8db56c8",
+            "0503f5dd0c37768215c218cd663eaecf16d94aefaebf300d77f550396eb017e4",
+            "39c1b9991cff0a04d372e418084d4ba786882234d7c4fd4ed2edbadd82a5917f"
+          ]
+        },
+        "intent": {
+          "directions": [
+            "left",
+            "right",
+            "right"
+          ],
+          "index": 1,
+          "siblings": [
+            "117c5e41c330691ff7b29871ba43b343a9cb4db4206d1d288bd18ec1e7dd71e7",
+            "0503f5dd0c37768215c218cd663eaecf16d94aefaebf300d77f550396eb017e4",
+            "39c1b9991cff0a04d372e418084d4ba786882234d7c4fd4ed2edbadd82a5917f"
+          ]
+        },
+        "policy_decision": {
+          "directions": [
+            "right",
+            "left",
+            "right"
+          ],
+          "index": 2,
+          "siblings": [
+            "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "e38515084c956fedaf93998bd24829a2cb0697c9d5c41359c401c686b8e565fd",
+            "39c1b9991cff0a04d372e418084d4ba786882234d7c4fd4ed2edbadd82a5917f"
+          ]
+        },
+        "reasoning": {
+          "directions": [
+            "right",
+            "left",
+            "left"
+          ],
+          "index": 6,
+          "siblings": [
+            "f54595d99dce01f6de383476f6a185bdd1548a0d678134a419f0f39de08c3f63",
+            "9a9b1f12aab8edd7563077fb135b20df1a14751a8a56699f61c328bf535ad23f",
+            "de1a244b330b6175ba20459a840697ecfe09cc992b9980fefb4998e41c9fffe0"
+          ]
+        },
+        "result": {
+          "directions": [
+            "left",
+            "right",
+            "left"
+          ],
+          "index": 5,
+          "siblings": [
+            "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+            "1db42301e62a6230467496a31ffa203373a184cca7f8c25705fd2e0e0ce77f9e",
+            "de1a244b330b6175ba20459a840697ecfe09cc992b9980fefb4998e41c9fffe0"
+          ]
+        },
+        "settlement": {
+          "directions": [
+            "right",
+            "right",
+            "left"
+          ],
+          "index": 4,
+          "siblings": [
+            "1bd145ff8459d45f4462091ad8b805b2dbe761538bf1cb56f0a94b36a22db00d",
+            "1db42301e62a6230467496a31ffa203373a184cca7f8c25705fd2e0e0ce77f9e",
+            "de1a244b330b6175ba20459a840697ecfe09cc992b9980fefb4998e41c9fffe0"
+          ]
+        },
+        "signer_attestation": {
+          "directions": [
+            "left",
+            "left",
+            "right"
+          ],
+          "index": 3,
+          "siblings": [
+            "29fb3904ea1759aeeb76be32d5047477069a393b3fd0af7f7902bec13776efe9",
+            "e38515084c956fedaf93998bd24829a2cb0697c9d5c41359c401c686b8e565fd",
+            "39c1b9991cff0a04d372e418084d4ba786882234d7c4fd4ed2edbadd82a5917f"
+          ]
+        }
+      },
+      "right": "39c1b9991cff0a04d372e418084d4ba786882234d7c4fd4ed2edbadd82a5917f",
+      "root": "c06cefe3d803592e4d394ed747f2c3386a34608fd8f602a4c0efd953d38c09fb",
+      "verification": {
+        "checks": [
+          {
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "name": "policy.signature",
+            "status": "not_implemented"
+          },
+          {
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "name": "intent.matches_settled_fields",
+            "status": "not_implemented"
+          },
+          {
+            "name": "settlement.anchor_equals_left",
+            "status": "not_implemented"
+          },
+          {
+            "name": "settlement.signed_blob",
+            "status": "not_implemented"
+          },
+          {
+            "name": "settlement.ledger_inclusion",
+            "status": "not_implemented"
+          },
+          {
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "name": "session.log_join",
+            "status": "not_implemented"
+          }
+        ],
+        "complete": false,
+        "ok": true
+      }
     }
   ],
   "description": "Complete merkl-receipt-v1 receipts. Leaves hash under merkl-receipt-leaf-v1, pad to eight by repeating leaf 6, fold into LEFT (0-3) and RIGHT (4-7), and ROOT = SHA-256(LEFT || RIGHT). envelope_hash = SHA-256(canonical_bytes(envelope)).",
