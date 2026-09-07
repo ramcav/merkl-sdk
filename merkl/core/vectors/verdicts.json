@@ -583,7 +583,7 @@
         ],
         "complete": false,
         "level": 2,
-        "level_detail": "level 2: this receipt is committed in a session log whose checkpoint and inclusion proof were checked here",
+        "level_detail": "Level 2: verified against the signer key, the ledger, and the notary's log (session sealed, checkpoint signed).",
         "log": {
           "actions": [
             {
@@ -717,6 +717,59 @@
           "evidence": [],
           "ok": true
         },
+        "not_checked": [
+          {
+            "label": "the escalation challenge",
+            "name": "policy.escalation_challenge",
+            "reason": "this decision did not escalate, so nothing was signed"
+          },
+          {
+            "label": "the approval quorum",
+            "name": "policy.approval_quorum",
+            "reason": "this decision did not escalate, so nobody approved"
+          },
+          {
+            "label": "enclave attestation",
+            "name": "signer.attestation",
+            "reason": "no PCR allowlist and moment were pinned, so nothing says which enclave this is"
+          },
+          {
+            "label": "the validator quorum",
+            "name": "settlement.validator_quorum",
+            "reason": "0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved"
+          },
+          {
+            "label": "ledger inclusion",
+            "name": "settlement.ledger_inclusion",
+            "reason": "supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path"
+          },
+          {
+            "label": "the continuation binding",
+            "name": "log.continuation",
+            "reason": "this session did not continue another one"
+          },
+          {
+            "label": "the audit-log entry",
+            "name": "log.audit_entry",
+            "reason": "this bundle carries no audit-log entry"
+          },
+          {
+            "label": "log inclusion",
+            "name": "log.inclusion",
+            "reason": "this bundle carries no log inclusion proof"
+          },
+          {
+            "label": "the checkpoint body",
+            "name": "log.checkpoint_body",
+            "reason": "this bundle carries no checkpoint"
+          },
+          {
+            "label": "the checkpoint signature",
+            "name": "log.checkpoint_signature",
+            "reason": "this bundle carries no checkpoint"
+          }
+        ],
+        "not_checked_line": "Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the continuation binding (this session did not continue another one), the audit-log entry (this bundle carries no audit-log entry), log inclusion (this bundle carries no log inclusion proof), the checkpoint body (this bundle carries no checkpoint), the checkpoint signature (this bundle carries no checkpoint).",
         "ok": true,
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
         "settlement": {
@@ -732,8 +785,10 @@
           "settled": "250.00 RLUSD went to rSUPPLIER0000000000000000000000000 on xrpl, transaction AE50AD5E28E9C337…",
           "signer": "The signer published an enclave attestation for its policy key.",
           "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "testimony_note": "Invoice matched the supplier on file; amount under the per-transaction cap.",
           "when": "The ledger closed it at 2026-01-02T03:04:41Z."
-        }
+        },
+        "verdict_line": "Nothing was contradicted. Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the continuation binding (this session did not continue another one), the audit-log entry (this bundle carries no audit-log entry), log inclusion (this bundle carries no log inclusion proof), the checkpoint body (this bundle carries no checkpoint), the checkpoint signature (this bundle carries no checkpoint)."
       }
     },
     {
@@ -997,7 +1052,70 @@
         ],
         "complete": false,
         "level": 1,
-        "level_detail": "level 1: verified against the signer key, the rail and this receipt alone — joining a session log would add completeness, a notary signature and an anchor",
+        "level_detail": "Level 1: verified against the signer key, the ledger and this receipt alone; no notary log was available to add completeness and an anchor.",
+        "not_checked": [
+          {
+            "label": "the escalation challenge",
+            "name": "policy.escalation_challenge",
+            "reason": "this decision did not escalate, so nothing was signed"
+          },
+          {
+            "label": "the approval quorum",
+            "name": "policy.approval_quorum",
+            "reason": "this decision did not escalate, so nobody approved"
+          },
+          {
+            "label": "the policy signature",
+            "name": "policy.signature",
+            "reason": "nothing settled, so there is no policy signature to check"
+          },
+          {
+            "label": "enclave attestation",
+            "name": "signer.attestation",
+            "reason": "leaf 3 is null: this receipt proves it was produced by an unattested signer"
+          },
+          {
+            "label": "the settled fields",
+            "name": "intent.matches_settled_fields",
+            "reason": "nothing settled, so there are no settled fields to compare"
+          },
+          {
+            "label": "the rail anchor",
+            "name": "settlement.anchor_equals_left",
+            "reason": "nothing settled, so there is no anchor to compare"
+          },
+          {
+            "label": "the submitted transaction blob",
+            "name": "settlement.signed_blob",
+            "reason": "nothing settled, so there is no signed blob"
+          },
+          {
+            "label": "the settlement capture",
+            "name": "settlement.proof_matches_receipt",
+            "reason": "nothing settled, so there is no proof to read"
+          },
+          {
+            "label": "the ledger header",
+            "name": "settlement.ledger_header",
+            "reason": "nothing settled, so there is no ledger to check"
+          },
+          {
+            "label": "the validator quorum",
+            "name": "settlement.validator_quorum",
+            "reason": "nothing settled, so no validators signed anything"
+          },
+          {
+            "label": "ledger inclusion",
+            "name": "settlement.ledger_inclusion",
+            "reason": "unchecked: nothing settled, so there is no ledger inclusion to establish"
+          },
+          {
+            "label": "the session join",
+            "name": "session.log_join",
+            "reason": "no session bundle was supplied, so this is a level-1 verdict"
+          }
+        ],
+        "not_checked_line": "Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), the policy signature (nothing settled, so there is no policy signature to check), enclave attestation (leaf 3 is null: this receipt proves it was produced by an unattested signer), the settled fields (nothing settled, so there are no settled fields to compare), the rail anchor (nothing settled, so there is no anchor to compare), the submitted transaction blob (nothing settled, so there is no signed blob), the settlement capture (nothing settled, so there is no proof to read), the ledger header (nothing settled, so there is no ledger to check), the validator quorum (nothing settled, so no validators signed anything), ledger inclusion (unchecked: nothing settled, so there is no ledger inclusion to establish), the session join (no session bundle was supplied, so this is a level-1 verdict).",
         "ok": true,
         "receipt_id": "01936b2e-2222-7000-8000-000000000002",
         "settlement": {
@@ -1011,10 +1129,12 @@
           "instructed": "The agent was told to make this payment — a standing mandate authorized it.",
           "rule": "The policy refused it at the instant tier — destination_allowlist, per_tx_cap, reference_required blocked it.",
           "settled": "Nothing settled. The refusal is what this receipt records.",
-          "signer": "The signer is unattested: leaf 3 is null, so nothing proves which machine held the policy key.",
+          "signer": "The signer is unattested: leaf 3 is null, so nothing proves which machine held the policy key — expected for a dev signer; a Nitro signer attests.",
           "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "testimony_note": "The instruction arrived inside retrieved content, not from the operator.",
           "when": "The intent was valid until 2026-01-02T03:09:05Z."
-        }
+        },
+        "verdict_line": "Nothing was contradicted. Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), the policy signature (nothing settled, so there is no policy signature to check), enclave attestation (leaf 3 is null: this receipt proves it was produced by an unattested signer), the settled fields (nothing settled, so there are no settled fields to compare), the rail anchor (nothing settled, so there is no anchor to compare), the submitted transaction blob (nothing settled, so there is no signed blob), the settlement capture (nothing settled, so there is no proof to read), the ledger header (nothing settled, so there is no ledger to check), the validator quorum (nothing settled, so no validators signed anything), ledger inclusion (unchecked: nothing settled, so there is no ledger inclusion to establish), the session join (no session bundle was supplied, so this is a level-1 verdict)."
       }
     },
     {
@@ -1331,7 +1451,30 @@
         ],
         "complete": false,
         "level": 1,
-        "level_detail": "level 1: verified against the signer key, the rail and this receipt alone — joining a session log would add completeness, a notary signature and an anchor",
+        "level_detail": "Level 1: verified against the signer key, the ledger and this receipt alone; no notary log was available to add completeness and an anchor.",
+        "not_checked": [
+          {
+            "label": "enclave attestation",
+            "name": "signer.attestation",
+            "reason": "no PCR allowlist and moment were pinned, so nothing says which enclave this is"
+          },
+          {
+            "label": "the validator quorum",
+            "name": "settlement.validator_quorum",
+            "reason": "0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved"
+          },
+          {
+            "label": "ledger inclusion",
+            "name": "settlement.ledger_inclusion",
+            "reason": "supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path"
+          },
+          {
+            "label": "the session join",
+            "name": "session.log_join",
+            "reason": "no session bundle was supplied, so this is a level-1 verdict"
+          }
+        ],
+        "not_checked_line": "Not checked: enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the session join (no session bundle was supplied, so this is a level-1 verdict).",
         "ok": true,
         "receipt_id": "01936b2e-2222-7000-8000-000000000003",
         "settlement": {
@@ -1347,8 +1490,10 @@
           "settled": "4500.00 RLUSD went to rSUPPLIER0000000000000000000000000 on xrpl, transaction 4895E079A9228C10…",
           "signer": "The signer published an enclave attestation for its policy key.",
           "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "testimony_note": "Over the cap, so the signer escalated; two approvers signed the challenge.",
           "when": "The ledger closed it at 2026-01-02T03:25:02Z."
-        }
+        },
+        "verdict_line": "Nothing was contradicted. Not checked: enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the session join (no session bundle was supplied, so this is a level-1 verdict)."
       }
     },
     {
@@ -1666,7 +1811,30 @@
         ],
         "complete": false,
         "level": 1,
-        "level_detail": "level 1: verified against the signer key, the rail and this receipt alone — joining a session log would add completeness, a notary signature and an anchor",
+        "level_detail": "Level 1: verified against the signer key, the ledger and this receipt alone; no notary log was available to add completeness and an anchor.",
+        "not_checked": [
+          {
+            "label": "the escalation challenge",
+            "name": "policy.escalation_challenge",
+            "reason": "this decision did not escalate, so nothing was signed"
+          },
+          {
+            "label": "the approval quorum",
+            "name": "policy.approval_quorum",
+            "reason": "this decision did not escalate, so nobody approved"
+          },
+          {
+            "label": "enclave attestation",
+            "name": "signer.attestation",
+            "reason": "leaf 3 is null: this receipt proves it was produced by an unattested signer"
+          },
+          {
+            "label": "the session join",
+            "name": "session.log_join",
+            "reason": "no session bundle was supplied, so this is a level-1 verdict"
+          }
+        ],
+        "not_checked_line": "Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (leaf 3 is null: this receipt proves it was produced by an unattested signer), the session join (no session bundle was supplied, so this is a level-1 verdict).",
         "ok": true,
         "receipt_id": "01936b2e-2222-7000-8000-000000000004",
         "settlement": {
@@ -1680,10 +1848,12 @@
           "instructed": "The agent was told to make this payment — a system triggered it. It traces back to 01936b2e-3333-7000-8000-000000000004.",
           "rule": "The policy allowed it at the instant tier; 3 rules ran and all of them passed.",
           "settled": "120.00 RLUSD went to rSUPPLIER0000000000000000000000000 on fake, transaction B98E14A1041A3336…",
-          "signer": "The signer is unattested: leaf 3 is null, so nothing proves which machine held the policy key.",
+          "signer": "The signer is unattested: leaf 3 is null, so nothing proves which machine held the policy key — expected for a dev signer; a Nitro signer attests.",
           "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "testimony_note": "Unattested dev signer: leaf 3 is null and the receipt says so.",
           "when": "The ledger closed it at 2026-01-02T03:31:00Z."
-        }
+        },
+        "verdict_line": "Nothing was contradicted. Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (leaf 3 is null: this receipt proves it was produced by an unattested signer), the session join (no session bundle was supplied, so this is a level-1 verdict)."
       }
     }
   ],

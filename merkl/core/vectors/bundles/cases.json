@@ -86,7 +86,7 @@
           "committed_leaf": "f7e1197ea2f78feff0fe4dac9ba3d9cbced9ff5068fd7c5bb829f0f1d103bfba",
           "computed_leaf": "f7e1197ea2f78feff0fe4dac9ba3d9cbced9ff5068fd7c5bb829f0f1d103bfba",
           "derived_root": "e804f9af0d9d1160ec2b1a89ffafa347d95476d78e8814bde5e1df9bf5312faf",
-          "index": 0,
+          "index": 1,
           "leaf_matches": true,
           "ok": true,
           "proof_ok": true,

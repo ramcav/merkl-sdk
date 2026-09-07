@@ -51,6 +51,7 @@
   .story-line.loud { background: rgba(224,34,11,0.05); }
   .story-line.loud .story-text { color: var(--red); font-weight: 600; }
   .story-line.testimony .story-text { color: var(--text-2); font-size: 13px; }
+  .story-note { display: block; margin-top: 6px; color: var(--text-3); font-family: var(--serif); font-style: italic; font-size: 13px; }
 
   /* Two settlement lines + level */
   .lines { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -64,6 +65,8 @@
   .v.state-absent, .v.state-unchecked, .v.state-supplied-unverified { color: var(--yellow); }
   .v.state-verified-live { color: var(--yellow); }
   .level-note { margin-top: 12px; background: var(--surface); border-left: 3px solid var(--accent); padding: 12px 16px; font-size: 13px; color: var(--text-2); }
+  .level-note .headline { display: block; color: var(--text); font-size: 14px; font-weight: 600; }
+  .level-note .unchecked { display: block; margin-top: 8px; }
 
   /* Checks */
   table.checks { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
@@ -276,9 +279,15 @@ function storyHtml(verdict) {
       .join(' ');
     const body = absent ? 'The receipt does not say.' : text;
     const prefix = key === 'testimony' ? '<b>Testimony, not proof.</b> ' : '';
+    // The model's own note goes underneath the sentence about it, quieter and
+    // never run into it: one is this page speaking, the other is the agent.
+    const note =
+      key === 'testimony' && s.testimony_note
+        ? `<span class="story-note">“${esc(s.testimony_note)}”</span>`
+        : '';
     return (
       `<div class="${cls}"><span class="story-label">${esc(label)}</span>` +
-      `<span class="story-text">${prefix}${esc(body)}</span></div>`
+      `<span class="story-text">${prefix}${esc(body)}${note}</span></div>`
     );
   }).join('');
   return `<div class="story">${lines}</div>`;
@@ -482,7 +491,10 @@ async function run() {
             verdict.settlement.ledger_inclusion_detail,
           ) +
           '</div>' +
-          `<div class="level-note"><b>Level ${verdict.level}.</b> ${esc(verdict.level_detail)}</div>`,
+          // level_detail already names its level. Prefixing "Level 2." here is
+          // how the page ended up saying it twice in one line.
+          `<div class="level-note"><span class="headline">${esc(verdict.level_detail)}</span>` +
+          `<span class="unchecked">${esc(verdict.verdict_line)}</span></div>`,
       );
       checkBlocks.push(
         heading +

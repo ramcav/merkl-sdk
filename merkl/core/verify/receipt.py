@@ -57,7 +57,7 @@ from merkl.core.receipt import (
     verify_receipt_structure,
 )
 from merkl.core.verify.attestation import AttestationTrust
-from merkl.core.verify.log import LogVerdict, verify_log_bundle
+from merkl.core.verify.log import LogVerdict, leaf_index_of, verify_log_bundle
 from merkl.core.verify.settlement import (
     CHECK_LEDGER_HEADER,
     CHECK_PROOF_MATCHES,
@@ -75,12 +75,16 @@ __all__ = [
     "AUTHORIZATION_VERIFIED",
     "CHECK_APPROVAL_QUORUM",
     "CHECK_ESCALATION_CHALLENGE",
+    "CHECK_LABELS",
     "CHECK_POLICY_DOCUMENT",
+    "LEVEL_DETAIL_RECEIPT",
+    "LEVEL_DETAIL_SESSION",
     "LEVEL_RECEIPT",
     "LEVEL_SESSION",
     "PlainSummary",
     "ReceiptVerdict",
     "SessionJoin",
+    "UncheckedCheck",
     "receipt_from_content",
     "verify_receipt",
 ]
@@ -105,6 +109,50 @@ LEVEL_RECEIPT: Final = 1
 LEVEL_SESSION: Final = 2
 """Additionally joined to the session log: completeness, notary signature, anchor."""
 
+LEVEL_DETAIL_SESSION: Final = (
+    "Level 2: verified against the signer key, the ledger, and the notary's log "
+    "(session sealed, checkpoint signed)."
+)
+"""One sentence, already naming its level — a page must not prefix it again."""
+
+LEVEL_DETAIL_RECEIPT: Final = (
+    "Level 1: verified against the signer key, the ledger and this receipt alone; "
+    "no notary log was available to add completeness and an anchor."
+)
+"""The level-1 sentence. Not a lesser verdict: a different question, answered."""
+
+
+CHECK_LABELS: Final[dict[str, str]] = {
+    "signer.attestation": "enclave attestation",
+    "settlement.ledger_inclusion": "ledger inclusion",
+    "settlement.proof_matches_receipt": "the settlement capture",
+    "settlement.ledger_header": "the ledger header",
+    "settlement.validator_quorum": "the validator quorum",
+    "settlement.signed_blob": "the submitted transaction blob",
+    "settlement.anchor_equals_left": "the rail anchor",
+    "settlement.policy_signature": "the policy signature",
+    "policy.document": "the policy document",
+    "policy.signature": "the policy signature",
+    "policy.escalation_challenge": "the escalation challenge",
+    "policy.approval_quorum": "the approval quorum",
+    "intent.matches_settled_fields": "the settled fields",
+    "session.log_join": "the session join",
+    "log.actions": "the session actions",
+    "log.session_root": "the session root",
+    "log.continuation": "the continuation binding",
+    "log.audit_entry": "the audit-log entry",
+    "log.inclusion": "log inclusion",
+    "log.checkpoint_body": "the checkpoint body",
+    "log.checkpoint_signature": "the checkpoint signature",
+    "log.evidence": "the evidence records",
+}
+"""Plain words for a check name, so an unchecked line reads as a sentence.
+
+A name with no entry here is printed as its name. That is deliberate: an
+unnamed check is still listed, because the whole point of this list is that
+nothing goes unchecked *silently*.
+"""
+
 
 # --------------------------------------------------------------------------- #
 # Plain language
@@ -127,6 +175,15 @@ class PlainSummary:
     when: str | None = None
     signer: str | None = None
     testimony: str | None = None
+    testimony_note: str | None = None
+    """Leaf 6's ``note``, verbatim — the one member that is *not* our sentence.
+
+    It belongs on its own line, quieter than the testimony sentence above it and
+    never run into it: the sentence is this verifier speaking about what a
+    committed hash does and does not establish, and the note is the agent
+    speaking about itself. Running them together would lend one the other's
+    authority, which is the exact confusion leaf 6 exists to prevent.
+    """
 
     def to_content(self) -> JSONObject:
         return {
@@ -137,6 +194,7 @@ class PlainSummary:
             "when": self.when,
             "signer": self.signer,
             "testimony": self.testimony,
+            "testimony_note": self.testimony_note,
         }
 
 
@@ -256,18 +314,23 @@ def _summarize(
 
     signer = (
         "The signer is unattested: leaf 3 is null, so nothing proves which "
-        "machine held the policy key."
+        "machine held the policy key — expected for a dev signer; a Nitro "
+        "signer attests."
         if attestation is None
         else "The signer published an enclave attestation for its policy key."
     )
 
     testimony = None
+    testimony_note = None
     if isinstance(reasoning, Mapping):
         testimony = (
             "The receipt also commits to a hash of the model's reasoning. That is "
             "testimony, not proof: it shows the account was not edited afterwards, "
             "never that it was true."
         )
+        note = reasoning.get("note")
+        if isinstance(note, str) and note.strip():
+            testimony_note = note.strip()
 
     return PlainSummary(
         instructed=instructed,
@@ -277,6 +340,7 @@ def _summarize(
         when=when,
         signer=signer,
         testimony=testimony,
+        testimony_note=testimony_note,
     )
 
 
@@ -291,6 +355,21 @@ class SessionJoin:
 
     bundle: Mapping[str, Any]
     log: LogVerdict
+
+
+def _row_at_leaf(rows: Sequence[Mapping[str, Any]], leaf_index: int) -> Mapping[str, Any] | None:
+    """The action row that *is* this leaf, wherever the bundle chose to list it.
+
+    A full export lists every action in leaf order, so this is the row at that
+    position. A receipt bundle carries one row — the action that committed this
+    envelope — and its position says nothing; its proof says which leaf it is
+    (``docs/SPEC.md`` §9). Reading the position would join leaf 5 of a session
+    to whatever happened to be listed first.
+    """
+    for position, row in enumerate(rows):
+        if leaf_index_of(position, row) == leaf_index:
+            return row
+    return None
 
 
 def _log_join_check(envelope: Envelope, join: SessionJoin | None) -> Check:
@@ -321,13 +400,24 @@ def _log_join_check(envelope: Envelope, join: SessionJoin | None) -> Check:
             CheckStatus.FAIL,
             f"the receipt names session {locator.session_id}, the bundle is {session_id}",
         )
-    if locator.leaf_index >= len(rows):
+    # An open session has no root to prove into and no log entry to be included
+    # in, so there is nothing yet for this receipt to be joined *to*. That is a
+    # stage of the session's life, not a fault in the receipt: say which, and
+    # say what will change it.
+    if isinstance(session, Mapping) and session.get("sealed") is False:
+        return no_data(
+            CHECK_LOG_JOIN,
+            f"session {locator.session_id} is not sealed yet; "
+            "level 2 becomes available after sealing",
+        )
+    action = _row_at_leaf(rows, locator.leaf_index)
+    if action is None:
         return Check(
             CHECK_LOG_JOIN,
             CheckStatus.FAIL,
-            f"the receipt names leaf {locator.leaf_index}, the bundle has {len(rows)} actions",
+            f"the receipt names leaf {locator.leaf_index}, the bundle carries "
+            f"{len(rows)} action(s) and none of them is that leaf",
         )
-    action = rows[locator.leaf_index]
     committed = str(action.get("input_hash", ""))
     derived = canonical_hash(envelope.to_content()).hex()
     if derived != committed:
@@ -508,6 +598,34 @@ def _approval_quorum_check(
 
 
 @dataclasses.dataclass(frozen=True)
+class UncheckedCheck:
+    """One check that did not run, in words, with the reason it gives itself."""
+
+    name: str
+    label: str
+    reason: str
+
+    def to_content(self) -> JSONObject:
+        return {"name": self.name, "label": self.label, "reason": self.reason}
+
+
+def _unchecked(checks: Sequence[Check]) -> tuple[UncheckedCheck, ...]:
+    """Name every check that did not run, each with its *own* reason.
+
+    The reason is the check's detail, verbatim. A summary that said "some checks
+    are not implemented or unconfigured" would be true of every one of them and
+    useful about none: a reader cannot tell whether nobody pinned an enclave
+    measurement or nobody supplied a settlement proof, and those are different
+    facts about how far this receipt has been established.
+    """
+    return tuple(
+        UncheckedCheck(name=c.name, label=CHECK_LABELS.get(c.name, c.name), reason=c.detail)
+        for c in checks
+        if c.status is CheckStatus.NOT_IMPLEMENTED
+    )
+
+
+@dataclasses.dataclass(frozen=True)
 class ReceiptVerdict:
     """Every check, the two settlement lines, the level, and the plain summary."""
 
@@ -533,6 +651,33 @@ class ReceiptVerdict:
         """Every check actually ran."""
         return self.result.complete and (self.log.complete if self.log is not None else True)
 
+    @property
+    def not_checked(self) -> tuple[UncheckedCheck, ...]:
+        """Every check that did not run — the receipt's own, then the log's."""
+        entries = list(_unchecked(self.result.checks))
+        if self.log is not None:
+            entries.extend(_unchecked(self.log.result.checks))
+        return tuple(entries)
+
+    @property
+    def not_checked_line(self) -> str:
+        """The completeness half of the verdict, as one sentence naming names."""
+        entries = self.not_checked
+        if not entries:
+            return "Every check ran."
+        return "Not checked: " + ", ".join(f"{e.label} ({e.reason})" for e in entries) + "."
+
+    @property
+    def verdict_line(self) -> str:
+        """The whole verdict in two sentences: contradiction, then completeness.
+
+        Never one boolean and never one sentence — "nothing was contradicted" and
+        "everything was checked" are different claims, and a page that ran them
+        together would be reporting the weaker one as if it were the stronger.
+        """
+        head = "Nothing was contradicted." if self.ok else "Something was contradicted."
+        return f"{head} {self.not_checked_line}"
+
     def to_content(self) -> JSONObject:
         content: JSONObject = {
             "receipt_id": self.receipt_id,
@@ -540,6 +685,9 @@ class ReceiptVerdict:
             "complete": self.complete,
             "level": self.level,
             "level_detail": self.level_detail,
+            "not_checked": [e.to_content() for e in self.not_checked],
+            "not_checked_line": self.not_checked_line,
+            "verdict_line": self.verdict_line,
             "settlement": {
                 "transaction_authorization": self.transaction_authorization,
                 "transaction_authorization_detail": self.transaction_authorization_detail,
@@ -710,13 +858,7 @@ def verify_receipt(
     authorization, authorization_detail = _authorization_line(result, settlement is not None)
 
     level = LEVEL_SESSION if join_check.status is CheckStatus.PASS else LEVEL_RECEIPT
-    level_detail = (
-        "level 2: this receipt is committed in a session log whose checkpoint and "
-        "inclusion proof were checked here"
-        if level == LEVEL_SESSION
-        else "level 1: verified against the signer key, the rail and this receipt alone — "
-        "joining a session log would add completeness, a notary signature and an anchor"
-    )
+    level_detail = LEVEL_DETAIL_SESSION if level == LEVEL_SESSION else LEVEL_DETAIL_RECEIPT
 
     attestation_check = result.get("signer.attestation")
     attested: bool | None

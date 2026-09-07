@@ -16,6 +16,8 @@ from merkl.core.verify.receipt import (
     AUTHORIZATION_ABSENT,
     AUTHORIZATION_CONTRADICTED,
     AUTHORIZATION_VERIFIED,
+    LEVEL_DETAIL_RECEIPT,
+    LEVEL_DETAIL_SESSION,
     LEVEL_RECEIPT,
     LEVEL_SESSION,
     _policy_document_check,
@@ -37,6 +39,14 @@ BY_NAME = {c["name"]: c for c in RECEIPTS["cases"]}
 
 def _case(name: str) -> dict[str, Any]:
     return next(c for c in VERDICTS["cases"] if c["name"] == name)
+
+
+def verdict_detail(verdict: Any, name: str) -> str:
+    """The detail of a check by name, from the receipt's own checks or the log's."""
+    check = verdict.result.get(name)
+    if check is None and verdict.log is not None:
+        check = verdict.log.result.get(name)
+    return str(check.detail)
 
 
 def _run(case: dict[str, Any], **overrides: Any) -> Any:
@@ -145,7 +155,56 @@ class TestTheLevel:
     def test_a_receipt_alone_is_level_one_and_says_what_that_means(self) -> None:
         verdict = _run(_case("deny-not-submitted"))
         assert verdict.level == LEVEL_RECEIPT
-        assert "level 1" in verdict.level_detail
+        assert verdict.level_detail == LEVEL_DETAIL_RECEIPT
+
+    def test_the_level_line_is_one_sentence_that_names_its_own_level(self) -> None:
+        """A page prefixing "Level 2." said it twice; the sentence carries it."""
+        joined = _run(_case("allow-settled"))
+        assert joined.level_detail == LEVEL_DETAIL_SESSION
+        assert joined.level_detail.startswith("Level 2:")
+        assert joined.level_detail.count("evel 2") == 1
+        assert _run(_case("deny-not-submitted")).level_detail.count("evel 1") == 1
+
+    def test_an_unsealed_session_says_so_rather_than_reading_as_a_bare_level_one(
+        self,
+    ) -> None:
+        case = _case("allow-settled")
+        bundle = copy.deepcopy(case["material"]["session_bundle"])
+        bundle["session"]["sealed"] = False
+        verdict = _run(case, session_bundle=bundle)
+        join = verdict.result.get("session.log_join")
+        assert join.status is CheckStatus.NOT_IMPLEMENTED
+        assert "is not sealed yet; level 2 becomes available after sealing" in join.detail
+        assert verdict.level == LEVEL_RECEIPT
+
+    def test_a_scoped_bundle_carrying_only_this_receipts_action_still_joins(self) -> None:
+        """The receipt page ships one action, not the whole session (SPEC §9).
+
+        Its position in the list says nothing; its proof says which leaf it is.
+        """
+        case = _case("allow-settled")
+        bundle = copy.deepcopy(case["material"]["session_bundle"])
+        leaf_index = BY_NAME["allow-settled"]["envelope"]["session_locator"]["leaf_index"]
+        assert leaf_index > 0, "a scoped bundle only proves anything past position 0"
+        bundle["actions"] = [
+            a for a in bundle["actions"] if a["proof"]["leaf_index"] == leaf_index
+        ]
+        verdict = _run(case, session_bundle=bundle)
+        assert verdict.result.get("session.log_join").status is CheckStatus.PASS
+        assert verdict.level == LEVEL_SESSION
+
+    def test_a_scoped_bundle_whose_one_action_is_another_leaf_does_not_join(self) -> None:
+        case = _case("allow-settled")
+        bundle = copy.deepcopy(case["material"]["session_bundle"])
+        leaf_index = BY_NAME["allow-settled"]["envelope"]["session_locator"]["leaf_index"]
+        bundle["actions"] = [
+            a for a in bundle["actions"] if a["proof"]["leaf_index"] != leaf_index
+        ][:1]
+        verdict = _run(case, session_bundle=bundle)
+        join = verdict.result.get("session.log_join")
+        assert join.status is CheckStatus.FAIL
+        assert "none of them is that leaf" in join.detail
+        assert verdict.level == LEVEL_RECEIPT
 
     def test_joining_the_session_that_committed_it_reaches_level_two(self) -> None:
         verdict = _run(_case("allow-settled"))
@@ -179,6 +238,77 @@ class TestPlainLanguage:
     def test_reasoning_is_labelled_testimony(self) -> None:
         verdict = _run(_case("allow-settled"))
         assert "testimony, not proof" in (verdict.summary.testimony or "")
+
+    def test_the_models_note_is_a_separate_member_not_run_into_the_sentence(self) -> None:
+        """The sentence is ours; the note is the agent's. They never share a line."""
+        verdict = _run(_case("allow-settled"))
+        note = verdict.summary.testimony_note
+        assert note and note == BY_NAME["allow-settled"]["leaves"][6]["note"]
+        assert note not in (verdict.summary.testimony or "")
+
+    def test_a_receipt_with_no_reasoning_leaf_has_no_note(self) -> None:
+        receipt = copy.deepcopy(BY_NAME["allow-settled"])
+        receipt["leaves"][6] = None
+        envelope, leaves = receipt_from_content(receipt)
+        verdict = verify_receipt(envelope, leaves)
+        assert verdict.summary.testimony is None
+        assert verdict.summary.testimony_note is None
+
+    def test_a_reasoning_leaf_with_an_empty_note_offers_no_preview(self) -> None:
+        receipt = copy.deepcopy(BY_NAME["allow-settled"])
+        receipt["leaves"][6]["note"] = "   "
+        envelope, leaves = receipt_from_content(receipt)
+        verdict = verify_receipt(envelope, leaves)
+        assert verdict.summary.testimony is not None
+        assert verdict.summary.testimony_note is None
+
+    def test_an_unattested_signer_says_a_dev_signer_is_the_ordinary_reason(self) -> None:
+        verdict = _run(_case("allow-settled-fake-rail"))
+        assert verdict.attested is False
+        assert "a Nitro signer attests" in (verdict.summary.signer or "")
+
+    def test_an_attested_signer_does_not_get_the_dev_signer_clause(self) -> None:
+        verdict = _run(_case("allow-settled"))
+        assert "Nitro" not in (verdict.summary.signer or "")
+
+
+class TestWhatWasNotChecked:
+    def test_every_unchecked_check_is_named_with_its_own_reason(self) -> None:
+        verdict = _run(_case("allow-settled"))
+        deferred = {c.name for c in verdict.result.deferred} | {
+            c.name for c in (verdict.log.result.deferred if verdict.log else ())
+        }
+        assert {e.name for e in verdict.not_checked} == deferred
+        assert all(e.reason == verdict_detail(verdict, e.name) for e in verdict.not_checked)
+
+    def test_the_line_names_the_check_in_words_and_the_reason_in_parentheses(self) -> None:
+        receipt = BY_NAME["allow-settled"]
+        envelope, leaves = receipt_from_content(receipt)
+        verdict = verify_receipt(envelope, leaves)
+        assert "enclave attestation (" in verdict.not_checked_line
+        assert "no settlement proof was supplied with this receipt)" in verdict.not_checked_line
+        assert "ledger inclusion (" in verdict.not_checked_line
+        assert verdict.not_checked_line.endswith(".")
+
+    def test_the_verdict_line_separates_contradiction_from_completeness(self) -> None:
+        receipt = BY_NAME["allow-settled"]
+        envelope, leaves = receipt_from_content(receipt)
+        verdict = verify_receipt(envelope, leaves)
+        assert verdict.verdict_line.startswith("Nothing was contradicted. Not checked: ")
+        assert "unconfigured" not in verdict.verdict_line
+
+    def test_a_fully_checked_verdict_says_every_check_ran(self) -> None:
+        verdict = _run(_case("allow-settled-fake-rail"))
+        checked = verdict.complete
+        assert checked == (verdict.not_checked == ())
+        if checked:
+            assert verdict.not_checked_line == "Every check ran."
+
+    def test_nothing_that_did_not_run_is_left_out_of_the_list(self) -> None:
+        """`complete` and the list are two readings of one fact, never two facts."""
+        for case in VERDICTS["cases"]:
+            verdict = _run(case)
+            assert verdict.complete == (len(verdict.not_checked) == 0)
 
     def test_the_summary_says_what_settled_in_words(self) -> None:
         verdict = _run(_case("allow-settled"))

@@ -120,12 +120,18 @@ def _print_verdict(verdict: ReceiptVerdict, *, show_all: bool) -> None:
             else "(the receipt does not say)"
         )
         print(f"{label:>12}  {body}")
+        # The agent's own note sits under the sentence about it, never in it.
+        if key == "testimony" and verdict.summary.testimony_note:
+            note = _wrap(f"“{verdict.summary.testimony_note}”", indent="")
+            print(f"{'':>12}  {note.replace(chr(10), chr(10) + ' ' * 14)}")  # noqa: RUF001
     print()
     print(f"{'Authorization':>12}  {verdict.transaction_authorization}")
     print(f"{'':>12}  {verdict.transaction_authorization_detail}")
     print(f"{'Ledger':>12}  {verdict.ledger_inclusion}")
     print(f"{'':>12}  {verdict.ledger_inclusion_detail}")
-    print(f"{'Level':>12}  {verdict.level} — {verdict.level_detail}")
+    # level_detail already names its level; printing the number too said it twice.
+    level = _wrap(verdict.level_detail, indent="").replace("\n", "\n" + " " * 14)
+    print(f"{'Level':>12}  {level}")
     print()
     for c in verdict.result.checks:
         if not show_all and c.status is CheckStatus.PASS:
@@ -240,11 +246,16 @@ def verify_command(
                 print(f"  evidence {reading.verdict:<8} {reading.label}: {reading.detail}")
         print()
         print("nothing was contradicted" if ok else "SOMETHING WAS CONTRADICTED")
-        print(
-            "every check ran"
-            if complete
-            else "some checks did not run — listed above with --, and none of them is a pass"
-        )
+        if complete:
+            print("every check ran")
+        else:
+            # Name them rather than describing them. "Some checks did not run"
+            # is true of every unchecked receipt and tells a reader nothing
+            # about which fact about this one is still open.
+            for verdict in verdicts:
+                for entry in verdict.not_checked:
+                    print(_wrap(f"not checked — {entry.label}: {entry.reason}", indent="  "))
+            print("  none of them is a pass, and none of them is a failure")
 
     if not ok:
         return 1

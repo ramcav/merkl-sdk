@@ -2138,6 +2138,69 @@ export const AUTHORIZATION_CONTRADICTED = 'contradicted';
 export const LEVEL_RECEIPT = 1;
 export const LEVEL_SESSION = 2;
 
+/** One sentence, already naming its level — a page must not prefix it again. */
+export const LEVEL_DETAIL_SESSION =
+  "Level 2: verified against the signer key, the ledger, and the notary's log " +
+  '(session sealed, checkpoint signed).';
+
+/** The level-1 sentence. Not a lesser verdict: a different question, answered. */
+export const LEVEL_DETAIL_RECEIPT =
+  'Level 1: verified against the signer key, the ledger and this receipt alone; ' +
+  'no notary log was available to add completeness and an anchor.';
+
+/**
+ * Plain words for a check name, so an unchecked line reads as a sentence.
+ *
+ * A name with no entry here is printed as its name. That is deliberate: an
+ * unnamed check is still listed, because the whole point of this list is that
+ * nothing goes unchecked *silently*.
+ */
+export const CHECK_LABELS = {
+  'signer.attestation': 'enclave attestation',
+  'settlement.ledger_inclusion': 'ledger inclusion',
+  'settlement.proof_matches_receipt': 'the settlement capture',
+  'settlement.ledger_header': 'the ledger header',
+  'settlement.validator_quorum': 'the validator quorum',
+  'settlement.signed_blob': 'the submitted transaction blob',
+  'settlement.anchor_equals_left': 'the rail anchor',
+  'settlement.policy_signature': 'the policy signature',
+  'policy.document': 'the policy document',
+  'policy.signature': 'the policy signature',
+  'policy.escalation_challenge': 'the escalation challenge',
+  'policy.approval_quorum': 'the approval quorum',
+  'intent.matches_settled_fields': 'the settled fields',
+  'session.log_join': 'the session join',
+  'log.actions': 'the session actions',
+  'log.session_root': 'the session root',
+  'log.continuation': 'the continuation binding',
+  'log.audit_entry': 'the audit-log entry',
+  'log.inclusion': 'log inclusion',
+  'log.checkpoint_body': 'the checkpoint body',
+  'log.checkpoint_signature': 'the checkpoint signature',
+  'log.evidence': 'the evidence records',
+};
+
+/**
+ * Name every check that did not run, each with its *own* reason.
+ *
+ * The reason is the check's detail, verbatim. A summary that said "some checks
+ * are not implemented in this browser or unconfigured" would be true of every
+ * one of them and useful about none: a reader cannot tell whether nobody pinned
+ * an enclave measurement or nobody supplied a settlement proof, and those are
+ * different facts about how far this receipt has been established.
+ */
+export function notCheckedOf(checks) {
+  return checks
+    .filter((c) => c.status === NOT_IMPLEMENTED)
+    .map((c) => ({ name: c.name, label: CHECK_LABELS[c.name] ?? c.name, reason: c.detail }));
+}
+
+/** The completeness half of the verdict, as one sentence naming names. */
+export function notCheckedLine(entries) {
+  if (!entries.length) return 'Every check ran.';
+  return 'Not checked: ' + entries.map((e) => `${e.label} (${e.reason})`).join(', ') + '.';
+}
+
 const POLICY_TAG = utf8('merkl-policy-v1');
 const XRPL_TX_PREFIX = new Uint8Array([0x54, 0x58, 0x4e, 0x00]); // "TXN\0"
 const FAKE_TX_TAG = utf8('merkl-fake-tx-v1');
@@ -2706,6 +2769,34 @@ async function approvalQuorumCheck(escalation, challengeOk, policy) {
   return [outcome(CHECK_APPROVAL_QUORUM, quorum.reached, detail), quorum.accepted];
 }
 
+/**
+ * Which leaf of the session tree an action row is, not merely where it is listed.
+ *
+ * A full session export lists every action in leaf order, so the two are the
+ * same number and always were. A *scoped* bundle — one receipt and only the
+ * action that committed it (`docs/SPEC.md` §9) — lists one row that is leaf 5 of
+ * twelve, and reading its position would place it at leaf 0. The row's own proof
+ * already says which leaf it is; the position is only the fallback.
+ */
+export function leafIndexOf(position, action) {
+  const proof = action && typeof action === 'object' ? action.proof : null;
+  if (proof && typeof proof === 'object') {
+    const declared = proof.leaf_index;
+    if (Number.isInteger(declared) && declared >= 0) return declared;
+  }
+  return position;
+}
+
+/** The action row that *is* this leaf, wherever the bundle chose to list it. */
+function rowAtLeaf(rows, leafIndex) {
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i] && typeof rows[i] === 'object' && leafIndexOf(i, rows[i]) === leafIndex) {
+      return rows[i];
+    }
+  }
+  return null;
+}
+
 async function logJoinCheck(envelope, bundle, log) {
   if (!bundle) {
     return noData(CHECK_LOG_JOIN, 'no session bundle was supplied, so this is a level-1 verdict');
@@ -2723,14 +2814,27 @@ async function logJoinCheck(envelope, bundle, log) {
       `the receipt names session ${locator.session_id}, the bundle is ${sessionId}`,
     );
   }
-  if (locator.leaf_index >= rows.length) {
+  // An open session has no root to prove into and no log entry to be included
+  // in, so there is nothing yet for this receipt to be joined *to*. That is a
+  // stage of the session's life, not a fault in the receipt: say which, and say
+  // what will change it.
+  if (bundle.session && bundle.session.sealed === false) {
+    return noData(
+      CHECK_LOG_JOIN,
+      `session ${locator.session_id} is not sealed yet; ` +
+        'level 2 becomes available after sealing',
+    );
+  }
+  const row = rowAtLeaf(rows, locator.leaf_index);
+  if (row === null) {
     return check(
       CHECK_LOG_JOIN,
       FAIL,
-      `the receipt names leaf ${locator.leaf_index}, the bundle has ${rows.length} actions`,
+      `the receipt names leaf ${locator.leaf_index}, the bundle carries ` +
+        `${rows.length} action(s) and none of them is that leaf`,
     );
   }
-  const committed = String(rows[locator.leaf_index].input_hash ?? '');
+  const committed = String(row.input_hash ?? '');
   const derived = await canonicalHashHex(envelope);
   if (derived !== committed) {
     return check(
@@ -2845,7 +2949,8 @@ export function summarize(contents, envelope, approvedIds = []) {
 
   const signer =
     attestation === null || attestation === undefined
-      ? 'The signer is unattested: leaf 3 is null, so nothing proves which machine held the policy key.'
+      ? 'The signer is unattested: leaf 3 is null, so nothing proves which machine held ' +
+        'the policy key — expected for a dev signer; a Nitro signer attests.'
       : 'The signer published an enclave attestation for its policy key.';
 
   const testimony =
@@ -2854,7 +2959,26 @@ export function summarize(contents, envelope, approvedIds = []) {
         'not proof: it shows the account was not edited afterwards, never that it was true.'
       : null;
 
-  return { instructed, rule, approved, settled: settledLine, when, signer, testimony };
+  // Leaf 6's note, verbatim — the one member that is not our sentence, and so
+  // the one that belongs on its own line rather than run into the testimony
+  // above it. The sentence is this verifier speaking about what a committed
+  // hash establishes; the note is the agent speaking about itself.
+  let testimonyNote = null;
+  if (reasoning && typeof reasoning === 'object' && typeof reasoning.note === 'string') {
+    const trimmed = reasoning.note.trim();
+    if (trimmed) testimonyNote = trimmed;
+  }
+
+  return {
+    instructed,
+    rule,
+    approved,
+    settled: settledLine,
+    when,
+    signer,
+    testimony,
+    testimony_note: testimonyNote,
+  };
 }
 
 // ─── 14. the bundle: session, log, evidence ────────────────────────────────
@@ -2977,7 +3101,9 @@ export async function verifyLogBundle(bundle, { evidence = [] } = {}) {
     : [];
 
   const readings = [];
-  for (let i = 0; i < actions.length; i++) readings.push(await readAction(i, actions[i], root));
+  for (let i = 0; i < actions.length; i++) {
+    readings.push(await readAction(leafIndexOf(i, actions[i]), actions[i], root));
+  }
 
   const checks = [];
   if (!actions.length) {
@@ -3329,17 +3455,27 @@ export async function verifyReceipt(receipt, options = {}) {
         ? true
         : null;
 
+  const ok = res.ok && (log ? log.result.ok : true);
+  const notChecked = notCheckedOf(res.checks).concat(
+    log ? notCheckedOf(log.result.checks) : [],
+  );
+  const notCheckedSentence = notCheckedLine(notChecked);
+
   return {
     receipt_id: envelope.receipt_id,
-    ok: res.ok && (log ? log.result.ok : true),
+    ok,
     complete: res.complete && (log ? log.result.complete : true),
     level,
-    level_detail:
-      level === LEVEL_SESSION
-        ? 'level 2: this receipt is committed in a session log whose checkpoint and ' +
-          'inclusion proof were checked here'
-        : 'level 1: verified against the signer key, the rail and this receipt alone — ' +
-          'joining a session log would add completeness, a notary signature and an anchor',
+    level_detail: level === LEVEL_SESSION ? LEVEL_DETAIL_SESSION : LEVEL_DETAIL_RECEIPT,
+    not_checked: notChecked,
+    not_checked_line: notCheckedSentence,
+    // Never one boolean and never one sentence: "nothing was contradicted" and
+    // "everything was checked" are different claims, and a page that ran them
+    // together would report the weaker one as if it were the stronger.
+    verdict_line:
+      (ok ? 'Nothing was contradicted.' : 'Something was contradicted.') +
+      ' ' +
+      notCheckedSentence,
     settlement: {
       transaction_authorization: authorization,
       transaction_authorization_detail: authorizationDetail,

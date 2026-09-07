@@ -93,8 +93,86 @@ test('the verdict agrees with the Python one, check for check', async (t) => {
       assert.equal(got.attested, c.verdict.attested);
       assert.deepEqual(got.settlement, c.verdict.settlement, 'plan D10 is two lines, both of them');
       assert.deepEqual(got.summary, c.verdict.summary, 'the words a reader sees must match too');
+      assert.deepEqual(
+        got.not_checked,
+        c.verdict.not_checked,
+        'the same checks went unchecked, for the same stated reasons',
+      );
+      assert.equal(got.not_checked_line, c.verdict.not_checked_line);
+      assert.equal(got.verdict_line, c.verdict.verdict_line);
     });
   }
+});
+
+test('what went unchecked is named, never summarised away', async () => {
+  const receipt = BY_NAME['allow-settled'];
+  const verdict = await verifyReceipt({ envelope: receipt.envelope, leaves: receipt.leaves });
+  const names = verdict.not_checked.map((e) => e.name);
+  assert.ok(names.includes('signer.attestation'));
+  assert.ok(names.includes('settlement.ledger_inclusion'));
+  assert.match(verdict.not_checked_line, /enclave attestation \(/);
+  assert.match(verdict.not_checked_line, /no settlement proof was supplied with this receipt\)/);
+  assert.ok(verdict.verdict_line.startsWith('Nothing was contradicted. Not checked: '));
+  assert.doesNotMatch(verdict.verdict_line, /unconfigured/);
+  for (const entry of verdict.not_checked) {
+    const check = verdict.checks.find((c) => c.name === entry.name);
+    assert.equal(entry.reason, check.detail, 'each reason is the check’s own detail');
+  }
+});
+
+test('the level line names its level once, and the page must not add another', async () => {
+  const receipt = BY_NAME['allow-settled'];
+  const verdict = await verifyReceipt({ envelope: receipt.envelope, leaves: receipt.leaves });
+  assert.ok(verdict.level_detail.startsWith('Level 1:'));
+  assert.equal(verdict.level_detail.match(/evel 1/g).length, 1);
+});
+
+test('a receipt bundle carrying only its own action still joins the session', async (t) => {
+  const c = verdictVectors().cases.find((x) => x.material.session_bundle);
+  const receipt = BY_NAME[c.name];
+  const leafIndex = receipt.envelope.session_locator.leaf_index;
+  const scoped = {
+    ...c.material.session_bundle,
+    actions: c.material.session_bundle.actions.filter((a) => a.proof.leaf_index === leafIndex),
+  };
+  assert.equal(scoped.actions.length, 1, 'the receipt page ships exactly one action');
+
+  await t.test('it reaches level 2', async () => {
+    const verdict = await verifyReceipt(
+      { envelope: receipt.envelope, leaves: receipt.leaves },
+      { ...material(c.material), sessionBundle: scoped },
+    );
+    assert.equal(verdict.checks.find((x) => x.name === 'session.log_join').status, 'pass');
+    assert.equal(verdict.level, 2);
+  });
+
+  await t.test('an unsealed session says so instead of reading as a bare level 1', async () => {
+    const open = { ...scoped, session: { ...scoped.session, sealed: false } };
+    const verdict = await verifyReceipt(
+      { envelope: receipt.envelope, leaves: receipt.leaves },
+      { ...material(c.material), sessionBundle: open },
+    );
+    const join = verdict.checks.find((x) => x.name === 'session.log_join');
+    assert.equal(join.status, 'not_implemented');
+    assert.match(join.detail, /is not sealed yet; level 2 becomes available after sealing/);
+    assert.equal(verdict.level, 1);
+  });
+
+  await t.test('one action that is a different leaf does not join', async () => {
+    const wrong = {
+      ...scoped,
+      actions: c.material.session_bundle.actions
+        .filter((a) => a.proof.leaf_index !== leafIndex)
+        .slice(0, 1),
+    };
+    const verdict = await verifyReceipt(
+      { envelope: receipt.envelope, leaves: receipt.leaves },
+      { ...material(c.material), sessionBundle: wrong },
+    );
+    const join = verdict.checks.find((x) => x.name === 'session.log_join');
+    assert.equal(join.status, 'fail');
+    assert.match(join.detail, /none of them is that leaf/);
+  });
 });
 
 test('material the verifier did not bring becomes a named gap, never a pass', async () => {

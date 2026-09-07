@@ -55,6 +55,7 @@ __all__ = [
     "continuation_reading",
     "evidence_records",
     "leaf_hash_of",
+    "leaf_index_of",
     "rfc6962_leaf",
     "verify_evidence",
     "verify_log_bundle",
@@ -166,6 +167,24 @@ class ActionReading:
             "receipt_id": self.receipt_id,
             "ok": self.ok,
         }
+
+
+def leaf_index_of(position: int, action: Mapping[str, Any]) -> int:
+    """Which leaf of the session tree this row is, not merely where it is listed.
+
+    A full session export lists every action in leaf order, so the two are the
+    same number and always were. A *scoped* bundle — one receipt and only the
+    action that committed it (``docs/SPEC.md`` §9) — lists one row that is leaf
+    5 of twelve, and reading its position would place it at leaf 0. The row's
+    own proof already says which leaf it is; that is the answer, and the
+    position is only the fallback for a bundle whose proof is missing.
+    """
+    proof = action.get("proof")
+    if isinstance(proof, Mapping):
+        declared = proof.get("leaf_index")
+        if isinstance(declared, int) and not isinstance(declared, bool) and declared >= 0:
+            return declared
+    return position
 
 
 def _read_action(index: int, action: Mapping[str, Any], root: str) -> ActionReading:
@@ -529,7 +548,7 @@ def verify_log_bundle(
         [a for a in raw_actions if isinstance(a, Mapping)] if isinstance(raw_actions, list) else []
     )
 
-    readings = tuple(_read_action(i, a, root) for i, a in enumerate(actions))
+    readings = tuple(_read_action(leaf_index_of(i, a), a, root) for i, a in enumerate(actions))
     checks: list[Check] = []
     if not actions:
         checks.append(no_data(CHECK_ACTIONS, "this bundle carries no actions"))
