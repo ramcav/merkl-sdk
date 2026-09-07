@@ -562,9 +562,7 @@ def main() -> None:
                     home=args.home,
                     agents=args.agents,
                     wallet_file=args.wallet_file,
-                    network=(
-                        NETWORK_XRPL_MAINNET if args.xrpl_mainnet else NETWORK_XRPL_TESTNET
-                    ),
+                    network=(NETWORK_XRPL_MAINNET if args.xrpl_mainnet else NETWORK_XRPL_TESTNET),
                     trust=tuple(args.trust),
                 )
             )
