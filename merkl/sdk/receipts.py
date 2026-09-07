@@ -99,6 +99,15 @@ class ReceiptOutcome:
     proof: SettlementProof | None = None
     action_id: str | None = None
     reason: str = ""
+    pending_escalation: JSONObject | None = None
+    """``{challenge, expires_at, quorum}`` when this decision is still
+    ``escalate``. The signer's ``propose`` response carries these at the top
+    level — RECEIPT-SPEC.md has nowhere in a receipt leaf for them until the
+    escalation resolves — so a caller filing this receipt with a notary that
+    wants to open a human queue entry from it (rather than only from an
+    already-resolved one) has to hand them over separately. This is exactly
+    the shape merkl-api's ``POST /v1/receipts`` accepts as
+    ``pending_escalation`` (``docs/INTERFACES-P4.md`` sec 2)."""
 
     @property
     def envelope(self) -> Envelope:
@@ -280,8 +289,21 @@ class ReceiptBuilder:
         receipt = self._build(receipt_id, leaves, response)
         receipt, action_id = await self._join_session(receipt, response, depends_on)
         await self._store_receipt(receipt)
+        pending_escalation: JSONObject | None = (
+            {
+                "challenge": str(response["challenge"]),
+                "expires_at": str(response["expires_at"]),
+                "quorum": int(str(response["quorum"])),
+            }
+            if escalating
+            else None
+        )
         return ReceiptOutcome(
-            receipt=receipt, decision=decision, action_id=action_id, reason=reason
+            receipt=receipt,
+            decision=decision,
+            action_id=action_id,
+            reason=reason,
+            pending_escalation=pending_escalation,
         )
 
     async def _settle(

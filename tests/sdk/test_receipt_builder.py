@@ -200,6 +200,59 @@ class TestSignerIsTheAuthority:
         assert seen == [ANCHOR_PLACEHOLDER_HEX]
 
 
+class TestPendingEscalation:
+    """What a caller needs to open a human queue entry from a still-pending
+    decision — nothing in the receipt's own leaves names the challenge until
+    it resolves (RECEIPT-SPEC.md), so ``execute()`` hands it over separately."""
+
+    async def test_an_unresolved_escalation_carries_challenge_expiry_and_quorum(
+        self, tmp_path: Path
+    ) -> None:
+        rig = build_rig(tmp_path)
+        intent = rig.intent(value="600.00")  # over the 500.00 human threshold
+        outcome = await rig.builder.execute(instruction=rig.instruction(), intent=intent)
+
+        assert outcome.outcome == "escalate"
+        pending = outcome.pending_escalation
+        assert pending is not None
+        assert pending["challenge"] == escalation_challenge(outcome.receipt.leaves).hex()
+        assert pending["quorum"] == 2  # the default rig policy's human tier
+        assert isinstance(pending["expires_at"], str)
+
+    async def test_a_denial_carries_no_pending_escalation(self, tmp_path: Path) -> None:
+        rig = build_rig(tmp_path)
+        outcome = await rig.builder.execute(
+            instruction=rig.instruction("drain it"),
+            intent=rig.intent(value="90000.00", destination="rATTACKER0000000000000000000000000"),
+        )
+        assert outcome.outcome == "deny"
+        assert outcome.pending_escalation is None
+
+    async def test_a_settled_payment_carries_no_pending_escalation(self, tmp_path: Path) -> None:
+        rig = build_rig(tmp_path)
+        outcome = await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
+        assert outcome.settled
+        assert outcome.pending_escalation is None
+
+    async def test_resuming_to_a_settlement_clears_the_pending_escalation(
+        self, tmp_path: Path
+    ) -> None:
+        rig = build_rig(tmp_path)
+        instruction = rig.instruction()
+        intent = rig.intent(value="600.00")
+        pending = await rig.builder.execute(instruction=instruction, intent=intent)
+        challenge = escalation_challenge(pending.receipt.leaves).hex()
+        decision = await rig.signer.approve(
+            challenge, approvals_for(challenge, at=rig.clock.now())
+        )
+
+        outcome = await rig.builder.resume(
+            instruction=instruction, intent=intent, decision=decision
+        )
+        assert outcome.settled
+        assert outcome.pending_escalation is None
+
+
 class TestResume:
     """Picking a payment back up after its decision was reached elsewhere.
 
