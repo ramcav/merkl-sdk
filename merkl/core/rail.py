@@ -41,6 +41,7 @@ from merkl.core.canonical import (
     instant,
     token,
 )
+from merkl.core.intent import Amount
 
 ANCHOR_BYTES: Final = 32
 ANCHOR_PLACEHOLDER: Final = bytes(ANCHOR_BYTES)
@@ -101,8 +102,9 @@ def agent_memo_json(
 ) -> str:
     """The compact JSON xrpl.org's agent-tracking page puts in MemoData.
 
-    Keys sorted so two implementations encode the same bytes. ``action`` is
-    always ``payment`` for Intent v1.
+    Keys sorted so two implementations encode the same bytes. ``action`` is the
+    intent's own type — ``payment`` or ``swap`` — so a reader watching the
+    ledger can tell a trade from a transfer without decoding anything else.
     """
     return json.dumps(
         {
@@ -345,6 +347,19 @@ class SettlementRef:
     engine_result: str | None = None
     validated: bool = True
     observed_memos: tuple[JSONObject, ...] | None = None
+    delivered: Amount | None = None
+    """What actually arrived, read out of the rail's own settlement metadata.
+
+    For a payment that is the delivered amount; for a trade it is what was
+    bought. ``None`` when the adapter could not derive it — never a guess and
+    never the intent's own number copied across, because a settled amount that
+    was assumed rather than read proves nothing about the ledger."""
+
+    spent: Amount | None = None
+    """What actually left the treasury, from its balance change in the metadata.
+
+    A trade's real cost, which is at most ``sell.max_amount`` and usually less.
+    ``None`` on the same terms as :attr:`delivered`."""
 
     def __post_init__(self) -> None:
         token(self.rail, "settlement_ref.rail", max_length=64)
@@ -364,6 +379,8 @@ class SettlementRef:
                 "engine_result": self.engine_result,
                 "validated": self.validated,
                 "observed_memos": list(self.observed_memos) if self.observed_memos else None,
+                "delivered": self.delivered.to_content() if self.delivered else None,
+                "spent": self.spent.to_content() if self.spent else None,
             }
         )
 

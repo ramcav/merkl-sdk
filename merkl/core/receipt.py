@@ -43,6 +43,7 @@ from merkl.core.canonical import (
 from merkl.core.checks import Check, CheckStatus, VerificationResult, no_data, outcome
 from merkl.core.crypto import CryptoError, ed25519_verify
 from merkl.core.intent import (
+    Amount,
     CurrencyRef,
     Intent,
     currency_code,
@@ -547,6 +548,10 @@ class BalanceDelta:
         )
 
 
+def _amount_or_none(data: Any) -> Amount | None:
+    return None if data is None else Amount.from_content(data)
+
+
 @dataclasses.dataclass(frozen=True)
 class Result:
     """Leaf 5: how it ended, in the rail's own words plus the money that moved.
@@ -554,6 +559,13 @@ class Result:
     ``engine_result`` is the rail's code (``tesSUCCESS``, ``tefBAD_QUORUM``).
     ``outcome_hash`` optionally commits the rail's full raw response, so the
     verbatim document can be disclosed later without bloating the receipt.
+
+    ``delivered`` and ``spent`` are what the rail's own metadata said arrived and
+    left. They matter most for a trade, where the intent names a ceiling rather
+    than a price: ``spent`` is what the ledger actually charged, and the two
+    together are the rate. Both are omitted when the adapter could not derive
+    them from the metadata — an absent line is reported as unchecked, never as
+    agreement.
     """
 
     outcome: str
@@ -561,6 +573,8 @@ class Result:
     balance_deltas: tuple[BalanceDelta, ...] = ()
     outcome_hash: str | None = None
     detail: str = ""
+    delivered: Amount | None = None
+    spent: Amount | None = None
 
     def __post_init__(self) -> None:
         if self.outcome not in tuple(ResultOutcome):
@@ -576,6 +590,9 @@ class Result:
         for delta in self.balance_deltas:
             if not isinstance(delta, BalanceDelta):
                 raise ReceiptError("result.balance_deltas must contain BalanceDelta values")
+        for name, value in (("delivered", self.delivered), ("spent", self.spent)):
+            if value is not None and not isinstance(value, Amount):
+                raise ReceiptError(f"result.{name} must be an Amount")
 
     def to_content(self) -> JSONObject:
         return drop_none(
@@ -585,6 +602,8 @@ class Result:
                 "balance_deltas": [d.to_content() for d in self.balance_deltas],
                 "outcome_hash": self.outcome_hash,
                 "detail": self.detail,
+                "delivered": self.delivered.to_content() if self.delivered else None,
+                "spent": self.spent.to_content() if self.spent else None,
             }
         )
 
@@ -593,7 +612,15 @@ class Result:
         obj = _object(data, "result")
         _reject_unknown(
             obj,
-            {"outcome", "engine_result", "balance_deltas", "outcome_hash", "detail"},
+            {
+                "outcome",
+                "engine_result",
+                "balance_deltas",
+                "outcome_hash",
+                "detail",
+                "delivered",
+                "spent",
+            },
             "result",
         )
         deltas = obj.get("balance_deltas", [])
@@ -605,6 +632,8 @@ class Result:
             balance_deltas=tuple(BalanceDelta.from_content(d) for d in deltas),
             outcome_hash=obj.get("outcome_hash"),
             detail=obj.get("detail", ""),
+            delivered=_amount_or_none(obj.get("delivered")),
+            spent=_amount_or_none(obj.get("spent")),
         )
 
 
@@ -1449,10 +1478,13 @@ def _intent_matches_settled_check(
         return _no_data(name, "nothing settled, so there are no settled fields to compare")
     if intent is None:
         return Check(name, CheckStatus.FAIL, "the intent leaf does not parse")
+    if intent.is_swap:
+        return _swap_matches_settled_check(intent, result)
     if result is None or not result.balance_deltas:
         return _no_data(name, "the receipt records no balance deltas to compare the intent to")
-    wanted = currency_content(intent.amount.currency)
-    amount = parse_decimal(intent.amount.value, "intent.amount.value")
+    paid_out = intent.outflow
+    wanted = currency_content(paid_out.currency)
+    amount = parse_decimal(paid_out.value, "intent.amount.value")
     credited = [
         d
         for d in result.balance_deltas
@@ -1488,8 +1520,67 @@ def _intent_matches_settled_check(
                 CheckStatus.FAIL,
                 f"{intent.treasury} paid {paid}, the intent asked for {-amount}",
             )
-    code = wanted if isinstance(wanted, str) else currency_code(intent.amount.currency)
+    code = wanted if isinstance(wanted, str) else currency_code(paid_out.currency)
     return _check(name, True, f"{intent.destination} received {amount} {code}")
+
+
+def _swap_matches_settled_check(intent: Intent, result: Result | None) -> Check:
+    """Check 9 for a trade: the ledger bought what was asked, inside the ceiling.
+
+    A trade's intent names an exact buy and a maximum sell, so the settled facts
+    are held to exactly those two claims: ``delivered`` must equal ``buy`` — the
+    rail was asked all-or-nothing and a partial fill is a contradiction — and
+    ``spent`` must not exceed ``sell.max_amount``, which is the only number the
+    policy ever bounded. Anything the metadata did not yield is reported by name
+    as unchecked; a missing settled amount is never read as agreement.
+    """
+    name = CHECK_INTENT_MATCHES_SETTLED
+    if result is None:
+        return _no_data(name, "the receipt records no result to compare the trade to")
+    delivered, spent = result.delivered, result.spent
+    missing = [
+        label for label, value in (("delivered", delivered), ("spent", spent)) if value is None
+    ]
+    if missing or delivered is None or spent is None:
+        return _no_data(
+            name,
+            f"the result leaf carries no {' and no '.join(missing)}, so what the trade "
+            "actually moved cannot be compared to what it asked for",
+        )
+    buy = intent.deliver_amount
+    sell = intent.outflow
+    if currency_content(delivered.currency) != currency_content(buy.currency):
+        return Check(
+            name,
+            CheckStatus.FAIL,
+            f"the trade delivered {currency_code(delivered.currency)}, "
+            f"the intent bought {currency_code(buy.currency)}",
+        )
+    if delivered.decimal != buy.decimal:
+        return Check(
+            name,
+            CheckStatus.FAIL,
+            f"the trade delivered {delivered.value}, the intent bought exactly {buy.value}",
+        )
+    if currency_content(spent.currency) != currency_content(sell.currency):
+        return Check(
+            name,
+            CheckStatus.FAIL,
+            f"the trade spent {currency_code(spent.currency)}, "
+            f"the intent sold {currency_code(sell.currency)}",
+        )
+    if spent.decimal > sell.decimal:
+        return Check(
+            name,
+            CheckStatus.FAIL,
+            f"the trade spent {spent.value}, above the {sell.value} ceiling the intent set",
+        )
+    return _check(
+        name,
+        True,
+        f"bought {buy.value} {currency_code(buy.currency)} for {spent.value} "
+        f"{currency_code(sell.currency)}, within the {sell.value} ceiling",
+    )
 
 
 def _anchor_check(settlement: Settlement | None, envelope: Envelope) -> Check:
