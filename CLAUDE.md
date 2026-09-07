@@ -66,7 +66,10 @@ merkl/core/
   policy/
     document.py  PolicyDocument v1, SignedPolicy (merkl-policy-v1), approvers,
                  AdminCredential (ed25519 or webauthn; the legacy
-                 admin_public_key field stays byte-identical for policy_hash)
+                 admin_public_key field stays byte-identical for policy_hash),
+                 optional `network` (one ledger inside `rail`, omitted from the
+                 content when unset), and unenforceable_rules() — the rules the
+                 engine would sign but never run, which construction refuses
     engine.py    evaluate(intent, policy, state, risk, now) -> Decision
     state.py     LedgerState, StateView, StateStore, reconcile()
     approvals.py ApprovalAssertion (WebAuthn + Ed25519), verify_quorum(),
@@ -159,6 +162,12 @@ against. Rules:
   allowlist of fields, not a blocklist of dangerous ones; a mismatch is a DENY
   decision with a `rail.payload_encodes_intent` rule and a receipt, never an
   exception. Adding a rail means adding its codec, or the signer refuses to boot.
+- **A policy may not carry a rule the engine would never run.** The engine reads
+  caps and thresholds first-match-per-asset and windows all-matches-per-asset,
+  so a duplicate would be signed into `policy_hash` and silently ignored.
+  `PolicyDocument` refuses one; `@merkl-ai/verify` reports one as a
+  `policy.document` failure with the same sentence. If you add a rule list,
+  extend `unenforceable_rules` in the same commit — in both implementations.
 - **Vectors are the contract with the JS verifier.** Plain JSON, lowercase hex,
   no floats, no Python-specific types. After touching any encoding, run
   `python -m merkl.core.vectors.generate` and commit the diff; the suite fails if
@@ -240,7 +249,10 @@ merkl/demo/
   WebAuthn admin's ceremony produces) and `merkl policy show` (a document
   rendered in words)
 - `merkl/cli/signer.py` — `merkl signer serve` (loads `relay-tokens.json` from
-  `--home` if present) and `merkl signer token add|revoke|list`
+  `--home` if present; resolves the keystore passphrase from
+  `$MERKL_SIGNER_PASSPHRASE` or a prompt and never writes one; refuses to start
+  when `--rail-endpoint`/`$MERKL_RAIL_ENDPOINT` names a different chain than the
+  policy's `network`) and `merkl signer token add|revoke|list`
 - `merkl/cli/xrpl_unl.py` — `merkl xrpl pin-unl <url|file>`: audits a published
   validator list and writes the pinned master-key set (§ verify.py's
   `--validator`, `merkl.core.verify.xrpl.pin_validator_list`)
@@ -268,8 +280,8 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # 1362 tests, 10 skipped
-npm test                                        # 213 JS tests, node --test, no bundler
+pytest                                          # 1433 tests, 10 skipped
+npm test                                        # 230 JS tests, node --test, no bundler
 mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py nitro merkl/demo merkl/cli
 ruff check merkl/ tests/
 ruff format --check merkl/ tests/

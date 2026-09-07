@@ -119,6 +119,71 @@ policy_hash = SHA-256("merkl-policy-v1" || NUL || canonical_bytes(document))
 That is `PolicyDocument.to_content()`'s output. Store what the SDK gave you
 rather than a re-serialization from your own ORM, or the hash will not match.
 
+### Rules a document may not carry (added in 0.2.0)
+
+The engine reads `per_tx_cap` and `tiers.human.thresholds` **first match per
+asset**, and `windows` **all matches per asset**. So a policy could be signed
+with a rule the engine would never run, and `policy_hash` would cover it
+faithfully. `PolicyDocument` now refuses five shapes:
+
+| Refused | Why it could never run |
+|---|---|
+| two `per_tx_cap` for one asset on one agent | only the first is read |
+| two `windows` for one (asset, seconds) on one agent | the second is a duplicate of the first |
+| two `tiers.human.thresholds` for one asset | only the first is read |
+| a cap or window for an asset outside that agent's `allowlist_assets` | the asset rule denies first |
+| a threshold for an asset no agent may move | nothing can reach it |
+
+Two windows over the *same asset and different lengths* are fine — an hourly and
+a daily limit both apply.
+
+For the dashboard: a policy editor should refuse these before signing, with the
+same wording, and `@merkl-ai/verify` exports `unenforceableRules(document)` →
+`string[]` to check one. `policyDocumentCheck` runs it before the signature and
+before the hash, so a receipt whose policy carries a dead rule reports
+`policy.document` as `fail` with that sentence — a valid admin signature over a
+matching hash says nothing about whether a rule can run.
+`merkl/core/vectors/policies.json`'s `document_cases` pin the sentences for both
+implementations.
+
+### `network` — which chain, not just which rail (added in 0.2.0)
+
+`rail` names a settlement *family*; `network` names one ledger in it.
+
+| `rail` | `network` may be |
+|---|---|
+| `xrpl` | `xrpl-testnet`, `xrpl-mainnet` |
+| `fake` | — (a rail with no networks may not name one) |
+
+**Optional, and omitted from the content when unset.** A document that names no
+network serialises exactly as it did before the field existed, so every
+`policy_hash` signed before 0.2.0 is unchanged to the byte and every admin
+signature over one still verifies. Setting it changes the hash, because it is
+part of what the admin signs — a network cannot be attached to a policy after
+the fact.
+
+For merkl-api and merkl-dashboard:
+
+- Surface it wherever `rail` is surfaced (`GET /v1/policies`, the treasuries
+  list). It is `null` for a policy that does not name one; do not invent one.
+- Use it to narrow issuer lists. RLUSD is issued by a different account on
+  testnet than on mainnet, and an address means nothing in common between the
+  two chains, so an issuer picker that ignores `network` will offer the wrong
+  one half the time.
+- A `null` network means the document does not say, which is not the same as
+  "mainnet". Say "not specified".
+
+Signer behaviour, so the dashboard can explain a refusal:
+
+- At boot, if `merkl signer serve` was given a rail endpoint (`--rail-endpoint`
+  or `$MERKL_RAIL_ENDPOINT`) whose host it recognises as a different chain, it
+  refuses to start (exit 4) rather than co-sign for the wrong ledger. An
+  unrecognised host — a private rippled — is not an opinion and does not block.
+- Per payment, the XRPL codec refuses a payload whose `NetworkID` names another
+  chain. Mainnet is network 0 and testnet is network 1, and rippled rejects a
+  `NetworkID` below 1024, so neither chain's Payments carry the field: its
+  absence proves nothing, and the boot check above is the real guard.
+
 ---
 
 ## 3. `@merkl-ai/verify` — merkl-dashboard

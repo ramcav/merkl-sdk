@@ -9,6 +9,61 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+### Added — phase 9
+
+- **`PolicyDocument.network`** — `xrpl-testnet` or `xrpl-mainnet`, optional,
+  and **omitted from the content when unset**, so every `policy_hash` signed
+  before this field existed is byte-identical and every admin signature over
+  one still verifies. `rail` names a settlement family; `network` names one
+  ledger in it, and the allowed values live beside `rail` in
+  `merkl.core.rail.NETWORKS_BY_RAIL`. The same `rXXX` on testnet and on mainnet
+  are unrelated accounts, so "xrpl" alone never said where the money goes.
+  `merkl signer serve --rail-endpoint <url>` (or `$MERKL_RAIL_ENDPOINT`)
+  refuses to start when the endpoint's host names a different chain than the
+  policy — the signer makes no call, it reads the string
+  (`merkl.signer.rails.network_of_endpoint`); an unrecognised host, such as a
+  private rippled, is not an opinion and does not block. The XRPL codec refuses
+  a payload whose `NetworkID` names another chain, and documents why that check
+  is weak: mainnet is network 0 and testnet is network 1, and rippled rejects a
+  `NetworkID` below 1024, so neither chain's Payments carry the field and its
+  absence proves nothing. `merkl policy show` and `merkl signer serve` both
+  print the network. `docs/INTERFACES-P4.md` §2 has the table merkl-api and
+  merkl-dashboard build against.
+
+### Changed — phase 9
+
+- **A policy document may no longer carry a rule the engine would never run.**
+  The engine reads `per_tx_cap` and `tiers.human.thresholds` first-match-per-
+  asset and `windows` all-matches-per-asset, but `to_content()` serialised
+  duplicates verbatim — so a second, tighter cap was hashed into `policy_hash`,
+  signed by the admin, read by a human as protection, and never enforced.
+  `PolicyDocument` construction now refuses: more than one cap per asset per
+  agent, more than one window per (asset, seconds) per agent, more than one
+  human threshold per asset, any cap or window for an asset outside that
+  agent's `allowlist_assets`, and any threshold for an asset no agent may move.
+  Two windows over the same asset with *different* lengths are still both live.
+  The error names the rule, the agent and the asset.
+  `merkl.core.policy.unenforceable_rules(content)` is the checker, over the
+  document's content so the constructor and both verifiers judge the same
+  bytes; `@merkl-ai/verify` exports `unenforceableRules` and its
+  `policyDocumentCheck` reports the same sentence as a `policy.document`
+  failure, before the signature and before the hash, because a valid admin
+  signature over a matching hash says nothing about whether a rule can run.
+  Eight `document_cases` in `merkl/core/vectors/policies.json` pin the
+  sentences for both implementations; the nine existing signature cases are
+  untouched byte for byte.
+
+### Fixed — phase 9
+
+- **`merkl signer serve` against a keystore created with an explicit
+  passphrase** wrote a stray `passphrase` file beside a key it could not open
+  and then failed with "the keystore passphrase is wrong, or the key file is
+  damaged" — a message about the wrong thing. `DevKeystore` now generates a
+  passphrase file only when it is generating the key too, and otherwise raises
+  naming what is missing; `serve` resolves the passphrase from
+  `$MERKL_SIGNER_PASSPHRASE` or a terminal prompt, never by writing one, and
+  exits 5 with the precise message.
+
 ### Added — phase 6
 
 - **Relay bearer authentication on the signer RPC.** Every method but
