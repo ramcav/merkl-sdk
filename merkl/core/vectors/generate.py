@@ -80,7 +80,7 @@ from merkl.core.receipt import (
     verify_receipt_structure,
 )
 from merkl.core.vectors import VECTORS_DIR, fixtures
-from merkl.core.verify.card import receipt_card
+from merkl.core.verify.card import rate_string, receipt_card
 from merkl.core.verify.receipt import verify_receipt
 from merkl.core.verify.settlement import (
     ValidatorTrust,
@@ -1873,6 +1873,36 @@ def verdict_vectors(built: dict[str, Receipt]) -> JSONObject:
     }
 
 
+def _rate_cases() -> list[JSONValue]:
+    """The rate a trade's card prints, for both implementations to agree on.
+
+    Six significant digits, half to even, no scientific notation and no trailing
+    zeros — computed from two decimal strings by integer arithmetic. The cases
+    are the ones where a float or a naive rounding would disagree: a repeating
+    decimal, a tie, a number smaller than the precision, and one that rounds up
+    into an extra digit.
+    """
+    pairs = [
+        ("98.5000", "200"),
+        ("492.50", "1000"),
+        ("250.00", "100"),
+        ("1", "3"),
+        ("1", "7"),
+        ("2", "3"),
+        ("0.000123456789", "1"),
+        ("123456789", "1"),
+        ("999999.5", "1"),
+        ("1000000", "3"),
+        ("1.0000005", "1"),
+        ("1.0000015", "1"),
+        ("7", "1000000"),
+    ]
+    return [
+        {"spent": spent, "bought": bought, "rate": rate_string(spent, bought)}
+        for spent, bought in pairs
+    ]
+
+
 def card_vectors(built: dict[str, Receipt]) -> JSONObject:
     """The ReceiptCard JSON for each committed receipt. Both implementations must match."""
     cases: list[JSONValue] = []
@@ -1908,6 +1938,7 @@ def card_vectors(built: dict[str, Receipt]) -> JSONObject:
             "byte for byte."
         ),
         "spec": SPEC,
+        "rate_cases": _rate_cases(),
         "cases": cases,
     }
 

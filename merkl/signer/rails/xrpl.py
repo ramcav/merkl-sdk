@@ -47,7 +47,7 @@ from xrpl.core.binarycodec import decode
 from xrpl.utils import xrp_to_drops
 
 from merkl.core.canonical import parse_decimal
-from merkl.core.intent import Amount, Intent, IssuedCurrency
+from merkl.core.intent import Amount, Intent, IssuedCurrency, currency_code
 from merkl.core.rail import (
     ANCHOR_PLACEHOLDER_HEX,
     MEMO_AGENT_TYPE,
@@ -235,6 +235,9 @@ class XrplPayloadCodec:
         currency = expected_amount.currency
         wanted = parse_decimal(expected_amount.value, f"intent.{field}.value")
 
+        if amount is None:
+            return [f"{field} is missing; the intent names {wanted} {currency_code(currency)}"]
+
         if isinstance(currency, IssuedCurrency):
             if not isinstance(amount, dict):
                 return [f"{field} is drops, the intent is {currency.code}"]
@@ -260,8 +263,6 @@ class XrplPayloadCodec:
 
         if isinstance(amount, dict):
             return [f"{field} is an issued currency, the intent is {currency}"]
-        if amount is None:
-            return [f"{field} is missing; the intent names {wanted} {currency}"]
         expected = str(xrp_to_drops(wanted))
         if str(amount) != expected:
             return [f"{field} is {amount} drops, the intent is {expected} drops"]

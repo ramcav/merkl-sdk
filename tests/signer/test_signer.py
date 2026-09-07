@@ -239,6 +239,32 @@ class TestEngineFlow:
         assert SUPPLIER  # the honest destination is still what the intent names
 
     @pytest.mark.asyncio
+    async def test_propose_refuses_a_payment_whose_transaction_names_a_send_max(
+        self, tmp_path: Path
+    ) -> None:
+        """A ceiling on a payment is a field Intent v1 never authorized."""
+        from tests.scenarios.harness import build_rig
+
+        rig = build_rig(tmp_path)
+        intent = rig.intent()
+        unsigned = await rig.rail.prepare(intent, ANCHOR_PLACEHOLDER_HEX)
+        widened = unsigned.to_content()
+        widened["fields"] = {
+            **unsigned.fields,
+            "send_max": {"value": "9000.00", "currency": "XRP"},
+        }
+        request = request_for(
+            rig.clock,
+            {
+                "instruction": rig.instruction().to_content(),
+                "intent": intent.to_content(),
+                "prepared_tx": widened,
+            },
+        )
+        with pytest.raises(SignerError, match="a payment carries no send_max"):
+            rig.engine.propose(request.to_content())
+
+    @pytest.mark.asyncio
     async def test_propose_refuses_a_payload_whose_anchor_is_already_filled(
         self, tmp_path: Path
     ) -> None:

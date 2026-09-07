@@ -1864,5 +1864,72 @@
     }
   ],
   "description": "ReceiptCard JSON for every receipt in receipts.json. Python `merkl.core.verify.card.receipt_card` and JS `receiptCard()` must match byte for byte.",
+  "rate_cases": [
+    {
+      "bought": "200",
+      "rate": "0.4925",
+      "spent": "98.5000"
+    },
+    {
+      "bought": "1000",
+      "rate": "0.4925",
+      "spent": "492.50"
+    },
+    {
+      "bought": "100",
+      "rate": "2.5",
+      "spent": "250.00"
+    },
+    {
+      "bought": "3",
+      "rate": "0.333333",
+      "spent": "1"
+    },
+    {
+      "bought": "7",
+      "rate": "0.142857",
+      "spent": "1"
+    },
+    {
+      "bought": "3",
+      "rate": "0.666667",
+      "spent": "2"
+    },
+    {
+      "bought": "1",
+      "rate": "0.000123457",
+      "spent": "0.000123456789"
+    },
+    {
+      "bought": "1",
+      "rate": "123457000",
+      "spent": "123456789"
+    },
+    {
+      "bought": "1",
+      "rate": "1000000",
+      "spent": "999999.5"
+    },
+    {
+      "bought": "3",
+      "rate": "333333",
+      "spent": "1000000"
+    },
+    {
+      "bought": "1",
+      "rate": "1",
+      "spent": "1.0000005"
+    },
+    {
+      "bought": "1",
+      "rate": "1",
+      "spent": "1.0000015"
+    },
+    {
+      "bought": "1000000",
+      "rate": "0.000007",
+      "spent": "7"
+    }
+  ],
   "spec": "docs/RECEIPT-SPEC.md"
 }
