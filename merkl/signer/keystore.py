@@ -117,12 +117,14 @@ def _derive(passphrase: bytes, salt: bytes, info: bytes = b"") -> bytes:
 class DevKeystore:
     """An Ed25519 policy key in an encrypted file. Unattested, and says so.
 
-    Created on first boot if it does not exist. The passphrase comes from
-    ``MERKL_SIGNER_PASSPHRASE`` if set, otherwise from a ``0600`` file beside the
-    key that is generated once — which protects the key against a stolen backup
-    of the key file alone, and against nothing else. ``attestation()`` returns
-    ``None`` so every receipt this signer produces records, as a proven fact,
-    that no enclave vouched for it (plan D3).
+    Created on first boot if it does not exist. The passphrase comes from the
+    constructor argument, then ``MERKL_SIGNER_PASSPHRASE``, then a ``0600`` file
+    beside the key that is generated *only when the key is* — which protects the
+    key against a stolen backup of the key file alone, and against nothing else.
+    Opening an existing keystore with no passphrase anywhere raises rather than
+    generating one, because a generated passphrase can only ever be the wrong
+    one. ``attestation()`` returns ``None`` so every receipt this signer produces
+    records, as a proven fact, that no enclave vouched for it (plan D3).
     """
 
     def __init__(self, directory: Path | str, *, passphrase: str | None = None) -> None:
@@ -136,6 +138,15 @@ class DevKeystore:
     # -- construction ------------------------------------------------------ #
 
     def _resolve_passphrase(self, given: str | None) -> bytes:
+        """Passphrase: the argument, the environment, the file, or a fresh one.
+
+        A fresh one **only when there is no key yet**. A keystore created with an
+        explicit passphrase has no passphrase file beside it, and generating one
+        there wrote a stray secret next to a key it could not open and then
+        failed with "the passphrase is wrong, or the key file is damaged" — a
+        message about the wrong thing, and a file that should never have existed.
+        Refusing says what is actually missing, and writes nothing.
+        """
         if given is not None:
             return given.encode()
         from_env = os.environ.get(PASSPHRASE_ENV)
@@ -144,6 +155,13 @@ class DevKeystore:
         path = self._dir / PASSPHRASE_FILE
         if path.exists():
             return path.read_bytes().strip()
+        if self._path.exists():
+            raise KeystoreError(
+                f"the keystore at {self._path} exists but nothing says how to open it: it was "
+                f"created with an explicit passphrase, so there is no {PASSPHRASE_FILE} file "
+                f"beside it. Set {PASSPHRASE_ENV}, or run the command from a terminal to be "
+                "prompted. Nothing was written."
+            )
         generated = secrets.token_hex(32).encode()
         _write_private(path, generated + b"\n")
         return generated
