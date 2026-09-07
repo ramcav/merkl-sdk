@@ -1220,9 +1220,7 @@ def _swap_receipt(rng: random.Random) -> Receipt:
                 "pass",
                 f"RLUSD.{ISSUER} and XRP are both allowed assets",
             ),
-            PolicyRule(
-                "per_tx_cap", "pass", "500.00 is within the per-transaction cap 1000.00"
-            ),
+            PolicyRule("per_tx_cap", "pass", "500.00 is within the per-transaction cap 1000.00"),
         ),
         outcome="allow",
         tier="instant",
