@@ -3065,12 +3065,21 @@ function allowedBy(status, decision, policyVersion, envelope) {
   if (status === 'EXPIRED') return `policy ${version} · approval window closed`;
   if (status === 'FAILED') return `policy ${version} · settlement failed`;
   const tier = String(member(decision, 'tier') ?? 'instant');
-  const rules = member(decision, 'rules');
-  const count = Array.isArray(rules) ? rules.length : 0;
-  const passed = Array.isArray(rules)
-    ? rules.filter((r) => r && typeof r === 'object' && (r.outcome === 'pass' || r.outcome == null)).length
-    : 0;
-  return `policy ${version} · ${tier} tier · ${passed} of ${count} rules passed`;
+  return `policy ${version} · ${tier} tier · ${rulesPassedPhrase(member(decision, 'rules'))}`;
+}
+
+// "All 10 rules passed · 1 did not apply": a skipped rule is neither passed nor failed.
+export function rulesPassedPhrase(rules) {
+  if (!Array.isArray(rules)) return 'no rules ran';
+  const outcomes = rules.filter((r) => r && typeof r === 'object').map((r) => r.outcome);
+  const skipped = outcomes.filter((o) => o === 'skip').length;
+  const applicable = outcomes.length - skipped;
+  const passed = outcomes.filter((o) => o === 'pass' || o == null).length;
+  let phrase;
+  if (applicable === 0) phrase = 'no rules applied';
+  else if (passed === applicable) phrase = `all ${applicable} rules passed`;
+  else phrase = `${passed} of ${applicable} rules passed`;
+  return skipped ? `${phrase} · ${skipped} did not apply` : phrase;
 }
 
 function approvedBy(status, decision, approvedIds) {

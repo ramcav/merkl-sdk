@@ -29,3 +29,14 @@ test('receiptCard matches the committed fixture', async (t) => {
     });
   }
 });
+
+test('rulesPassedPhrase reads plainly and matches the Python wording', async () => {
+  const { rulesPassedPhrase } = await import('../../merkl/core/verify/js/merkl-verify.js');
+  assert.equal(rulesPassedPhrase([{ outcome: 'pass' }, { outcome: 'pass' }, { outcome: 'pass' }]), 'all 3 rules passed');
+  assert.equal(
+    rulesPassedPhrase([...Array(10)].map(() => ({ outcome: 'pass' })).concat([{ outcome: 'skip' }])),
+    'all 10 rules passed · 1 did not apply',
+  );
+  assert.equal(rulesPassedPhrase([{ outcome: 'pass' }, { outcome: 'fail' }]), '1 of 2 rules passed');
+  assert.equal(rulesPassedPhrase(null), 'no rules ran');
+});

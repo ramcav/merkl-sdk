@@ -58,3 +58,15 @@ def test_a_denied_receipt_says_asked_and_refused() -> None:
     assert card.status == STATUS_REFUSED
     assert card.body[0].label == "Asked"
     assert card.provenance[1].value.startswith("Refused by rule:")
+
+
+def test_rules_passed_phrase_reads_plainly() -> None:
+    from merkl.core.verify.card import rules_passed_phrase
+
+    assert rules_passed_phrase([{"outcome": "pass"}] * 3) == "all 3 rules passed"
+    assert (
+        rules_passed_phrase([{"outcome": "pass"}] * 10 + [{"outcome": "skip"}])
+        == "all 10 rules passed · 1 did not apply"
+    )
+    assert rules_passed_phrase([{"outcome": "pass"}, {"outcome": "fail"}]) == "1 of 2 rules passed"
+    assert rules_passed_phrase(None) == "no rules ran"

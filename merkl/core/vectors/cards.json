@@ -236,7 +236,7 @@
           },
           {
             "label": "Allowed by",
-            "value": "policy 4bc56bce · instant tier · 4 of 4 rules passed"
+            "value": "policy 4bc56bce · instant tier · all 4 rules passed"
           },
           {
             "label": "Approved by",
@@ -1177,7 +1177,7 @@
           },
           {
             "label": "Allowed by",
-            "value": "policy 4bc56bce · instant tier · 3 of 3 rules passed"
+            "value": "policy 4bc56bce · instant tier · all 3 rules passed"
           },
           {
             "label": "Approved by",

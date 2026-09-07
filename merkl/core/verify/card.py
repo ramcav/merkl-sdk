@@ -205,14 +205,24 @@ def _allowed_by(
     if status == STATUS_FAILED:
         return f"policy {version} · settlement failed"
     tier = str(_member(decision, "tier") or "instant")
-    rules = _member(decision, "rules")
-    count = len(rules) if isinstance(rules, list) else 0
-    passed = (
-        sum(1 for r in rules if isinstance(r, Mapping) and r.get("outcome") in ("pass", None))
-        if isinstance(rules, list)
-        else 0
-    )
-    return f"policy {version} · {tier} tier · {passed} of {count} rules passed"
+    return f"policy {version} · {tier} tier · {rules_passed_phrase(_member(decision, 'rules'))}"
+
+
+def rules_passed_phrase(rules: JSONValue) -> str:
+    """ "All 10 rules passed · 1 did not apply": a skipped rule is neither passed nor failed."""
+    if not isinstance(rules, list):
+        return "no rules ran"
+    outcomes = [r.get("outcome") for r in rules if isinstance(r, Mapping)]
+    skipped = sum(1 for o in outcomes if o == "skip")
+    applicable = len(outcomes) - skipped
+    passed = sum(1 for o in outcomes if o in ("pass", None))
+    if applicable == 0:
+        phrase = "no rules applied"
+    elif passed == applicable:
+        phrase = f"all {applicable} rules passed"
+    else:
+        phrase = f"{passed} of {applicable} rules passed"
+    return f"{phrase} · {skipped} did not apply" if skipped else phrase
 
 
 def _approved_by(status: str, decision: JSONValue, approved_ids: Sequence[str]) -> str:
