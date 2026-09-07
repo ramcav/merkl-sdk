@@ -41,6 +41,8 @@ from merkl.core.intent import (
     IntentError,
     IssuedCurrency,
     Reference,
+    SwapBuy,
+    SwapSell,
 )
 from merkl.core.leaf import (
     ACTION_LEAF_TAG,
@@ -145,6 +147,8 @@ __all__ = [
     "ReceiptError",
     "ReceiptLeaves",
     "Reference",
+    "SwapBuy",
+    "SwapSell",
     "Result",
     "ResultOutcome",
     "SessionLocator",

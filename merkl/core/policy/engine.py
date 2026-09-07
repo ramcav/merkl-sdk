@@ -52,6 +52,7 @@ RULE_POLICY_VERSION: Final = "policy_version"
 RULE_TREASURY: Final = "treasury"
 RULE_AGENT_KNOWN: Final = "agent_known"
 RULE_INTENT_EXPIRY: Final = "intent_expiry"
+RULE_MAY_SWAP: Final = "may_swap"
 RULE_DESTINATION: Final = "destination_allowlist"
 RULE_ASSET: Final = "asset_allowlist"
 RULE_REFERENCE: Final = "reference_binding"
@@ -65,6 +66,7 @@ RULE_ORDER: Final[tuple[str, ...]] = (
     RULE_TREASURY,
     RULE_AGENT_KNOWN,
     RULE_INTENT_EXPIRY,
+    RULE_MAY_SWAP,
     RULE_DESTINATION,
     RULE_ASSET,
     RULE_REFERENCE,
@@ -212,6 +214,7 @@ def evaluate(
     if section is None:
         return _deny(policy_hash, rules, risk_score)
 
+    rules.append(_may_swap_rule(intent, section))
     rules.append(_destination_rule(intent, section))
     rules.append(_asset_rule(intent, section))
     rules.append(_reference_rule(intent, section))
@@ -225,8 +228,9 @@ def evaluate(
     tier_rule, escalate = _tier_rule(intent, policy)
     rules.append(tier_rule)
 
+    outflow = intent.outflow
     reservation = ReservationRequest(
-        asset=asset_key(intent.amount.currency), value=intent.amount.value, at=now
+        asset=asset_key(outflow.currency), value=outflow.value, at=now
     )
     if escalate:
         human = policy.tiers.human
@@ -318,7 +322,27 @@ def _expiry_rule(intent: Intent, now: str) -> PolicyRule:
     )
 
 
+def _may_swap_rule(intent: Intent, section: AgentSection) -> PolicyRule:
+    """Whether this agent is allowed to trade at all.
+
+    A separate grant from paying, and checked before anything about the assets or
+    the size, so a policy that never says ``may_swap`` refuses every trade with
+    one plain sentence rather than an argument about caps.
+    """
+    if not intent.is_swap:
+        return _rule(RULE_MAY_SWAP, RuleOutcome.SKIP, "not a trade")
+    if not section.may_swap:
+        return _rule(RULE_MAY_SWAP, RuleOutcome.FAIL, "agent may not trade")
+    return _rule(RULE_MAY_SWAP, RuleOutcome.PASS, f"{section.agent_id} may trade")
+
+
 def _destination_rule(intent: Intent, section: AgentSection) -> PolicyRule:
+    if intent.is_swap:
+        return _rule(
+            RULE_DESTINATION,
+            RuleOutcome.SKIP,
+            "a trade settles to the treasury itself, so no destination is allowlisted",
+        )
     if not section.allowlist_destinations:
         return _rule(
             RULE_DESTINATION,
@@ -338,7 +362,29 @@ def _destination_rule(intent: Intent, section: AgentSection) -> PolicyRule:
 
 
 def _asset_rule(intent: Intent, section: AgentSection) -> PolicyRule:
-    currency = intent.amount.currency
+    """Every asset the intent touches must be one this agent may hold.
+
+    A payment touches one; a trade touches two, and *both* sides are checked —
+    an agent that may sell an asset it is allowed to hold into one it is not has
+    moved the treasury somewhere the policy never allowed it to be.
+    """
+    if intent.is_swap:
+        sold = intent.outflow.currency
+        bought = intent.deliver_amount.currency
+        refused = [c for c in (sold, bought) if not section.allows_asset(c)]
+        if refused:
+            return _rule(
+                RULE_ASSET,
+                RuleOutcome.FAIL,
+                f"{', '.join(_describe(c) for c in refused)} is not an asset "
+                f"{section.agent_id} may hold",
+            )
+        return _rule(
+            RULE_ASSET,
+            RuleOutcome.PASS,
+            f"{_describe(sold)} and {_describe(bought)} are both allowed assets",
+        )
+    currency = intent.outflow.currency
     ok = section.allows_asset(currency)
     return _rule(
         RULE_ASSET,
@@ -411,23 +457,30 @@ def _risk_rule(risk_score: RiskScore, policy: PolicyDocument) -> PolicyRule:
 
 
 def _cap_rule(intent: Intent, section: AgentSection) -> PolicyRule:
-    cap = section.cap_for(intent.amount.currency)
+    """The per-transaction ceiling, read against what can leave the treasury.
+
+    For a trade that is ``sell.max_amount`` — the most the ledger may spend —
+    not the amount bought, because the cap exists to bound the outflow and a
+    trade's outflow is its sell side.
+    """
+    outflow = intent.outflow
+    cap = section.cap_for(outflow.currency)
     if cap is None:
         return _rule(
             RULE_PER_TX_CAP,
             RuleOutcome.FAIL,
-            f"no per-transaction cap for {_describe(intent.amount.currency)}; "
+            f"no per-transaction cap for {_describe(outflow.currency)}; "
             "an asset with no cap has no limit, so this is a denial",
         )
-    over = intent.amount.decimal > cap.value
+    over = outflow.decimal > cap.value
     return _rule(
         RULE_PER_TX_CAP,
         RuleOutcome.FAIL if over else RuleOutcome.PASS,
         (
-            f"{intent.amount.value} exceeds the per-transaction cap {cap.amount} "
+            f"{outflow.value} exceeds the per-transaction cap {cap.amount} "
             f"{_describe(cap.asset)}"
             if over
-            else f"{intent.amount.value} is within the per-transaction cap {cap.amount} "
+            else f"{outflow.value} is within the per-transaction cap {cap.amount} "
             f"{_describe(cap.asset)}"
         ),
     )
@@ -436,15 +489,16 @@ def _cap_rule(intent: Intent, section: AgentSection) -> PolicyRule:
 def _window_rules(
     intent: Intent, section: AgentSection, state: StateView, now: str
 ) -> list[PolicyRule]:
-    windows = section.windows_for(intent.amount.currency)
+    outflow = intent.outflow
+    windows = section.windows_for(outflow.currency)
     if not windows:
         return [_rule(RULE_WINDOW, RuleOutcome.SKIP, "no window rule for this asset")]
-    key = asset_key(intent.amount.currency)
+    key = asset_key(outflow.currency)
     rules: list[PolicyRule] = []
     for window in windows:
         since = shift_instant(now, -window.seconds, "now")
         used = state.spent_within(agent_id=section.agent_id, asset=key, since=since, until=now)
-        projected = used + intent.amount.decimal
+        projected = used + outflow.decimal
         over = projected > window.value
         rules.append(
             _rule(
@@ -464,27 +518,28 @@ def _window_rules(
 
 
 def _tier_rule(intent: Intent, policy: PolicyDocument) -> tuple[PolicyRule, bool]:
-    threshold = policy.tiers.human.threshold_for(intent.amount.currency)
+    outflow = intent.outflow
+    threshold = policy.tiers.human.threshold_for(outflow.currency)
     if threshold is None:
         return (
             _rule(
                 RULE_TIER,
                 RuleOutcome.PASS,
-                f"no human-approval threshold for {_describe(intent.amount.currency)}; "
+                f"no human-approval threshold for {_describe(outflow.currency)}; "
                 "instant tier",
             ),
             False,
         )
-    escalate = intent.amount.decimal >= threshold.value
+    escalate = outflow.decimal >= threshold.value
     return (
         _rule(
             RULE_TIER,
             RuleOutcome.ESCALATE if escalate else RuleOutcome.PASS,
             (
-                f"{intent.amount.value} is at or above the human-approval threshold "
+                f"{outflow.value} is at or above the human-approval threshold "
                 f"{threshold.amount} {_describe(threshold.asset)}"
                 if escalate
-                else f"{intent.amount.value} is below the human-approval threshold "
+                else f"{outflow.value} is below the human-approval threshold "
                 f"{threshold.amount} {_describe(threshold.asset)}"
             ),
         ),
