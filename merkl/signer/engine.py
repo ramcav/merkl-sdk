@@ -49,7 +49,13 @@ from merkl.core.policy.document import (
 )
 from merkl.core.policy.engine import Decision, RiskScore, RuleOutcome, evaluate
 from merkl.core.policy.state import NonceEntry, Outflow, Reconciliation, SpendEntry
-from merkl.core.rail import ANCHOR_BYTES, ANCHOR_PLACEHOLDER, MEMO_TYPE, MERKL_SOURCE_TAG, UnsignedTx
+from merkl.core.rail import (
+    ANCHOR_BYTES,
+    ANCHOR_PLACEHOLDER,
+    MEMO_TYPE,
+    MERKL_SOURCE_TAG,
+    UnsignedTx,
+)
 from merkl.core.receipt import (
     Escalation,
     Instruction,

@@ -471,4 +471,3 @@ class TestSourceTag:
         assert tagged.policy_hash() != base.policy_hash()
         assert tagged.agents[0].effective_source_tag() == 99991234
         assert base.agents[0].effective_source_tag() == MERKL_SOURCE_TAG
-

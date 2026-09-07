@@ -232,11 +232,16 @@ class XrplSettlementAdapter:
         )
 
     def _payment(self, intent: Intent, commitment: str, attr: dict[str, Any]) -> Payment:
-        memo_data = agent_memo_json(
-            agent_id=str(attr.get("agent_id") or ""),
-            session_id=str(attr.get("session_id") or ""),
-            task_id=str(attr.get("task_id") or ""),
-        ).encode().hex().upper()
+        memo_data = (
+            agent_memo_json(
+                agent_id=str(attr.get("agent_id") or ""),
+                session_id=str(attr.get("session_id") or ""),
+                task_id=str(attr.get("task_id") or ""),
+            )
+            .encode()
+            .hex()
+            .upper()
+        )
         return Payment(
             account=intent.treasury,
             destination=intent.destination,

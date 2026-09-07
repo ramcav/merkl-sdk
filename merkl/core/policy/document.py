@@ -367,9 +367,7 @@ class AgentSection:
             if isinstance(self.source_tag, bool) or not isinstance(self.source_tag, int):
                 raise PolicyError("agent.source_tag must be a uint32 integer")
             if self.source_tag < 0 or self.source_tag > 0xFFFFFFFF:
-                raise PolicyError(
-                    f"agent.source_tag must be a uint32, got {self.source_tag}"
-                )
+                raise PolicyError(f"agent.source_tag must be a uint32, got {self.source_tag}")
 
     def effective_source_tag(self) -> int:
         """The SourceTag this agent's payments carry on XRPL."""

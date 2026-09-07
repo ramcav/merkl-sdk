@@ -27,8 +27,8 @@ from typing import Any
 
 from merkl.core.checks import CheckStatus
 from merkl.core.receipt import Envelope
-from merkl.core.verify.card import receipt_card, render_card
 from merkl.core.verify.attestation import AttestationTrust
+from merkl.core.verify.card import receipt_card, render_card
 from merkl.core.verify.log import evidence_records, verify_log_bundle
 from merkl.core.verify.receipt import ReceiptVerdict, receipt_from_content, verify_receipt
 from merkl.core.verify.settlement import ValidatorTrust
