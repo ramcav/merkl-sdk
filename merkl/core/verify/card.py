@@ -54,6 +54,7 @@ _SOURCE_WORDS: Final[dict[str, str]] = {
 _RULE_NAMES: Final[dict[str, str]] = {
     "destination_allowlist": "destination not on allowlist",
     "asset_allowlist": "asset not on allowlist",
+    "may_swap": "the agent may not trade",
     "per_tx_cap": "over the per-transaction cap",
     "sliding_window": "over the sliding-window cap",
     "reference_binding": "reference mismatch",

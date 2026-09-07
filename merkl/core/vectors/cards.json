@@ -1765,7 +1765,7 @@
           },
           {
             "label": "Allowed by",
-            "value": "Refused by rule: may swap"
+            "value": "Refused by rule: the agent may not trade"
           },
           {
             "label": "Approved by",

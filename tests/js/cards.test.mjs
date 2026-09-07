@@ -69,6 +69,6 @@ test('a settled trade reads Bought, Sold against its limit, and Rate', () => {
   // The rule that refused it is the one that failed, never one that was skipped.
   assert.equal(
     refused.card.provenance.find((l) => l.label === 'Allowed by').value,
-    'Refused by rule: may swap',
+    'Refused by rule: the agent may not trade',
   );
 });
