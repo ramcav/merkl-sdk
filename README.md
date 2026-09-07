@@ -1,11 +1,19 @@
 # merkl-sdk
 
-Merkl makes AI agents accountable. It records what an agent did and fingerprints
-every action so the record can't be quietly edited later. And when an agent is
-trusted to move money, Merkl adds a second key: nothing settles unless a policy
-the customer wrote and pinned agrees with what the agent is asking for. Either
-way, the result is a receipt anyone can check in a browser, offline, without
-asking Merkl and without an account.
+**The policy layer for agent transactions.** Agents can pay. Your rules decide
+what goes through. No prompt can change that.
+
+A policy is a document you write and sign: where an agent may pay, how much at
+once, how much in a rolling window, when a person has to approve. The agent
+proposes a payment and signs its half; a separate signer checks the proposal
+against that policy and signs the other half only if it fits. There is no
+wording that gets the agent past the signer — it can only ask, and the signer
+only checks. Every decision, approved or refused, leaves a receipt anyone can
+verify offline, without an account and without trusting Merkl.
+
+Merkl also records what an agent did along the way: it fingerprints every
+action so the record can't be quietly edited later, giving actions that never
+touch money the same kind of receipt.
 
 Homepage: [merkl.ai](https://merkl.ai) · Dashboard: [app.merkl.ai](https://app.merkl.ai)
 

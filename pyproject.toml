@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "merkl-sdk"
 version = "0.2.0"
 readme = "README.md"
-description = "Record AI agent actions as independently verifiable cryptographic proofs"
+description = "The policy layer for agent transactions: enforce your rules at the key, receipt every decision"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Merkl", email = "hello@merkl.ai" }]
