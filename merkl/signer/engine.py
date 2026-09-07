@@ -49,7 +49,7 @@ from merkl.core.policy.document import (
 )
 from merkl.core.policy.engine import Decision, RiskScore, RuleOutcome, evaluate
 from merkl.core.policy.state import NonceEntry, Outflow, Reconciliation, SpendEntry
-from merkl.core.rail import ANCHOR_BYTES, ANCHOR_PLACEHOLDER, MEMO_TYPE, UnsignedTx
+from merkl.core.rail import ANCHOR_BYTES, ANCHOR_PLACEHOLDER, MEMO_TYPE, MERKL_SOURCE_TAG, UnsignedTx
 from merkl.core.receipt import (
     Escalation,
     Instruction,
@@ -399,6 +399,20 @@ class SignerEngine:
 
     # -- internals --------------------------------------------------------- #
 
+    def _agent_section(self, intent: Intent) -> Any:
+        for agent in self.document.agents:
+            if agent.public_key == intent.agent_public_key:
+                return agent
+        return None
+
+    def _source_tag_for(self, intent: Intent) -> int:
+        section = self._agent_section(intent)
+        return section.effective_source_tag() if section is not None else MERKL_SOURCE_TAG
+
+    def _agent_id_for(self, intent: Intent) -> str | None:
+        section = self._agent_section(intent)
+        return section.agent_id if section is not None else None
+
     def _prepared(self, params: JSONObject, intent: Intent) -> UnsignedTx:
         raw = params.get("prepared_tx")
         if raw is None:
@@ -566,7 +580,13 @@ class SignerEngine:
         # The last thing before the key moves: read the bytes. The adapter that
         # produced them runs in the agent's process, so its account of what they
         # encode is exactly the thing that cannot be taken on trust.
-        problems = self._codec.problems(payload, intent, left.hex())
+        problems = self._codec.problems(
+            payload,
+            intent,
+            left.hex(),
+            source_tag=self._source_tag_for(intent),
+            agent_id=self._agent_id_for(intent),
+        )
         if problems:
             return self._refuse_payload(decision, reservation_id, problems)
 

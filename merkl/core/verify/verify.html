@@ -125,6 +125,21 @@
   details.more[open] > summary { color: var(--text-2); }
 
   .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text-3); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  .receipt-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 20px 22px 8px; }
+  .receipt-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-bottom: 2px solid var(--text); padding-bottom: 10px; margin-bottom: 14px; }
+  .receipt-card-head .brand { letter-spacing: 0.18em; }
+  .receipt-status { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; }
+  .receipt-status.settled { color: var(--green); }
+  .receipt-status.refused, .receipt-status.rejected, .receipt-status.failed, .receipt-status.expired { color: var(--red); }
+  .receipt-row { display: flex; gap: 14px; padding: 5px 0; align-items: baseline; }
+  .receipt-row .k { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); min-width: 110px; }
+  .receipt-row .v { font-size: 15px; }
+  .receipt-rule { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+  .receipt-stamp { font-family: var(--mono); font-size: 12px; padding: 4px 0 12px; color: var(--text-2); }
+  .receipt-stamp .ok { color: var(--green); }
+  .receipt-stamp .no { color: var(--text-3); }
+  .receipt-unchecked { display: block; margin-top: 6px; font-size: 11px; color: var(--yellow); }
 </style>
 </head>
 <body>
@@ -266,6 +281,42 @@ const STORY_LABELS = [
   ['signer', 'Who signed it'],
   ['testimony', 'Reasoning'],
 ];
+
+function cardHtml(verdict, receipt) {
+  const card = receiptCard(verdict, receipt.envelope, receipt.leaves || []);
+  const statusClass = card.status.toLowerCase().replaceAll(' ', '-');
+  const rows = (list, extraClass) =>
+    list
+      .map((r) => {
+        const loud =
+          extraClass && r.label === 'Signed by' && /unattested/.test(r.value) ? ' loud' : '';
+        return `<div class="receipt-row${loud}"><span class="k">${esc(r.label)}</span><span class="v">${esc(r.value)}</span></div>`;
+      })
+      .join('');
+  const ticks = card.stamp.checks
+    .map((c) => `<span class="${c.ok ? 'ok' : 'no'}">${esc(c.name)} ${c.ok ? '✓' : '–'}</span>`)
+    .join('  ');
+  const unchecked = card.stamp.not_checked.length
+    ? `<span class="receipt-unchecked">not checked: ${esc(
+        card.stamp.not_checked.map((e) => `${e.label} (${e.reason})`).join(', '),
+      )}</span>`
+    : '';
+  const testimony = card.folds.reasoning.testimony
+    ? `<details class="receipt-fold"><summary>Reasoning</summary><p><b>Testimony, not proof.</b> ${esc(card.folds.reasoning.testimony)}</p></details>`
+    : '';
+  return (
+    `<div class="receipt-card">` +
+    `<div class="receipt-card-head"><span class="brand">${esc(card.headline)}</span>` +
+    `<span class="receipt-status ${statusClass}">${esc(card.status_mark)} ${esc(card.status)}</span></div>` +
+    rows(card.body) +
+    `<hr class="receipt-rule">` +
+    rows(card.provenance, true) +
+    `<hr class="receipt-rule">` +
+    `<div class="receipt-stamp">VERIFIED  ${ticks}        Level ${esc(card.stamp.level)}${unchecked}</div>` +
+    testimony +
+    `</div>`
+  );
+}
 
 function storyHtml(verdict) {
   const s = verdict.summary;
@@ -476,7 +527,8 @@ async function run() {
         receipts.length > 1
           ? `<div class="section-title" style="margin-top:20px">Receipt ${i + 1} — ${esc(verdict.receipt_id)}</div>`
           : '';
-      stories.push(heading + storyHtml(verdict));
+      stories.push(heading + cardHtml(verdict, receipt));
+      $('lines-section').style.display = 'none';
       lines.push(
         heading +
           '<div class="lines">' +

@@ -119,10 +119,9 @@ class TestTheSourcesAreShipped:
         template = verify_template()
         assert template.index('id="story-section"') < template.index('id="checks-section"')
         for phrase in (
-            "What the agent was told",
-            "Which rule allowed it",
-            "Who approved",
-            "What settled",
+            "receipt-card",
+            "VERIFIED",
+            "receipt-stamp",
         ):
             assert phrase in template
 

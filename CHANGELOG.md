@@ -11,6 +11,23 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [0.2.0] - 2026-09-07
 
+### Added — phase 11
+
+- **The receipt is a document.** `ReceiptCard` (`merkl.core.verify.card` and
+  `receiptCard()` in `@merkl-ai/verify`) is the one structure `verify.html`,
+  `merkl receipt show` and `merkl verify` render: status first (SETTLED /
+  REFUSED / …), five body lines (Paid or Asked, To, From, By, On, Ref),
+  provenance (Because, Allowed by, Approved by, Signed by), a VERIFIED stamp
+  with level, and the seven leaves folded under Details. Vectors in
+  `cards.json`.
+- **XRPL agent conventions.** Every co-signed Payment carries `SourceTag`
+  (default `20260907`, overridable per agent, hash-neutral when omitted) and
+  a second memo (`MemoType` `agent`) with `{action, agent_id, session_id,
+  task_id}`. The signer codec requires exactly those two memos, in that
+  order. `merkl treasury init` still escalates every payment until a
+  threshold is written.
+
+
 ### Added — phase 10
 
 - **`ReceiptBuilder` files the settlement capture with the receipt.** The rail

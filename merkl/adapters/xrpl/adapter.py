@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -50,7 +51,9 @@ from merkl.core.rail import (
     ANCHOR_BYTES,
     ANCHOR_PLACEHOLDER,
     ANCHOR_PLACEHOLDER_HEX,
+    MEMO_AGENT_TYPE,
     MEMO_TYPE,
+    MERKL_SOURCE_TAG,
     RAIL_XRPL,
     AnchorCapability,
     PartialTx,
@@ -60,6 +63,7 @@ from merkl.core.rail import (
     Signature,
     SignedTx,
     UnsignedTx,
+    agent_memo_json,
     tx_id_from_blob,
 )
 from merkl.core.verify.xrpl import build_tx_path
@@ -154,6 +158,7 @@ class XrplSettlementAdapter:
         self._signers_count = signers_count
         self._capture = capture_validations
         self._prepared: dict[str, Payment] = {}
+        self._attribution: dict[str, dict[str, Any]] = {}
         self._proofs: dict[str, SettlementProof] = {}
         self._validations: list[JSONValue] = []
         self._validation_task: asyncio.Task[None] | None = None
@@ -172,7 +177,17 @@ class XrplSettlementAdapter:
 
     # -- prepare ----------------------------------------------------------- #
 
-    async def prepare(self, intent: Intent, commitment: str) -> UnsignedTx:
+    async def prepare(
+        self,
+        intent: Intent,
+        commitment: str,
+        *,
+        agent_id: str = "",
+        session_id: str = "",
+        task_id: str = "",
+        source_tag: int | None = None,
+        **_: Any,
+    ) -> UnsignedTx:
         """Build the Payment, autofilled once, with ``commitment`` in the memo.
 
         Autofill is memoized against the intent's nonce so that preparing with the
@@ -182,10 +197,20 @@ class XrplSettlementAdapter:
         """
         if intent.rail != RAIL_XRPL:
             raise XrplAdapterError(f"this adapter settles xrpl, not {intent.rail!r}")
+        tag = MERKL_SOURCE_TAG if source_tag is None else source_tag
+        attr = self._attribution.setdefault(
+            intent.nonce,
+            {
+                "agent_id": agent_id,
+                "session_id": session_id,
+                "task_id": task_id,
+                "source_tag": tag,
+            },
+        )
         base = self._prepared.get(intent.nonce)
         if base is None:
             base = await autofill(
-                self._payment(intent, ANCHOR_PLACEHOLDER_HEX),
+                self._payment(intent, ANCHOR_PLACEHOLDER_HEX, attr),
                 self._client,
                 signers_count=self._signers_count,
             )
@@ -194,39 +219,56 @@ class XrplSettlementAdapter:
         offset = _anchor_offset(
             bytes.fromhex(encode_for_multisigning(base.to_xrpl(), self._policy_address))
         )
-        payment = _with_memo(base, commitment)
+        payment = _with_memos(base, commitment, attr)
         payload = encode_for_multisigning(payment.to_xrpl(), self._policy_address)
         return UnsignedTx(
             rail=RAIL_XRPL,
             treasury=intent.treasury,
             signing_payload=payload.lower(),
             anchor_offset=offset,
-            fields=self._fields(intent, payment),
+            fields=self._fields(intent, payment, attr),
             commitment=commitment,
             handle=payment,
         )
 
-    def _payment(self, intent: Intent, commitment: str) -> Payment:
+    def _payment(self, intent: Intent, commitment: str, attr: dict[str, Any]) -> Payment:
+        memo_data = agent_memo_json(
+            agent_id=str(attr.get("agent_id") or ""),
+            session_id=str(attr.get("session_id") or ""),
+            task_id=str(attr.get("task_id") or ""),
+        ).encode().hex().upper()
         return Payment(
             account=intent.treasury,
             destination=intent.destination,
             amount=to_xrpl_amount(intent.amount),
+            source_tag=int(attr.get("source_tag") or MERKL_SOURCE_TAG),
             memos=[
                 Memo(
                     memo_type=MEMO_TYPE.encode().hex().upper(),
                     memo_data=commitment.upper(),
-                )
+                ),
+                Memo(
+                    memo_type=MEMO_AGENT_TYPE.encode().hex().upper(),
+                    memo_data=memo_data,
+                ),
             ],
             signing_pub_key="",
         )
 
-    def _fields(self, intent: Intent, payment: Payment) -> JSONObject:
+    def _fields(self, intent: Intent, payment: Payment, attr: dict[str, Any]) -> JSONObject:
         raw = payment.to_xrpl()
         return {
             "account": intent.treasury,
             "destination": intent.destination,
             "amount": intent.amount.to_content(),
             "memo_type": MEMO_TYPE,
+            "source_tag": int(attr.get("source_tag") or MERKL_SOURCE_TAG),
+            "agent_memo": {
+                "agent_id": str(attr.get("agent_id") or ""),
+                "session_id": str(attr.get("session_id") or ""),
+                "action": "payment",
+                "task_id": str(attr.get("task_id") or ""),
+            },
             "fee": str(raw.get("Fee", "")),
             "sequence": int(raw.get("Sequence", 0)),
             "last_ledger_sequence": int(raw.get("LastLedgerSequence", 0)),
@@ -326,6 +368,7 @@ class XrplSettlementAdapter:
             ledger_index=ledger_index,
             close_time=close_time,
             observed_anchor=_observed_anchor(result),
+            observed_memos=_observed_memos(result),
             signed_tx_blob=signed.blob,
             engine_result=str(engine_result),
             validated=bool(result.get("validated", False)),
@@ -588,10 +631,27 @@ def _handle(unsigned: UnsignedTx) -> Payment:
     return payment
 
 
-def _with_memo(payment: Payment, commitment: str) -> Payment:
+def _with_memos(payment: Payment, commitment: str, attr: dict[str, Any]) -> Payment:
     raw = payment.to_xrpl()
+    memo_data = (
+        agent_memo_json(
+            agent_id=str(attr.get("agent_id") or ""),
+            session_id=str(attr.get("session_id") or ""),
+            task_id=str(attr.get("task_id") or ""),
+        )
+        .encode()
+        .hex()
+        .upper()
+    )
+    raw["SourceTag"] = int(attr.get("source_tag") or MERKL_SOURCE_TAG)
     raw["Memos"] = [
-        {"Memo": {"MemoType": MEMO_TYPE.encode().hex().upper(), "MemoData": commitment.upper()}}
+        {"Memo": {"MemoType": MEMO_TYPE.encode().hex().upper(), "MemoData": commitment.upper()}},
+        {
+            "Memo": {
+                "MemoType": MEMO_AGENT_TYPE.encode().hex().upper(),
+                "MemoData": memo_data,
+            }
+        },
     ]
     return Payment.from_xrpl(raw)
 
@@ -613,9 +673,32 @@ def _account_number(address: str) -> int:
     return int.from_bytes(decode_classic_address(address), "big")
 
 
-def _observed_anchor(result: dict[str, Any]) -> str | None:
+def _observed_memos(result: dict[str, Any]) -> tuple[JSONObject, ...] | None:
     tx = result.get("tx_json") or result
-    return _memo_anchor(tx.get("Memos") or [])
+    raw = tx.get("Memos") or []
+    if not isinstance(raw, list) or not raw:
+        return None
+    out: list[JSONObject] = []
+    for entry in raw:
+        memo = entry.get("Memo", entry) if isinstance(entry, dict) else {}
+        if not isinstance(memo, dict):
+            continue
+        type_hex = str(memo.get("MemoType", ""))
+        data_hex = str(memo.get("MemoData", ""))
+        decoded: JSONObject = {"type_hex": type_hex, "data_hex": data_hex}
+        try:
+            decoded["type"] = bytes.fromhex(type_hex).decode("utf-8")
+        except Exception:
+            decoded["type"] = type_hex
+        if str(decoded.get("type")) == MEMO_TYPE:
+            decoded["data"] = data_hex.lower()
+        else:
+            try:
+                decoded["data"] = json.loads(bytes.fromhex(data_hex).decode("utf-8"))
+            except Exception:
+                decoded["data"] = data_hex
+        out.append(decoded)
+    return tuple(out) if out else None
 
 
 def _memo_anchor(memos: Sequence[Any]) -> str | None:

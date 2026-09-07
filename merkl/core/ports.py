@@ -18,7 +18,7 @@ orchestration rather than this file.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from merkl.core.canonical import JSONValue
 from merkl.core.intent import Intent
@@ -49,8 +49,13 @@ class SettlementPort(Protocol):
     transaction the policy key authorized.
     """
 
-    async def prepare(self, intent: Intent, commitment: str) -> UnsignedTx:
-        """Build the rail's unsigned transaction with ``commitment`` in its anchor field."""
+    async def prepare(self, intent: Intent, commitment: str, **context: Any) -> UnsignedTx:
+        """Build the rail's unsigned transaction with ``commitment`` in its anchor field.
+
+        Extra keywords (``agent_id``, ``session_id``, ``task_id``, ``source_tag``)
+        are how the XRPL adapter fills the agent-tracking memo and SourceTag.
+        Adapters that do not use them ignore them.
+        """
         ...
 
     async def agent_sign(self, unsigned: UnsignedTx) -> PartialTx:

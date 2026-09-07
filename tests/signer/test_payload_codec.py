@@ -21,7 +21,15 @@ import pytest
 
 from merkl.core.canonical import shift_instant
 from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference
-from merkl.core.rail import ANCHOR_BYTES, ANCHOR_PLACEHOLDER_HEX, MEMO_TYPE, UnsignedTx
+from merkl.core.rail import (
+    ANCHOR_BYTES,
+    ANCHOR_PLACEHOLDER_HEX,
+    MEMO_AGENT_TYPE,
+    MEMO_TYPE,
+    MERKL_SOURCE_TAG,
+    UnsignedTx,
+    agent_memo_json,
+)
 from merkl.core.receipt import PolicyDecision, PolicyOutcome
 from merkl.signer.rails import (
     RULE_PAYLOAD_ENCODES_INTENT,
@@ -207,7 +215,20 @@ def xrpl_payload(intent: Intent, anchor: str = ANCHOR_PLACEHOLDER_HEX, **overrid
 
     memos = overrides.pop(
         "memos",
-        [Memo(memo_type=MEMO_TYPE.encode().hex().upper(), memo_data=anchor.upper())],
+        [
+            Memo(memo_type=MEMO_TYPE.encode().hex().upper(), memo_data=anchor.upper()),
+            Memo(
+                memo_type=MEMO_AGENT_TYPE.encode().hex().upper(),
+                memo_data=agent_memo_json(
+                    agent_id="codec-agent",
+                    session_id="sess",
+                    task_id="task",
+                )
+                .encode()
+                .hex()
+                .upper(),
+            ),
+        ],
     )
     fields: dict[str, Any] = {
         "account": intent.treasury,
@@ -218,7 +239,14 @@ def xrpl_payload(intent: Intent, anchor: str = ANCHOR_PLACEHOLDER_HEX, **overrid
         "last_ledger_sequence": 99,
         "memos": memos,
         "signing_pub_key": "",
+        "source_tag": MERKL_SOURCE_TAG,
     }
+    if "source_tag" in overrides:
+        tag = overrides.pop("source_tag")
+        if tag is None:
+            fields.pop("source_tag")
+        else:
+            fields["source_tag"] = tag
     fields.update(overrides)
     return bytes.fromhex(encode_for_multisigning(Payment(**fields).to_xrpl(), SIGNER))
 
@@ -269,7 +297,7 @@ class TestXrplCodec:
         problems = self.codec().problems(payload, intent, None)
         assert any("tfPartialPayment" in p for p in problems), problems
 
-    async def test_a_second_memo_is_caught(self) -> None:
+    async def test_a_third_memo_is_caught(self) -> None:
         from xrpl.models.transactions import Memo
 
         intent = xrpl_intent()
@@ -280,11 +308,26 @@ class TestXrplCodec:
                     memo_type=MEMO_TYPE.encode().hex().upper(),
                     memo_data=ANCHOR_PLACEHOLDER_HEX.upper(),
                 ),
+                Memo(
+                    memo_type=MEMO_AGENT_TYPE.encode().hex().upper(),
+                    memo_data=agent_memo_json(
+                        agent_id="codec-agent", session_id="sess", task_id="task"
+                    )
+                    .encode()
+                    .hex()
+                    .upper(),
+                ),
                 Memo(memo_type="AABB", memo_data="CCDD"),
             ],
         )
         problems = self.codec().problems(payload, intent, None)
-        assert any("2 memos" in p for p in problems), problems
+        assert any("exactly two" in p for p in problems), problems
+
+    async def test_a_missing_source_tag_is_caught(self) -> None:
+        intent = xrpl_intent()
+        payload = xrpl_payload(intent, source_tag=None)
+        problems = self.codec().problems(payload, intent, None)
+        assert any("SourceTag is missing" in p for p in problems), problems
 
     async def test_a_destination_tag_is_caught(self) -> None:
         """An exchange reads it as part of the address; Intent v1 has no way to say it."""

@@ -67,6 +67,33 @@ Once the version floor is in place:
 `generate_verifier_html` and `render_receipt_verifier_html` keep their names and
 become one-line delegations.
 
+---
+
+## 1b. ReceiptCard — merkl-api and merkl-dashboard
+
+```python
+from merkl.core.verify.card import receipt_card, render_card
+from merkl.core.verify.receipt import receipt_from_content, verify_receipt
+
+envelope, contents = receipt_from_content(entry)
+verdict = verify_receipt(envelope, contents, ...)
+card = receipt_card(verdict, envelope, contents)  # .to_content() is the JSON
+```
+
+```js
+import { receiptCard, verifyReceipt } from '@merkl-ai/verify';
+const verdict = await verifyReceipt(entry, options);
+const card = receiptCard(verdict, entry.envelope, entry.leaves);
+```
+
+`GET /v1/receipts/{id}` should include `card` from the Python call. The dashboard
+renders that object (or calls `receiptCard` itself). Do not invent a third
+layout. Destination labels are a UI overlay (`labels` / `options.labels`); they
+are not in the signed policy.
+
+The page `verify.html` already renders the card for a receipt-only bundle.
+
+---
 **Two things the SDK page fixes that the API's template had.** The API's
 `_HTML_TEMPLATE` references `#actions-tbody`, `#root-hash`, `#total-count` and
 `#verified-count` from its JavaScript, but stopped declaring any of them in its

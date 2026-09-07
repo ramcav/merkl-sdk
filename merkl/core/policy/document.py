@@ -39,7 +39,7 @@ from merkl.core.canonical import (
 )
 from merkl.core.crypto import tagged
 from merkl.core.intent import CurrencyRef, currency_content, currency_from_content
-from merkl.core.rail import networks_for
+from merkl.core.rail import MERKL_SOURCE_TAG, networks_for
 from merkl.shared.hashing import SHA256Hash, canonical_bytes
 
 POLICY_TAG: Final = b"merkl-policy-v1"
@@ -351,6 +351,10 @@ class AgentSection:
     per_tx_cap: tuple[AssetLimit, ...] = ()
     windows: tuple[WindowRule, ...] = ()
     reference_binding: ReferenceBinding = dataclasses.field(default_factory=ReferenceBinding)
+    source_tag: int | None = None
+    """XRPL SourceTag for this agent's payments. ``None`` means the Merkl default
+    and is omitted from the hashed content, so policies signed before this field
+    existed keep their hash."""
 
     def __post_init__(self) -> None:
         token(self.agent_id, "agent.agent_id", max_length=128)
@@ -359,6 +363,17 @@ class AgentSection:
             token(destination, "agent.allowlist_destinations[]", max_length=128)
         for currency in self.allowlist_assets:
             currency_content(currency)
+        if self.source_tag is not None:
+            if isinstance(self.source_tag, bool) or not isinstance(self.source_tag, int):
+                raise PolicyError("agent.source_tag must be a uint32 integer")
+            if self.source_tag < 0 or self.source_tag > 0xFFFFFFFF:
+                raise PolicyError(
+                    f"agent.source_tag must be a uint32, got {self.source_tag}"
+                )
+
+    def effective_source_tag(self) -> int:
+        """The SourceTag this agent's payments carry on XRPL."""
+        return MERKL_SOURCE_TAG if self.source_tag is None else self.source_tag
 
     def allows_asset(self, currency: CurrencyRef) -> bool:
         wanted = asset_key(currency)
@@ -376,7 +391,7 @@ class AgentSection:
         return tuple(w for w in self.windows if w.key == wanted)
 
     def to_content(self) -> JSONObject:
-        return {
+        content: JSONObject = {
             "agent_id": self.agent_id,
             "public_key": self.public_key,
             "allowlist_destinations": list(self.allowlist_destinations),
@@ -385,6 +400,9 @@ class AgentSection:
             "windows": [window.to_content() for window in self.windows],
             "reference_binding": self.reference_binding.to_content(),
         }
+        if self.source_tag is not None:
+            content["source_tag"] = self.source_tag
+        return content
 
     @classmethod
     def from_content(cls, data: Any) -> AgentSection:
@@ -398,6 +416,7 @@ class AgentSection:
                 "per_tx_cap",
                 "windows",
                 "reference_binding",
+                "source_tag",
             },
             "agent",
         )
@@ -420,6 +439,7 @@ class AgentSection:
             per_tx_cap=tuple(AssetLimit.from_content(c) for c in caps),
             windows=tuple(WindowRule.from_content(w) for w in windows),
             reference_binding=ReferenceBinding.from_content(obj.get("reference_binding", {})),
+            source_tag=obj.get("source_tag"),
         )
 
 

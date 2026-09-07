@@ -440,6 +440,7 @@ class Settlement:
     observed_anchor: str | None = None
     settlement_proof_ref: str | None = None
     policy_signature: PolicySignature | None = None
+    observed_memos: tuple[JSONObject, ...] | None = None
 
     def __post_init__(self) -> None:
         token(self.rail, "settlement.rail", max_length=64)
@@ -469,6 +470,7 @@ class Settlement:
                 "policy_signature": (
                     self.policy_signature.to_content() if self.policy_signature else None
                 ),
+                "observed_memos": list(self.observed_memos) if self.observed_memos else None,
             }
         )
 
@@ -486,10 +488,12 @@ class Settlement:
                 "observed_anchor",
                 "settlement_proof_ref",
                 "policy_signature",
+                "observed_memos",
             },
             "settlement",
         )
         signature = obj.get("policy_signature")
+        memos = obj.get("observed_memos")
         return cls(
             rail=_member(obj, "rail", "settlement"),
             tx_hash=_member(obj, "tx_hash", "settlement"),
@@ -500,6 +504,9 @@ class Settlement:
             settlement_proof_ref=obj.get("settlement_proof_ref"),
             policy_signature=(
                 None if signature is None else PolicySignature.from_content(signature)
+            ),
+            observed_memos=(
+                tuple(m for m in memos if isinstance(m, dict)) if isinstance(memos, list) else None
             ),
         )
 

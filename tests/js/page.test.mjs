@@ -43,9 +43,10 @@ test('a session bundle renders a verdict, an action table and a log', async () =
 test('a v1.2 bundle leads with sentences, not hashes', async () => {
   const { thrown, ids } = await runPage(render(bundleFile('receipts-v1.2.json')));
   assert.equal(thrown, null, String(thrown && thrown.stack));
-  assert.match(ids.stories, /What the agent was told/);
-  assert.match(ids.stories, /Which rule allowed it/);
-  assert.match(ids.stories, /What settled/);
+  assert.match(ids.stories, /MERKL RECEIPT/);
+  assert.match(ids.stories, /Because/);
+  assert.match(ids.stories, /Allowed by/);
+  assert.match(ids.stories, /Paid|Asked/);
   assert.match(ids.lines, /Transaction authorization/);
   assert.match(ids.lines, /Ledger inclusion/);
   assert.match(ids.lines, /Level 1|Level 2/);
@@ -62,7 +63,7 @@ test('a receipt-only bundle needs no session', async () => {
     render({ version: '1.2', receipts: [receipt], session: null, actions: [] }),
   );
   assert.equal(thrown, null, String(thrown && thrown.stack));
-  assert.match(ids.stories, /What the agent was told/);
+  assert.match(ids.stories, /MERKL RECEIPT/);
   assert.equal(ids['actions-tbody'].trim(), '', 'there is no session to show');
 });
 
@@ -77,7 +78,7 @@ test('an unattested signer is shown loudly', async () => {
     }),
   );
   assert.equal(thrown, null, String(thrown && thrown.stack));
-  assert.match(ids.stories, /story-line loud/);
+  assert.match(ids.stories, /loud/);
   assert.match(ids.stories, /unattested/);
 });
 

@@ -27,6 +27,7 @@ from __future__ import annotations
 import dataclasses
 import enum
 import hashlib
+import json
 from collections.abc import Mapping
 from typing import Any, Final
 
@@ -48,7 +49,26 @@ ANCHOR_PLACEHOLDER: Final = bytes(ANCHOR_BYTES)
 ANCHOR_PLACEHOLDER_HEX: Final = ANCHOR_PLACEHOLDER.hex()
 
 MEMO_TYPE: Final = "merkl/receipt-v1"
-"""The rail anchor's type tag. On XRPL this is the ``MemoType``."""
+"""The rail anchor's type tag. On XRPL this is the first memo's ``MemoType``."""
+
+MEMO_AGENT_TYPE: Final = "agent"
+"""The second XRPL memo's type tag.
+
+xrpl.org's *Track agent behavior* page encodes ``{agent_id, session_id, action,
+task_id}`` as MemoData and omits MemoType. We label it ``agent`` so the codec
+can tell this memo from the authorization anchor. MemoData is compact JSON,
+the same payload their sample uses.
+"""
+
+MERKL_SOURCE_TAG: Final = 20260907
+"""Default XRPL ``SourceTag`` for Merkl co-signed payments.
+
+Not XRPL's Wallet-skill default (``20260530``): that tag means "their starter
+kit signed this", which is a different product. A policy may override per
+agent; when the agent section omits ``source_tag`` this value is used, and
+omitting it is hash-neutral so every policy signed before the field existed
+keeps its hash.
+"""
 
 RAIL_XRPL: Final = "xrpl"
 RAIL_FAKE: Final = "fake"
@@ -74,6 +94,26 @@ existed keeps its hash; when set it must be one of these.
 def networks_for(rail: str) -> tuple[str, ...]:
     """The networks this rail has, or ``()`` for a rail with none (or an unknown one)."""
     return NETWORKS_BY_RAIL.get(rail, ())
+
+
+def agent_memo_json(
+    *, agent_id: str, session_id: str, task_id: str, action: str = "payment"
+) -> str:
+    """The compact JSON xrpl.org's agent-tracking page puts in MemoData.
+
+    Keys sorted so two implementations encode the same bytes. ``action`` is
+    always ``payment`` for Intent v1.
+    """
+    return json.dumps(
+        {
+            "action": action,
+            "agent_id": agent_id,
+            "session_id": session_id,
+            "task_id": task_id,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
 
 class RailError(ContentError):
@@ -304,6 +344,7 @@ class SettlementRef:
     signed_tx_blob: str | None = None
     engine_result: str | None = None
     validated: bool = True
+    observed_memos: tuple[JSONObject, ...] | None = None
 
     def __post_init__(self) -> None:
         token(self.rail, "settlement_ref.rail", max_length=64)
@@ -322,6 +363,7 @@ class SettlementRef:
                 "observed_anchor": self.observed_anchor,
                 "engine_result": self.engine_result,
                 "validated": self.validated,
+                "observed_memos": list(self.observed_memos) if self.observed_memos else None,
             }
         )
 

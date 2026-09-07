@@ -30,6 +30,10 @@
       "file": "verdicts.json"
     },
     {
+      "cases": 4,
+      "file": "cards.json"
+    },
+    {
       "cases": 28,
       "file": "tampered.json"
     }

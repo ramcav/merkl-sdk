@@ -139,8 +139,8 @@ class TestBindingChecks:
         real_prepare = rig.rail.prepare
         calls = {"n": 0}
 
-        async def drifting_prepare(intent, commitment):
-            unsigned = await real_prepare(intent, commitment)
+        async def drifting_prepare(intent, commitment, **_context):
+            unsigned = await real_prepare(intent, commitment, **_context)
             calls["n"] += 1
             if calls["n"] == 1:
                 return unsigned
@@ -157,8 +157,8 @@ class TestBindingChecks:
         real_prepare = rig.rail.prepare
         calls = {"n": 0}
 
-        async def drifting_prepare(intent, commitment):
-            unsigned = await real_prepare(intent, commitment)
+        async def drifting_prepare(intent, commitment, **_context):
+            unsigned = await real_prepare(intent, commitment, **_context)
             calls["n"] += 1
             if calls["n"] == 1:
                 return unsigned

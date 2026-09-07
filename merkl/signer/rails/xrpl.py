@@ -29,6 +29,7 @@ string equality, and never a float.
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Any, Final
 
@@ -39,7 +40,9 @@ from merkl.core.canonical import parse_decimal
 from merkl.core.intent import Intent, IssuedCurrency
 from merkl.core.rail import (
     ANCHOR_PLACEHOLDER_HEX,
+    MEMO_AGENT_TYPE,
     MEMO_TYPE,
+    MERKL_SOURCE_TAG,
     NETWORK_XRPL_MAINNET,
     NETWORK_XRPL_TESTNET,
     RAIL_XRPL,
@@ -83,6 +86,7 @@ ALLOWED_FIELDS: Final[frozenset[str]] = frozenset(
         "Memos",
         "Flags",
         "NetworkID",
+        "SourceTag",
     }
 )
 """Everything Intent v1 can account for. Anything else is a finding, not a detail."""
@@ -123,7 +127,17 @@ class XrplPayloadCodec:
         decoded: dict[str, Any] = decode(inner.hex().upper())
         return decoded
 
-    def problems(self, payload: bytes, intent: Intent, commitment: str | None) -> list[str]:
+    def problems(
+        self,
+        payload: bytes,
+        intent: Intent,
+        commitment: str | None,
+        *,
+        source_tag: int | None = None,
+        agent_id: str | None = None,
+        session_id: str | None = None,
+        task_id: str | None = None,
+    ) -> list[str]:
         """Every disagreement between these bytes and this intent."""
         try:
             tx = self.decode_payload(payload)
@@ -149,7 +163,16 @@ class XrplPayloadCodec:
         found.extend(self._amount_problems(tx.get("Amount"), intent))
         found.extend(self._flag_problems(tx.get("Flags")))
         found.extend(self._network_problems(tx.get("NetworkID")))
-        found.extend(self._memo_problems(tx.get("Memos"), commitment))
+        found.extend(self._source_tag_problems(tx.get("SourceTag"), source_tag))
+        found.extend(
+            self._memo_problems(
+                tx.get("Memos"),
+                commitment,
+                agent_id=agent_id,
+                session_id=session_id,
+                task_id=task_id,
+            )
+        )
         return found
 
     # -- pieces ------------------------------------------------------------ #
@@ -229,28 +252,83 @@ class XrplPayloadCodec:
             ]
         return []
 
-    def _memo_problems(self, memos: Any, commitment: str | None) -> list[str]:
+    def _source_tag_problems(self, observed: Any, expected: int | None) -> list[str]:
+        wanted = MERKL_SOURCE_TAG if expected is None else expected
+        if observed is None:
+            return [f"SourceTag is missing; Merkl payments carry {wanted}"]
+        if isinstance(observed, bool) or not isinstance(observed, int):
+            return [f"SourceTag is {observed!r}, which is not a uint32"]
+        if observed != wanted:
+            return [f"SourceTag is {observed}, this agent is tagged {wanted}"]
+        return []
+
+    def _memo_problems(
+        self,
+        memos: Any,
+        commitment: str | None,
+        *,
+        agent_id: str | None,
+        session_id: str | None,
+        task_id: str | None,
+    ) -> list[str]:
         expected_type = MEMO_TYPE.encode().hex().upper()
         expected_data = (commitment or ANCHOR_PLACEHOLDER_HEX).upper()
+        agent_type = MEMO_AGENT_TYPE.encode().hex().upper()
         if not isinstance(memos, list) or not memos:
             return ["the transaction carries no memo, so it anchors no authorization"]
-        if len(memos) != 1:
+        if len(memos) != 2:
             return [
-                f"the transaction carries {len(memos)} memos; exactly one is the "
-                "authorization anchor and a second is somewhere to hide something"
+                f"the transaction carries {len(memos)} memos; exactly two are required: "
+                "the authorization anchor, then the XRPL agent-tracking memo"
             ]
-        entry = memos[0]
-        memo = entry.get("Memo", entry) if isinstance(entry, dict) else {}
+        problems: list[str] = []
+        first = memos[0]
+        memo = first.get("Memo", first) if isinstance(first, dict) else {}
         if not isinstance(memo, dict):
-            return ["the memo is not an object"]
-        unknown = sorted(set(memo) - {"MemoType", "MemoData", "MemoFormat"})
-        if unknown:
-            return [f"the memo carries unexpected members: {unknown}"]
-        if str(memo.get("MemoType", "")).upper() != expected_type:
-            return [f"MemoType is {memo.get('MemoType')!r}, not the Merkl anchor ({MEMO_TYPE})"]
-        if str(memo.get("MemoData", "")).upper() != expected_data:
-            return [
-                f"MemoData is {memo.get('MemoData')!r}, the authorization commitment "
-                f"is {expected_data}"
-            ]
-        return []
+            problems.append("the authorization memo is not an object")
+        else:
+            unknown = sorted(set(memo) - {"MemoType", "MemoData", "MemoFormat"})
+            if unknown:
+                problems.append(f"the authorization memo carries unexpected members: {unknown}")
+            if str(memo.get("MemoType", "")).upper() != expected_type:
+                problems.append(
+                    f"MemoType is {memo.get('MemoType')!r}, not the Merkl anchor ({MEMO_TYPE})"
+                )
+            if str(memo.get("MemoData", "")).upper() != expected_data:
+                problems.append(
+                    f"MemoData is {memo.get('MemoData')!r}, the authorization commitment "
+                    f"is {expected_data}"
+                )
+        second = memos[1]
+        agent = second.get("Memo", second) if isinstance(second, dict) else {}
+        if not isinstance(agent, dict):
+            problems.append("the agent memo is not an object")
+            return problems
+        if str(agent.get("MemoType", "")).upper() != agent_type:
+            problems.append(
+                f"the second memo is tagged {agent.get('MemoType')!r}, not {MEMO_AGENT_TYPE}"
+            )
+        raw = str(agent.get("MemoData", ""))
+        try:
+            payload = bytes.fromhex(raw).decode("utf-8")
+            parsed = json.loads(payload)
+        except Exception:
+            problems.append("the agent memo is not hex-encoded JSON")
+            return problems
+        if not isinstance(parsed, dict):
+            problems.append("the agent memo JSON is not an object")
+            return problems
+        for key in ("action", "agent_id", "session_id", "task_id"):
+            if key not in parsed:
+                problems.append(f"the agent memo is missing {key}")
+        if parsed.get("action") != "payment":
+            problems.append(f"the agent memo action is {parsed.get('action')!r}, not 'payment'")
+        if agent_id and parsed.get("agent_id") != agent_id:
+            problems.append(
+                f"the agent memo names {parsed.get('agent_id')!r}, the request is {agent_id}"
+            )
+        if session_id and parsed.get("session_id") != session_id:
+            problems.append("the agent memo session_id does not match the session")
+        if task_id and parsed.get("task_id") != task_id:
+            problems.append("the agent memo task_id does not match the receipt")
+        return problems

@@ -2981,6 +2981,230 @@ export function summarize(contents, envelope, approvedIds = []) {
   };
 }
 
+const CARD_RULE_NAMES = {
+  destination_allowlist: 'destination not on allowlist',
+  asset_allowlist: 'asset not on allowlist',
+  per_tx_cap: 'over the per-transaction cap',
+  sliding_window: 'over the sliding-window cap',
+  reference_binding: 'reference mismatch',
+  intent_expiry: 'the intent had expired',
+  agent_known: 'unknown agent',
+  treasury: 'wrong treasury',
+  policy_version: 'wrong policy version',
+  risk: 'destination risk',
+  payload_encodes_intent: 'the bytes did not match the intent',
+};
+
+function shorten(value, keep = 6) {
+  const s = String(value ?? '');
+  if (s.length <= keep * 2 + 1) return s;
+  return `${s.slice(0, keep)}…${s.slice(-keep)}`;
+}
+
+function labelledAddress(address, labels) {
+  const name = labels && labels[address];
+  const short = shorten(address);
+  return name ? `${name} · ${short}` : short;
+}
+
+function cardWhen(settlement) {
+  const close = member(settlement, 'close_time');
+  if (typeof close !== 'string' || !close) return null;
+  const parsed = new Date(close);
+  if (Number.isNaN(parsed.getTime())) return close;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const stamp = `${parsed.getUTCDate()} ${months[parsed.getUTCMonth()]} ${parsed.getUTCFullYear()}, ${String(parsed.getUTCHours()).padStart(2, '0')}:${String(parsed.getUTCMinutes()).padStart(2, '0')} UTC`;
+  const ledger = member(settlement, 'ledger_index');
+  const rail = member(settlement, 'rail');
+  const parts = [stamp];
+  if (typeof rail === 'string' && rail) {
+    parts.push(ledger !== null && ledger !== undefined ? `${rail.toUpperCase()} ledger ${ledger}` : rail.toUpperCase());
+  } else if (ledger !== null && ledger !== undefined) {
+    parts.push(`ledger ${ledger}`);
+  }
+  return parts.join(' · ');
+}
+
+function cardStatus(result, decision) {
+  const outcome = String(member(result, 'outcome') ?? '');
+  const detail = String(member(result, 'detail') ?? '').toLowerCase();
+  const decisionOutcome = String(member(decision, 'outcome') ?? '');
+  if (outcome === 'settled') return 'SETTLED';
+  if (outcome === 'failed') return 'FAILED';
+  if (outcome === 'expired') return 'EXPIRED';
+  if (detail.includes('rejected by')) return 'REJECTED';
+  if (outcome === 'denied' || decisionOutcome === 'deny') return 'REFUSED';
+  if (decisionOutcome === 'escalate') return 'AWAITING APPROVAL';
+  if (decisionOutcome === 'allow') return 'SETTLED';
+  return outcome ? 'FAILED' : 'REFUSED';
+}
+
+function statusMark(status) {
+  if (status === 'SETTLED') return '✓';
+  if (['REFUSED', 'REJECTED', 'FAILED', 'EXPIRED'].includes(status)) return '✗';
+  return '…';
+}
+
+function blockedRule(decision) {
+  const rules = member(decision, 'rules');
+  if (!Array.isArray(rules)) return null;
+  const blocked = rules.filter((r) => r && typeof r === 'object' && r.outcome !== 'pass' && r.outcome != null);
+  if (!blocked.length) return null;
+  const name = String(blocked[0].name ?? '');
+  return CARD_RULE_NAMES[name] ?? name.replaceAll('_', ' ');
+}
+
+function allowedBy(status, decision, policyVersion, envelope) {
+  const version = policyVersion || String(envelope.policy_hash ?? '').slice(0, 8);
+  if (status === 'REFUSED' || status === 'REJECTED') {
+    const reason = blockedRule(decision);
+    if (status === 'REJECTED') return reason ? `Refused by a person: ${reason}` : 'Refused by a person';
+    return reason ? `Refused by rule: ${reason}` : 'Refused by policy';
+  }
+  if (status === 'AWAITING APPROVAL') return `policy ${version} · awaiting a person`;
+  if (status === 'EXPIRED') return `policy ${version} · approval window closed`;
+  if (status === 'FAILED') return `policy ${version} · settlement failed`;
+  const tier = String(member(decision, 'tier') ?? 'instant');
+  const rules = member(decision, 'rules');
+  const count = Array.isArray(rules) ? rules.length : 0;
+  const passed = Array.isArray(rules)
+    ? rules.filter((r) => r && typeof r === 'object' && (r.outcome === 'pass' || r.outcome == null)).length
+    : 0;
+  return `policy ${version} · ${tier} tier · ${passed} of ${count} rules passed`;
+}
+
+function approvedBy(status, decision, approvedIds) {
+  const escalation = member(decision, 'escalation');
+  if (status === 'REJECTED') return 'a named approver refused, signed';
+  if (!escalation || typeof escalation !== 'object') return 'no one needed';
+  const quorum = escalation.quorum;
+  if (approvedIds.length) return `${approvedIds.join(', ')} (${approvedIds.length} of ${quorum})`;
+  return status === 'AWAITING APPROVAL' ? `awaiting ${quorum} of ${quorum}` : 'no approval verified';
+}
+
+function becauseLine(instruction) {
+  const source = String(member(instruction, 'source') ?? '');
+  return SOURCE_WORDS[source] ?? (source || 'the receipt does not say where this came from');
+}
+
+/**
+ * The document a person reads. Same JSON as `merkl.core.verify.card.ReceiptCard.to_content()`.
+ */
+export function receiptCard(verdict, envelope, contents, options = {}) {
+  const labels = options.labels ?? {};
+  const policyVersion = options.policyVersion ?? null;
+  const instruction = contentAt(contents, 0);
+  const intent = contentAt(contents, 1);
+  const decision = contentAt(contents, 2);
+  const settlement = contentAt(contents, 4);
+  const result = contentAt(contents, 5);
+  const status = cardStatus(result, decision);
+  const settled = status === 'SETTLED' && settlement && typeof settlement === 'object';
+  const amount = amountWords(intent);
+  const destination = String(member(intent, 'destination') ?? '');
+  const treasury = envelope.treasury;
+  const agent = envelope.agent_id;
+  const when = cardWhen(settlement);
+  const tx = String(member(settlement, 'tx_hash') ?? '');
+  const body = [];
+  if (settled) {
+    body.push({ label: 'Paid', value: amount });
+    if (destination) body.push({ label: 'To', value: labelledAddress(destination, labels) });
+    body.push({ label: 'From', value: treasury ? labelledAddress(treasury, labels) : '?' });
+    body.push({ label: 'By', value: agent });
+    if (when) body.push({ label: 'On', value: when });
+    if (tx) body.push({ label: 'Ref', value: `tx ${shorten(tx, 8)}` });
+  } else {
+    body.push({ label: 'Asked', value: amount });
+    if (destination) body.push({ label: 'To', value: labelledAddress(destination, labels) });
+    body.push({ label: 'From', value: treasury ? labelledAddress(treasury, labels) : '?' });
+    body.push({ label: 'By', value: agent });
+    if (when) body.push({ label: 'On', value: when });
+  }
+  const approvedIds = [];
+  const quorumCheck = verdict.result?.get?.('policy.approval_quorum');
+  const escalation = member(decision, 'escalation');
+  if (quorumCheck && quorumCheck.status === PASS && escalation && Array.isArray(escalation.approvals)) {
+    for (const item of escalation.approvals) {
+      if (item && item.approver_id) approvedIds.push(String(item.approver_id));
+    }
+  }
+  const provenance = [
+    { label: 'Because', value: becauseLine(instruction) },
+    { label: 'Allowed by', value: allowedBy(status, decision, policyVersion, envelope) },
+    { label: 'Approved by', value: approvedBy(status, decision, approvedIds) },
+    {
+      label: 'Signed by',
+      value:
+        verdict.attested === true
+          ? `policy key ${shorten(envelope.signer_public_key)} · attested enclave`
+          : verdict.attested === false
+            ? `policy key ${shorten(envelope.signer_public_key)} · unattested dev signer`
+            : `policy key ${shorten(envelope.signer_public_key)} · attestation unchecked`,
+    },
+  ];
+  const signature = verdict.result?.get?.(CHECK_POLICY_SIGNATURE);
+  const join = verdict.result?.get?.(CHECK_LOG_JOIN);
+  const stampChecks = [
+    { name: 'signature', ok: Boolean(signature && signature.status === PASS) },
+    {
+      name: 'ledger',
+      ok: verdict.settlement.ledger_inclusion === 'proven-offline' || verdict.settlement.ledger_inclusion === 'verified-live',
+    },
+    { name: 'notary log', ok: Boolean(join && join.status === PASS) },
+  ];
+  const leafFold = LEAF_NAMES.map((name, i) => {
+    const content = contentAt(contents, i);
+    const check = verdict.result?.get?.(`leaf.${name}`);
+    return {
+      index: i,
+      name,
+      present: content !== null && content !== undefined,
+      status: check ? check.status : 'not_implemented',
+      detail: check ? check.detail : '',
+      plain: CHECK_LABELS[`leaf.${name}`] ?? name,
+    };
+  });
+  return {
+    status,
+    status_mark: statusMark(status),
+    headline: 'MERKL RECEIPT',
+    body,
+    provenance,
+    stamp: {
+      label: 'VERIFIED',
+      checks: stampChecks,
+      level: verdict.level,
+      not_checked: verdict.not_checked,
+    },
+    folds: {
+      details: {
+        leaves: leafFold,
+        checks: (verdict.checks ?? []).map((c) => ({
+          name: c.name,
+          status: c.status,
+        })),
+        authorization: {
+          state: verdict.settlement.transaction_authorization,
+          detail: verdict.settlement.transaction_authorization_detail,
+        },
+        ledger: {
+          state: verdict.settlement.ledger_inclusion,
+          detail: verdict.settlement.ledger_inclusion_detail,
+        },
+      },
+      reasoning: {
+        testimony: verdict.summary.testimony,
+        note: verdict.summary.testimony_note,
+      },
+      verify: {
+        offline: 'download the offline page',
+        cli: 'merkl verify',
+      },
+    },
+  };
+}
+
 // ─── 14. the bundle: session, log, evidence ────────────────────────────────
 
 export const CHECK_ACTIONS = 'log.actions';

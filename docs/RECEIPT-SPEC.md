@@ -516,6 +516,7 @@ implementation.
 | `policies.json` | admin signatures over a policy document — the legacy Ed25519-over-pre-image form and the newer ApprovalAssertion-over-`policy_hash` form (Ed25519 or WebAuthn) — valid and tampered (wrong admin, edited rule after signing, WebAuthn origin not allowed) |
 | `receipts.json` | four complete receipts (allow, deny, escalated-then-approved, and an unattested allow settled on the fake rail) with leaf hashes, halves, root, envelope hash, proofs, disclosure and the full structural verification result |
 | `verdicts.json` | the full reading of each of those receipts — every check, both settlement lines, the level — beside the exact material the verifier was given to reach it |
+| `cards.json` | the `ReceiptCard` JSON for each receipt in `receipts.json` — the document `verify.html` and `merkl receipt show` render; Python and JavaScript must match byte for byte |
 | `tampered.json` | receipts and disclosures that must fail, each with the exact set of check names a conforming verifier reports |
 | `bundles/` | proof bundles merkl-api actually exported (v1.1, v1.1 with a continuation, v1.2 with a receipt) plus mutations of them, in `bundles/cases.json` |
 | `attestation/` | three documents AWS actually signed, and the cases over them |

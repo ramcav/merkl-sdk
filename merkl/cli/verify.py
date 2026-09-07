@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Any
 
 from merkl.core.checks import CheckStatus
+from merkl.core.receipt import Envelope
+from merkl.core.verify.card import receipt_card, render_card
 from merkl.core.verify.attestation import AttestationTrust
 from merkl.core.verify.log import evidence_records, verify_log_bundle
 from merkl.core.verify.receipt import ReceiptVerdict, receipt_from_content, verify_receipt
@@ -100,38 +102,15 @@ def _wrap(text: str, width: int = 78, indent: str = "  ") -> str:
     return "\n".join(lines)
 
 
-def _print_verdict(verdict: ReceiptVerdict, *, show_all: bool) -> None:
+def _print_verdict(
+    verdict: ReceiptVerdict,
+    envelope: Envelope,
+    contents: list[Any],
+    *,
+    show_all: bool,
+) -> None:
     print()
-    print(f"receipt {verdict.receipt_id}")
-    print("-" * 72)
-    for label, key in (
-        ("Told to", "instructed"),
-        ("Allowed by", "rule"),
-        ("Approved by", "approved"),
-        ("Settled", "settled"),
-        ("When", "when"),
-        ("Signer", "signer"),
-        ("Reasoning", "testimony"),
-    ):
-        text = getattr(verdict.summary, key)
-        body = (
-            _wrap(text, indent="").replace("\n", "\n" + " " * 14)
-            if text
-            else "(the receipt does not say)"
-        )
-        print(f"{label:>12}  {body}")
-        # The agent's own note sits under the sentence about it, never in it.
-        if key == "testimony" and verdict.summary.testimony_note:
-            note = _wrap(f"“{verdict.summary.testimony_note}”", indent="")
-            print(f"{'':>12}  {note.replace(chr(10), chr(10) + ' ' * 14)}")  # noqa: RUF001
-    print()
-    print(f"{'Authorization':>12}  {verdict.transaction_authorization}")
-    print(f"{'':>12}  {verdict.transaction_authorization_detail}")
-    print(f"{'Ledger':>12}  {verdict.ledger_inclusion}")
-    print(f"{'':>12}  {verdict.ledger_inclusion_detail}")
-    # level_detail already names its level; printing the number too said it twice.
-    level = _wrap(verdict.level_detail, indent="").replace("\n", "\n" + " " * 14)
-    print(f"{'Level':>12}  {level}")
+    print(render_card(receipt_card(verdict, envelope, contents)))
     print()
     for c in verdict.result.checks:
         if not show_all and c.status is CheckStatus.PASS:
@@ -186,7 +165,7 @@ def verify_command(
     session_bundle = bundle if isinstance(session, dict) else None
     log = verify_log_bundle(bundle, evidence=records) if session_bundle else None
 
-    verdicts: list[ReceiptVerdict] = []
+    verdicts: list[tuple[ReceiptVerdict, Envelope, list[Any]]] = []
     for entry in bundle.get("receipts") or []:
         if not isinstance(entry, dict):
             continue
@@ -196,16 +175,20 @@ def verify_command(
             print(f"receipt does not parse: {exc}", file=sys.stderr)
             return 2
         verdicts.append(
-            verify_receipt(
+            (
+                verify_receipt(
+                    envelope,
+                    leaves,
+                    attestation_trust=trust,
+                    now=moment,
+                    validator_trust=validator_trust,
+                    settlement_proof=settlement_proof or entry.get("settlement_proof"),
+                    policy_document=policy_document or entry.get("policy_document"),
+                    admin_public_key=admin_key,
+                    session_bundle=session_bundle,
+                ),
                 envelope,
                 leaves,
-                attestation_trust=trust,
-                now=moment,
-                validator_trust=validator_trust,
-                settlement_proof=settlement_proof or entry.get("settlement_proof"),
-                policy_document=policy_document or entry.get("policy_document"),
-                admin_public_key=admin_key,
-                session_bundle=session_bundle,
             )
         )
 
@@ -213,8 +196,8 @@ def verify_command(
         print(f"{path} carries neither a receipt nor a session", file=sys.stderr)
         return 2
 
-    ok = all(v.ok for v in verdicts) and (log.ok if log else True)
-    complete = all(v.complete for v in verdicts) and (log.complete if log else True)
+    ok = all(v.ok for v, _, _ in verdicts) and (log.ok if log else True)
+    complete = all(v.complete for v, _, _ in verdicts) and (log.complete if log else True)
 
     if as_json:
         print(
@@ -223,15 +206,18 @@ def verify_command(
                     "source": str(path),
                     "ok": ok,
                     "complete": complete,
-                    "receipts": [v.to_content() for v in verdicts],
+                    "receipts": [v.to_content() for v, _, _ in verdicts],
+                    "cards": [
+                        receipt_card(v, env, leaves).to_content() for v, env, leaves in verdicts
+                    ],
                     "log": log.to_content() if log else None,
                 },
                 indent=2,
             )
         )
     else:
-        for verdict in verdicts:
-            _print_verdict(verdict, show_all=show_all)
+        for verdict, envelope, leaves in verdicts:
+            _print_verdict(verdict, envelope, leaves, show_all=show_all)
         if log is not None:
             print()
             print("session log")
@@ -252,7 +238,7 @@ def verify_command(
             # Name them rather than describing them. "Some checks did not run"
             # is true of every unchecked receipt and tells a reader nothing
             # about which fact about this one is still open.
-            for verdict in verdicts:
+            for verdict, _, _ in verdicts:
                 for entry in verdict.not_checked:
                     print(_wrap(f"not checked — {entry.label}: {entry.reason}", indent="  "))
             print("  none of them is a pass, and none of them is a failure")

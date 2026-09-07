@@ -84,10 +84,9 @@ class TestOutput:
     def test_the_verdict_leads_with_words(self, tmp_path: Path, capsys: Any) -> None:
         verify_command(_receipt_file(tmp_path))
         out = capsys.readouterr().out
-        assert "Told to" in out
+        assert "MERKL RECEIPT" in out
         assert "Allowed by" in out
-        assert "Authorization" in out
-        assert "Ledger" in out
+        assert "VERIFIED" in out
         assert "Level" in out
 
     def test_unchecked_checks_are_listed_by_name(self, tmp_path: Path, capsys: Any) -> None:
@@ -157,12 +156,13 @@ class TestReceiptShow:
         ):
             assert name in out
         assert "Testimony, not proof" in out
-        assert "authorization    verified" in out
+        assert "MERKL RECEIPT" in out
+        assert "SETTLED" in out
 
     def test_a_denial_reads_as_a_refusal(self, tmp_path: Path, capsys: Any) -> None:
         assert receipt_show_command(str(_receipt_file(tmp_path, "deny-not-submitted"))) == 0
         out = capsys.readouterr().out
-        assert "refused" in out
+        assert "REFUSED" in out
         assert "absent, and committed as absent" in out
 
 

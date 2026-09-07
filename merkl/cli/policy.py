@@ -18,7 +18,7 @@ from typing import Any
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from merkl.core.canonical import format_instant
+from merkl.core.canonical import format_instant, parse_decimal
 from merkl.core.policy.approvals import (
     ADMIN_APPROVER_ID,
     ApprovalAssertion,
@@ -178,7 +178,12 @@ def show_command(path: Path, *, as_json: bool = False) -> int:
         f"{len(document.approvers)}, expires {human.expires_seconds}s)"
     )
     for threshold in human.thresholds:
-        print(f"  escalates above {threshold.amount} {threshold.key}")
+        if parse_decimal(threshold.amount, "threshold") == 0:
+            print(
+                f"  {threshold.key}: every payment needs a person's approval until you set a threshold"
+            )
+        else:
+            print(f"  escalates at or above {threshold.amount} {threshold.key}")
     print()
 
     print(f"approvers ({len(document.approvers)}):")

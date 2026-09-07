@@ -42,7 +42,9 @@ class FakePayloadCodec:
     def anchor(self, payload: bytes) -> str:
         return payload[-ANCHOR_BYTES:].hex()
 
-    def problems(self, payload: bytes, intent: Intent, commitment: str | None) -> list[str]:
+    def problems(
+        self, payload: bytes, intent: Intent, commitment: str | None, **_: object
+    ) -> list[str]:
         try:
             fields = self.decode_payload(payload)
         except Exception as exc:

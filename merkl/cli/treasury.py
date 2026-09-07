@@ -66,6 +66,12 @@ def init_command(
         if setup.safe
         else "  NOT SAFE — see above."
     )
+    if setup.safe:
+        print(
+            "  Every payment needs a person's approval until you set a threshold. "
+            "Write a policy whose human-tier amount is 0 for each allowed asset, "
+            "then `merkl policy sign`."
+        )
     return 0 if setup.safe else 4
 
 

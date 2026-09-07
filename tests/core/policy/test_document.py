@@ -441,3 +441,34 @@ class TestNetwork:
 
     def test_a_document_without_one_round_trips_to_none(self) -> None:
         assert PolicyDocument.from_content(make_document().to_content()).network is None
+
+
+class TestSourceTag:
+    def test_an_absent_source_tag_does_not_change_the_hash(self) -> None:
+        assert "source_tag" not in make_document().to_content()["agents"][0]
+        assert make_document().policy_hash() == make_document().policy_hash()
+
+    def test_setting_a_source_tag_changes_the_hash(self) -> None:
+        from merkl.core.policy.document import AgentSection
+        from merkl.core.rail import MERKL_SOURCE_TAG
+
+        base = make_document()
+        agent = base.agents[0]
+        tagged = make_document(
+            agents=(
+                AgentSection(
+                    agent_id=agent.agent_id,
+                    public_key=agent.public_key,
+                    allowlist_destinations=agent.allowlist_destinations,
+                    allowlist_assets=agent.allowlist_assets,
+                    per_tx_cap=agent.per_tx_cap,
+                    windows=agent.windows,
+                    reference_binding=agent.reference_binding,
+                    source_tag=99991234,
+                ),
+            )
+        )
+        assert tagged.policy_hash() != base.policy_hash()
+        assert tagged.agents[0].effective_source_tag() == 99991234
+        assert base.agents[0].effective_source_tag() == MERKL_SOURCE_TAG
+

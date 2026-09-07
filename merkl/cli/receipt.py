@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from merkl.core.receipt import LEAF_NAMES
+from merkl.core.verify.card import receipt_card, render_card
 from merkl.core.verify.receipt import receipt_from_content, verify_receipt
 
 __all__ = ["LEAF_PLAIN", "receipt_show_command", "resolve_receipt"]
@@ -100,23 +101,16 @@ def receipt_show_command(
         policy_document=receipt.get("policy_document"),
     )
     if as_json:
-        print(json.dumps({"receipt": receipt, "verdict": verdict.to_content()}, indent=2))
+        card = receipt_card(verdict, envelope, contents)
+        print(
+            json.dumps(
+                {"receipt": receipt, "verdict": verdict.to_content(), "card": card.to_content()},
+                indent=2,
+            )
+        )
         return 0 if verdict.ok else 1
 
-    print(f"receipt {envelope.receipt_id}")
-    print(f"{'':>4}{envelope.rail} · treasury {envelope.treasury} · agent {envelope.agent_id}")
-    print()
-    for label, key in (
-        ("What the agent was told", "instructed"),
-        ("Which rule allowed it", "rule"),
-        ("Who approved", "approved"),
-        ("What settled", "settled"),
-        ("When", "when"),
-        ("Who signed it", "signer"),
-        ("Reasoning", "testimony"),
-    ):
-        text = getattr(verdict.summary, key) or "(the receipt does not say)"
-        print(f"  {label:<24} {text}")
+    print(render_card(receipt_card(verdict, envelope, contents)))
     print()
     print("  the seven leaves")
     for i, name in enumerate(LEAF_NAMES):

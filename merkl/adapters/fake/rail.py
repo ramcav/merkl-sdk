@@ -159,7 +159,7 @@ class FakeSettlementAdapter:
         """The anchor is inside the signed payload, so nobody can edit it after."""
         return AnchorCapability.IMMUTABLE
 
-    async def prepare(self, intent: Intent, commitment: str) -> UnsignedTx:
+    async def prepare(self, intent: Intent, commitment: str, **_: object) -> UnsignedTx:
         """Build the unsigned transaction. Called twice; both must agree.
 
         The sequence number is memoized against the intent's nonce so that

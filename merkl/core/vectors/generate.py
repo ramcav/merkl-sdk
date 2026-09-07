@@ -80,6 +80,7 @@ from merkl.core.receipt import (
     verify_receipt_structure,
 )
 from merkl.core.vectors import VECTORS_DIR, fixtures
+from merkl.core.verify.card import receipt_card
 from merkl.core.verify.receipt import verify_receipt
 from merkl.core.verify.settlement import (
     ValidatorTrust,
@@ -1694,6 +1695,45 @@ def verdict_vectors(built: dict[str, Receipt]) -> JSONObject:
     }
 
 
+def card_vectors(built: dict[str, Receipt]) -> JSONObject:
+    """The ReceiptCard JSON for each committed receipt. Both implementations must match."""
+    cases: list[JSONValue] = []
+    for name, receipt in built.items():
+        material = _material(name, receipt)
+        trust = cast("dict[str, Any] | None", material["validator_trust"])
+        verdict = verify_receipt(
+            receipt.envelope,
+            receipt.leaves,
+            settlement_proof=material["settlement_proof"],
+            validator_trust=(
+                ValidatorTrust(validators=trust["validators"], quorum=trust["quorum"])
+                if trust
+                else None
+            ),
+            policy_document=material["policy_document"],
+            admin_public_key=cast("str", material["admin_public_key"]),
+            session_bundle=cast("dict[str, Any] | None", material["session_bundle"]),
+        )
+        cases.append(
+            {
+                "name": name,
+                "receipt": name,
+                "card": receipt_card(
+                    verdict, receipt.envelope, receipt.leaves.contents()
+                ).to_content(),
+            }
+        )
+    return {
+        "description": (
+            "ReceiptCard JSON for every receipt in receipts.json. Python "
+            "`merkl.core.verify.card.receipt_card` and JS `receiptCard()` must match "
+            "byte for byte."
+        ),
+        "spec": SPEC,
+        "cases": cases,
+    }
+
+
 def _verdict_case(
     name: str, receipt_name: str, receipt: Receipt, material: JSONObject
 ) -> JSONObject:
@@ -2291,6 +2331,7 @@ def build_all() -> dict[str, JSONObject]:
         "policies.json": policy_vectors(),
         "receipts.json": receipt_vectors(built),
         "verdicts.json": verdict_vectors(built),
+        "cards.json": card_vectors(built),
         "tampered.json": tampered_vectors(built),
     }
     files["manifest.json"] = {

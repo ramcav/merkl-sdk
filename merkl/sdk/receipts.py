@@ -188,7 +188,15 @@ class ReceiptBuilder:
     ) -> ReceiptOutcome:
         """Run the whole flow and return a receipt, whatever the verdict."""
         receipt_id = receipt_id or str(ActionId.generate())
-        unsigned = await self._rail.prepare(intent, ANCHOR_PLACEHOLDER_HEX)
+        session = get_current_session()
+        session_id = str(getattr(session, "session_id", "") or "")
+        unsigned = await self._rail.prepare(
+            intent,
+            ANCHOR_PLACEHOLDER_HEX,
+            agent_id=self._agent_id,
+            session_id=session_id,
+            task_id=receipt_id,
+        )
         response = await self._signer.propose(
             self._request(intent, instruction, unsigned).to_content()
         )
@@ -352,7 +360,13 @@ class ReceiptBuilder:
                 "the signer's LEFT does not match the leaves it was given; refusing to submit"
             )
 
-        anchored = await self._rail.prepare(intent, left)
+        anchored = await self._rail.prepare(
+            intent,
+            left,
+            agent_id=self._agent_id,
+            session_id=str(getattr(get_current_session(), "session_id", "") or ""),
+            task_id=receipt_id,
+        )
         if anchored.signing_payload != response["signed_payload"]:
             await self._release(reservation_id)
             raise ReceiptBuildError(
@@ -386,6 +400,7 @@ class ReceiptBuilder:
                 signed_tx_blob=ref.signed_tx_blob,
                 observed_anchor=ref.observed_anchor,
                 settlement_proof_ref=proof.proof_ref() if proof else None,
+                observed_memos=getattr(ref, "observed_memos", None),
                 policy_signature=PolicySignature(
                     algorithm="ed25519",
                     public_key=signature.public_key,

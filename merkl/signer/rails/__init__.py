@@ -31,7 +31,7 @@ codec module for the configured rail imports anything else.
 
 from __future__ import annotations
 
-from typing import Final, Protocol
+from typing import Any, Final, Protocol
 
 from merkl.core.intent import Intent
 from merkl.core.rail import (
@@ -57,7 +57,9 @@ class RailCodec(Protocol):
 
     rail: str
 
-    def problems(self, payload: bytes, intent: Intent, commitment: str | None) -> list[str]:
+    def problems(
+        self, payload: bytes, intent: Intent, commitment: str | None, **context: Any
+    ) -> list[str]:
         """Everything about ``payload`` that disagrees with ``intent``.
 
         An empty list means the bytes encode exactly this payment and nothing
