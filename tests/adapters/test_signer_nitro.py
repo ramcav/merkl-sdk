@@ -115,7 +115,8 @@ def trust(**overrides: Any) -> AttestationTrust:
 
 def test_the_nitro_client_adds_no_rpc_method() -> None:
     """Phase 3 is a deployment change. If this fails, it became a protocol change."""
-    added = set(vars(NitroSignerClient)) - {"__doc__", "__module__"}
+    # Dunders only: 3.13 adds __static_attributes__ and __firstlineno__ to every class.
+    added = {name for name in vars(NitroSignerClient) if not name.startswith("__")}
     assert added == {"attestation_report", "assert_attested"}
     assert issubclass(NitroSignerClient, DevSignerClient)
 
