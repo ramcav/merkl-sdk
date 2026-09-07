@@ -33,6 +33,7 @@ present:
 |---|---|---|
 | Session bundle (v1.1 / v1.2) | `session`, `actions`, optionally `receipts[]`, `audit_log`, `transparency` | the story per receipt, the action table, the log, the checkpoint, the anchor, the evidence drop-zone |
 | Receipt-only bundle | `{"version": "1.2", "receipts": [receipt], "session": None, "actions": []}` | the story, the two settlement lines, the level, every check, the seven leaves |
+| Receipt bundle **with its session join** (added in 0.2.0) | the receipt-only members plus `session`, one `actions[]` row, `audit_log`, `transparency`, `scope` | all of the above, at **level 2** — see §2's "A receipt page that reaches level 2" |
 | Disclosure bundle | `disclosure` (or `disclosures[]`), a `Disclosure.to_content()` | which leaves were revealed, which are hashes only, and the root the reader must pin elsewhere |
 
 `render_receipt_verifier_html` in `receipt_verifier.py` already passes the second
@@ -107,6 +108,79 @@ The API's receipt-ingest fixture should be built that way; otherwise every
 receipt it stores reads as level 1 forever. `merkl/core/vectors/verdicts.json`'s
 `allow-settled` case carries a minimal bundle built correctly, if you want a
 reference.
+
+### Filing a receipt: the proof goes in the same request (added in 0.2.0)
+
+`POST /v1/receipts` accepts a **`settlement_proof`** member beside `envelope`
+and `leaves`:
+
+```json
+{
+  "envelope": {...},
+  "leaves": [ ... seven contents ... ],
+  "settlement_proof": {"rail": "xrpl", "proof": { ...SettlementProof.to_content()... }},
+  "pending_escalation": {"challenge": "...", "expires_at": "...", "quorum": 2}
+}
+```
+
+Both extra members are optional, and an absent one is **absent**, never `null`.
+`settlement_proof.rail` must equal the receipt's own rail; the API refuses a
+mismatch the same way `POST /v1/receipts/{id}/settlement-proof` always has.
+
+Why it belongs on the receipt's own request. Leaf 4 commits a
+`settlement_proof_ref` — `"<rail>:<ledger_index>:<first 16 of tx_hash>"` — and
+nothing else about the ledger. The header, the transaction and the validators'
+signed messages that establish inclusion offline are captured by the rail
+adapter at submit time and exist nowhere else. A receipt filed without them is
+one whose ledger-inclusion line reads `unchecked` forever, and the SDK is the
+only party that ever holds them.
+
+`POST /v1/receipts/{id}/settlement-proof` (unchanged) stays the **late** route,
+for a capture that completes after the receipt is on file: validations collected
+afterwards, a header fetched on a retry. The SDK takes it through
+`ReceiptBuilder.attach_settlement_proof(receipt_id, proof)`.
+
+Neither call is on the decision path (plan D12). `merkl.adapters.notary.HttpNotary`
+implements both, and a failure of either is returned on
+`ReceiptOutcome.notary_error` rather than raised — a witness that is down does
+not turn a settled payment into a failed call, and the SDK keeps its own copy
+under `~/.merkl/receipts` regardless (`merkl.sdk.receipt_store.LocalReceiptStore`).
+
+### A receipt page that reaches level 2 (added in 0.2.0)
+
+A receipt page rendered from a receipt alone is level 1 by construction: the
+verifier is handed no session, so `session.log_join` reports
+`not_implemented` and says so. To reach level 2, `GET /v1/receipts/{id}/verify.html`
+(and `GET /v1/receipts/{id}`, which carries the same material as `session_join`)
+must supply the join — **scoped to this receipt's action**, not the whole
+session:
+
+| Member | What |
+|---|---|
+| `session` | the session block a full export carries: `session_id`, `root_hash`, `sealed`, `action_count`, `leaf_count`, … |
+| `actions` | **exactly one row** — the action whose `input_hash` is this envelope's canonical hash — with its `leaf_hash` and its `proof` to the session root |
+| `audit_log` | the entry that sealed that root |
+| `transparency` | `checkpoint`, `log_inclusion`, and `anchor` when there is one — byte-identical to what the session bundle carries |
+| `scope` | `{"kind": "receipt", "receipt_id", "session_id", "leaf_index", "actions_included", "action_count"}` — says the actions list is deliberately partial |
+
+**The one rule that makes a scoped bundle work.** An action's leaf index is
+`action.proof.leaf_index`, not its position in `actions[]`. A full export lists
+every action in leaf order so the two always agreed and nothing changes for one;
+a scoped bundle lists one row that may be leaf 5 of twelve, and a verifier
+reading its position would join the receipt to whatever happened to be first.
+Both implementations now read the declared index
+(`merkl.core.verify.log.leaf_index_of` / `leafIndexOf`), falling back to the
+position only when no proof says otherwise. `log.actions` then honestly reports
+"1 of 1 actions rehash to their leaf and prove into the root", and `scope` is
+what tells a reader the list was narrowed on purpose.
+
+**A session that is not sealed yet.** Send the `session` block with
+`"sealed": false` and no `transparency`. `session.log_join` reports
+`not_implemented` with `session <id> is not sealed yet; level 2 becomes
+available after sealing`, which appears in the verdict's `not_checked` list and
+on the page — rather than the receipt reading as a bare level 1 with no
+explanation. Do **not** omit the session block to achieve this: an omitted
+session says "no bundle was supplied", which is a different fact.
 
 ### Policy documents the verifier can hash
 
@@ -214,6 +288,7 @@ the file.
 | `verifyPolicySignature(signedPolicy, {adminPublicKey, admin})` | `{valid, detail, unsupported?}` — an admin's signature over a policy change (§6) |
 | `escalationChallenge(contents)` | `LEFT_pre`, so the queue can show what a passkey will sign |
 | `readSettlementProof(proof, {rail, txHash, ledgerIndex, trust, live})` | `{checks, ledger_inclusion, detail}` |
+| `notCheckedOf(checks)`, `notCheckedLine(entries)`, `CHECK_LABELS` | the unchecked list and its wording, if you build the line yourself |
 | `actionLeafHash`, `receiptLeafHash`, `canonicalHashHex`, `deriveRoot`, `merkleRoot` | the primitives, if you need one directly |
 
 ### The verdict object
@@ -224,7 +299,10 @@ the file.
   ok: boolean,            // nothing was contradicted
   complete: boolean,      // every check actually ran
   level: 1 | 2,
-  level_detail: string,
+  level_detail: string,   // one sentence, already naming its level
+  not_checked: [{name, label, reason}],   // every check that did not run
+  not_checked_line: string,               // "Not checked: a (why), b (why)."
+  verdict_line: string,                   // the two above, in order
   settlement: {
     transaction_authorization: 'verified' | 'absent' | 'contradicted',
     transaction_authorization_detail: string,
@@ -233,7 +311,8 @@ the file.
   },
   attested: true | false | null,   // false = leaf 3 is null, an unattested signer
   summary: {                       // render these, not the hashes
-    instructed, rule, approved, settled, when, signer, testimony  // string | null
+    instructed, rule, approved, settled, when, signer, testimony, // string | null
+    testimony_note,               // leaf 6's own note, verbatim — not our sentence
   },
   checks: [{name, status: 'pass' | 'fail' | 'not_implemented', detail}],
   log?: {ok, complete, checks, actions, evidence},
@@ -247,6 +326,33 @@ for. The page in this repo shows a third badge for it (`Consistent · partly
 unchecked`); the dashboard should too. `attested === false` must be visible
 without expanding anything: it means no enclave vouches for the key that
 authorized the payment.
+
+**And never explain `!complete` in the abstract.** Render `verdict_line` (or
+`not_checked` yourself), not a sentence of your own: "some checks are not
+implemented in this browser or unconfigured" is true of every incomplete
+verdict, so a reader learns nothing about *this* receipt from it. `not_checked`
+gives each unchecked check a `label` in plain words and a `reason` that is the
+check's own `detail`, so the line reads
+
+> Nothing was contradicted. Not checked: enclave attestation (no PCR allowlist
+> and moment were pinned, so nothing says which enclave this is), ledger
+> inclusion (no settlement proof was supplied with this receipt).
+
+`complete === (not_checked.length === 0)` always; they are two readings of one
+fact, and the list covers the log's deferred checks as well as the receipt's.
+`CHECK_LABELS` is exported if you want to relabel; a check with no label is
+listed under its own name rather than dropped.
+
+**`level_detail` already names its level.** Do not prefix "Level 2." to it — the
+page in this repo did, and printed the level twice in one line.
+
+**`summary.testimony_note` is not a sentence of ours.** It is leaf 6's `note`,
+verbatim, and belongs on its own line beneath `summary.testimony` in a quieter
+style — never concatenated with it. The testimony sentence is the verifier
+saying what a committed hash does and does not establish; the note is the agent
+describing its own reasoning. Running them together lends one the other's
+authority, which is the exact confusion leaf 6's `testimony: true` exists to
+prevent. It is `null` when leaf 6 is absent or carries no note.
 
 ### Options are trust anchors, and none of them may come from the receipt
 

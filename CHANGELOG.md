@@ -11,6 +11,66 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [0.2.0] - 2026-09-07
 
+### Added — phase 10
+
+- **`ReceiptBuilder` files the settlement capture with the receipt.** The rail
+  adapter captured a `SettlementProof` at submit time and the flow dropped it.
+  Leaf 4 commits only a `settlement_proof_ref` — sixteen characters of
+  transaction hash — so the ledger header, the transaction and the validators'
+  signatures a reader needs to establish inclusion *offline* existed nowhere
+  but in memory, and every receipt this SDK produced read `ledger inclusion:
+  unchecked — no settlement proof was supplied`. Two new ports in
+  `merkl.core.ports`: `NotaryPort` (`file_receipt`, with the proof inline, and
+  `file_settlement_proof` for a capture completed afterwards) and
+  `SettlementProofStorePort` (`put_settlement_proof`), the latter its own port
+  rather than a fourth argument to `ReceiptStorePort.put` so a store written
+  against the older shape keeps working — the builder probes for the method and
+  never assumes it. `merkl.adapters.notary.HttpNotary` implements the first
+  against merkl-api (`POST /v1/receipts` with `settlement_proof`, falling back
+  to `POST /v1/receipts/{id}/settlement-proof`);
+  `merkl.sdk.receipt_store.LocalReceiptStore` implements both over
+  `~/.merkl/receipts`, beside the evidence log and in the shape `merkl disclose`
+  and `merkl receipt show` already read, so an offline disclosure reaches
+  `proven-offline` with no notary in the picture at all. A notary that is down
+  never fails a settled payment: `ReceiptOutcome.notary_error` carries the
+  failure rather than raising it (plan D12).
+
+- **`ReceiptVerdict.not_checked`** — every check that did not run, each with the
+  reason the check gives itself, plus `not_checked_line` and `verdict_line`
+  rendering them. Both pages previously reduced this to one generic clause
+  ("some checks are not implemented in this browser or unconfigured"), which is
+  true of every incomplete verdict and tells a reader nothing about which fact
+  is still open on the one in front of them. `@merkl-ai/verify` exports
+  `notCheckedOf`, `notCheckedLine` and `CHECK_LABELS`, and `verdicts.json`
+  records all three members for both implementations.
+
+### Changed — phase 10
+
+- **`level_detail` is one sentence that names its own level**
+  (`LEVEL_DETAIL_RECEIPT` / `LEVEL_DETAIL_SESSION`, exported from both
+  implementations). `verify.html` and `merkl verify` used to prefix "Level 2."
+  to a string that already began "level 2:".
+
+- **A session bundle's action rows are located by the leaf their proof names**,
+  not by their position in `actions[]` (`merkl.core.verify.log.leaf_index_of`,
+  `leafIndexOf` in JS). A full export lists every action in leaf order so
+  nothing changes for one; a bundle *scoped* to a single receipt carries one row
+  that may be leaf 5 of twelve, and reading its position joined the receipt to
+  whatever was listed first. This is what lets a receipt page reach level 2
+  without shipping the whole session (`merkl-api/docs/SPEC.md` §9).
+
+- **An unsealed session says so** rather than reading as a bare level 1: when a
+  bundle's session is not sealed, `session.log_join` reports `not_implemented`
+  with "session … is not sealed yet; level 2 becomes available after sealing".
+
+- **The plain summary carries leaf 6's `note` as its own member**
+  (`summary.testimony_note`), rendered under the testimony sentence in a quieter
+  style rather than run into it — one is the verifier speaking about what a
+  committed hash establishes, the other is the agent speaking about itself. An
+  unattested signer's line now adds "expected for a dev signer; a Nitro signer
+  attests", because leaf 3 being null is the normal state of a dev deployment
+  and reads as an alarm without it.
+
 ### Added — phase 9
 
 - **`PolicyDocument.network`** — `xrpl-testnet` or `xrpl-mainnet`, optional,
