@@ -934,6 +934,21 @@ def _outflows_from_response(response: Response, treasury: str) -> list[Outflow]:
             continue
         amount = meta.get("delivered_amount") or tx.get("DeliverMax") or tx.get("Amount")
         value, asset = _read_amount(amount)
+        inflow_value: str | None = None
+        inflow_asset: str | None = None
+        if tx.get("Destination") == treasury and tx.get("SendMax") is not None:
+            # A cross-currency Payment to self is a trade: what left is the sell
+            # side, not the delivered amount, and the delivered amount is what
+            # came back. When the metadata does not yield the real cost the
+            # SendMax ceiling stands in for it — an upper bound never
+            # understates an outflow, and understating one is the failure that
+            # matters in a reconciliation.
+            inflow_value, inflow_asset = value, asset
+            spent = spent_amount(meta, treasury, _fee_drops(tx))
+            if spent is None:
+                spent = amount_from_xrpl(tx.get("SendMax"))
+            if spent is not None:
+                value, asset = spent.value, asset_key(spent.currency)
         close = entry.get("close_time_iso")
         date = tx.get("date") or entry.get("date")
         close_time = (
@@ -951,6 +966,8 @@ def _outflows_from_response(response: Response, treasury: str) -> list[Outflow]:
                 ledger_index=int(entry.get("ledger_index", 0)),
                 close_time=close_time,
                 anchor=_memo_anchor(tx.get("Memos") or []),
+                inflow_value=inflow_value,
+                inflow_asset=inflow_asset,
             )
         )
     return outflows
