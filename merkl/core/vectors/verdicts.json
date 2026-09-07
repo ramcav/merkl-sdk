@@ -2458,7 +2458,7 @@
           "receipts": [],
           "scope": {
             "action_count": 8,
-            "actions_included": 1,
+            "actions_included": 0,
             "kind": "receipt",
             "leaf_index": 7,
             "receipt_id": "01936b2e-2222-7000-8000-000000000001",
@@ -2468,7 +2468,7 @@
             "action_count": 8,
             "agent_id": "agent-accounts-payable",
             "leaf_count": 8,
-            "root_hash": "21139d9b08667725580de2fb0f48e03e5a7dd91d035ec7e318fc709f9214897f",
+            "root_hash": null,
             "sealed": false,
             "session_id": "01936b2e-1111-7000-8000-000000000001",
             "status": "open"
@@ -2699,7 +2699,7 @@
             },
             {
               "name": "log.session_root",
-              "status": "fail"
+              "status": "not_implemented"
             },
             {
               "name": "log.continuation",
@@ -2724,7 +2724,7 @@
           ],
           "complete": false,
           "evidence": [],
-          "ok": false
+          "ok": true
         },
         "not_checked": [
           {
@@ -2763,6 +2763,11 @@
             "reason": "this bundle carries no actions"
           },
           {
+            "label": "the session root",
+            "name": "log.session_root",
+            "reason": "the bundle states no session root"
+          },
+          {
             "label": "the continuation binding",
             "name": "log.continuation",
             "reason": "this session did not continue another one"
@@ -2788,8 +2793,8 @@
             "reason": "this bundle carries no checkpoint"
           }
         ],
-        "not_checked_line": "Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the session join (session 01936b2e-1111-7000-8000-000000000001 is not sealed yet; level 2 becomes available after sealing), the session actions (this bundle carries no actions), the continuation binding (this session did not continue another one), the audit-log entry (this bundle carries no audit-log entry), log inclusion (this bundle carries no log inclusion proof), the checkpoint body (this bundle carries no checkpoint), the checkpoint signature (this bundle carries no checkpoint).",
-        "ok": false,
+        "not_checked_line": "Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the session join (session 01936b2e-1111-7000-8000-000000000001 is not sealed yet; level 2 becomes available after sealing), the session actions (this bundle carries no actions), the session root (the bundle states no session root), the continuation binding (this session did not continue another one), the audit-log entry (this bundle carries no audit-log entry), log inclusion (this bundle carries no log inclusion proof), the checkpoint body (this bundle carries no checkpoint), the checkpoint signature (this bundle carries no checkpoint).",
+        "ok": true,
         "receipt_id": "01936b2e-2222-7000-8000-000000000001",
         "settlement": {
           "ledger_inclusion": "supplied-unverified",
@@ -2807,7 +2812,7 @@
           "testimony_note": "Invoice matched the supplier on file; amount under the per-transaction cap.",
           "when": "The ledger closed it at 2026-01-02T03:04:41Z."
         },
-        "verdict_line": "Something was contradicted. Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the session join (session 01936b2e-1111-7000-8000-000000000001 is not sealed yet; level 2 becomes available after sealing), the session actions (this bundle carries no actions), the continuation binding (this session did not continue another one), the audit-log entry (this bundle carries no audit-log entry), log inclusion (this bundle carries no log inclusion proof), the checkpoint body (this bundle carries no checkpoint), the checkpoint signature (this bundle carries no checkpoint)."
+        "verdict_line": "Nothing was contradicted. Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), enclave attestation (no PCR allowlist and moment were pinned, so nothing says which enclave this is), the validator quorum (0 of 3 pinned validators verified, 3 more validation entries did not carry enough evidence (a raw validation blob and a manifest for it) to check — agreement counted, not proved), ledger inclusion (supplied-unverified: the capture does not prove inclusion offline; missing: shamap_path), the session join (session 01936b2e-1111-7000-8000-000000000001 is not sealed yet; level 2 becomes available after sealing), the session actions (this bundle carries no actions), the session root (the bundle states no session root), the continuation binding (this session did not continue another one), the audit-log entry (this bundle carries no audit-log entry), log inclusion (this bundle carries no log inclusion proof), the checkpoint body (this bundle carries no checkpoint), the checkpoint signature (this bundle carries no checkpoint)."
       }
     }
   ],

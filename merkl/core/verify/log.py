@@ -542,7 +542,11 @@ def verify_log_bundle(
     absence is stated rather than hidden.
     """
     session = bundle.get("session") if isinstance(bundle.get("session"), Mapping) else {}
-    root = str(session.get("root_hash", "")) if session else ""
+    # `or ""` and not a default: an unsealed session states `root_hash: null`,
+    # and `str(None)` is the four characters "None" — a truthy string that made
+    # every proof "land on []" against a root that was never claimed, turning an
+    # honest open session into a contradicted one.
+    root = str(session.get("root_hash") or "") if session else ""
     raw_actions = bundle.get("actions")
     actions = (
         [a for a in raw_actions if isinstance(a, Mapping)] if isinstance(raw_actions, list) else []

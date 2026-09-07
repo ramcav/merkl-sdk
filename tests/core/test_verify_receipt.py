@@ -179,6 +179,22 @@ class TestTheLevel:
         assert "is not sealed yet; level 2 becomes available after sealing" in join.detail
         assert verdict.level == LEVEL_RECEIPT
 
+    def test_an_open_session_is_incomplete_never_contradicted(self) -> None:
+        """A session with no root yet states `root_hash: null`.
+
+        Stringifying that null gave every proof the four characters "None" to
+        land against, and an honest open session read as a contradicted one —
+        the loudest thing this verifier can say, about nothing at all.
+        """
+        verdict = _run(_case("receipt-page-session-open"))
+        assert verdict.ok
+        assert not verdict.complete
+        assert verdict.level == LEVEL_RECEIPT
+        assert verdict.log is not None
+        root = verdict.log.result.get("log.session_root")
+        assert root.status is CheckStatus.NOT_IMPLEMENTED
+        assert root.detail == "the bundle states no session root"
+
     def test_a_scoped_bundle_carrying_only_this_receipts_action_still_joins(self) -> None:
         """The receipt page ships one action, not the whole session (SPEC §9).
 

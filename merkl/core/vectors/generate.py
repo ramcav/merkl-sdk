@@ -1757,10 +1757,17 @@ def _receipt_page_cases(receipt: Receipt) -> list[JSONValue]:
             "action_count": len(rows),
         },
     }
+    # An open session as merkl-api actually renders one: no root to prove into,
+    # so `root_hash` is null and there are no actions, no audit entry and no
+    # checkpoint. The null matters — a verifier that stringified it would hold
+    # every proof against the four characters "None" and report an honest open
+    # session as contradicted.
     unsealed: JSONObject = {
-        **scoped,
-        "session": {**session, "sealed": False, "status": "open"},
+        "version": scoped["version"],
+        "session": {**session, "sealed": False, "status": "open", "root_hash": None},
         "actions": [],
+        "receipts": [],
+        "scope": {**cast("JSONObject", scoped["scope"]), "actions_included": 0},
     }
     base = _material("allow-settled", receipt)
     return [
