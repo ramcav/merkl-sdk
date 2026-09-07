@@ -373,10 +373,23 @@ def main() -> None:
     init_p.add_argument(
         "--xrpl-testnet", action="store_true", help="Bootstrap on the XRPL testnet"
     )
+    init_p.add_argument(
+        "--xrpl-mainnet",
+        action="store_true",
+        help="Bootstrap on XRPL mainnet: no faucet, seeds read from --wallet-file, "
+        "reserves printed and a typed confirmation required",
+    )
     init_p.add_argument("--agents", type=int, default=1, help="How many agent keys (default 1)")
     init_p.add_argument("--home", type=Path, default=None, help="Signer keystore directory")
     init_p.add_argument(
         "--wallet-file", type=Path, default=None, help="Where to write seeds (0600)"
+    )
+    init_p.add_argument(
+        "--trust",
+        action="append",
+        default=[],
+        metavar="CODE.issuer",
+        help="A trust line to set before the master key is disabled (repeatable)",
     )
     verify_p = treasury_sub.add_parser("verify", help="Check a treasury's flags and signer list")
     verify_p.add_argument("address", help="Treasury account address")
@@ -539,11 +552,21 @@ def main() -> None:
         from merkl.cli.treasury import init_command, verify_command
 
         if args.treasury_command == "init":
-            if not args.xrpl_testnet:
-                print("only --xrpl-testnet is supported today", file=sys.stderr)
+            from merkl.core.rail import NETWORK_XRPL_MAINNET, NETWORK_XRPL_TESTNET
+
+            if args.xrpl_testnet == args.xrpl_mainnet:
+                print("choose exactly one of --xrpl-testnet and --xrpl-mainnet", file=sys.stderr)
                 raise SystemExit(2)
             raise SystemExit(
-                init_command(home=args.home, agents=args.agents, wallet_file=args.wallet_file)
+                init_command(
+                    home=args.home,
+                    agents=args.agents,
+                    wallet_file=args.wallet_file,
+                    network=(
+                        NETWORK_XRPL_MAINNET if args.xrpl_mainnet else NETWORK_XRPL_TESTNET
+                    ),
+                    trust=tuple(args.trust),
+                )
             )
         if args.treasury_command == "verify":
             raise SystemExit(verify_command(args.address))
