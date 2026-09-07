@@ -52,7 +52,7 @@ class TestHistoryIsWalletFree:
         import inspect
 
         params = inspect.signature(history).parameters
-        assert set(params) == {"treasury", "since", "json_rpc_url"}
+        assert set(params) == {"treasury", "since", "json_rpc_url", "ledger_index_min"}
 
     async def test_the_module_never_imports_a_wallet_or_signing_type(self) -> None:
         import merkl.adapters.xrpl.adapter as module
@@ -127,3 +127,43 @@ class TestHistoryFromARecordedResponse:
         _mock_request(monkeypatch)
         outflows = await history("rSOMEONEELSE0000000000000000000000", json_rpc_url="https://x")
         assert outflows == []
+
+
+class TestHistoryBound:
+    """`ledger_index_min` bounds the account_tx read; unbounded reads -1."""
+
+    async def test_the_bound_reaches_account_tx(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        seen: dict[str, object] = {}
+
+        async def fake_request(self: AsyncJsonRpcClient, request: Any) -> Response:
+            seen["ledger_index_min"] = request.ledger_index_min
+            return Response(
+                status=ResponseStatus.SUCCESS,
+                result={"transactions": []},
+                type=ResponseType.RESPONSE,
+            )
+
+        monkeypatch.setattr(AsyncJsonRpcClient, "request", fake_request)
+
+        await history(TREASURY, json_rpc_url="https://xrpl.example", ledger_index_min=94211337)
+
+        assert seen["ledger_index_min"] == 94211337
+
+    async def test_no_bound_reads_as_far_back_as_the_node_has(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen: dict[str, object] = {}
+
+        async def fake_request(self: AsyncJsonRpcClient, request: Any) -> Response:
+            seen["ledger_index_min"] = request.ledger_index_min
+            return Response(
+                status=ResponseStatus.SUCCESS,
+                result={"transactions": []},
+                type=ResponseType.RESPONSE,
+            )
+
+        monkeypatch.setattr(AsyncJsonRpcClient, "request", fake_request)
+
+        await history(TREASURY, json_rpc_url="https://xrpl.example")
+
+        assert seen["ledger_index_min"] == -1

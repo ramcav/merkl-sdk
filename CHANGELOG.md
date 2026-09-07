@@ -30,6 +30,12 @@ Releases are cut by pushing a `v<version>` tag; see
   print the network. `docs/INTERFACES-P4.md` §2 has the table merkl-api and
   merkl-dashboard build against.
 
+- **`merkl.adapters.xrpl.history(..., ledger_index_min=)`** — bounds the
+  `account_tx` read below instead of asking a full-history node for a treasury's
+  whole life. Optional and unbounded by default, so an existing caller reads
+  exactly what it read before; the notary passes the ledger of its earliest
+  settled receipt (`docs/INTERFACES-P4.md` §7).
+
 ### Changed — phase 9
 
 - **A policy document may no longer carry a rule the engine would never run.**

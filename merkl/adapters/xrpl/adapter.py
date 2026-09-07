@@ -657,9 +657,23 @@ def _decode_currency(code: str) -> str:
     return bytes.fromhex(code).rstrip(b"\x00").decode(errors="replace") or code
 
 
-async def _account_tx(client: AsyncJsonRpcClient, treasury: str) -> Response:
+async def _account_tx(
+    client: AsyncJsonRpcClient, treasury: str, ledger_index_min: int | None = None
+) -> Response:
+    """``account_tx`` for one account, optionally bounded below.
+
+    ``ledger_index_min=-1`` is rippled's "as far back as this server has", which
+    on a full-history node means genesis. A caller that knows when its own
+    interest in the treasury began — the notary does, from its earliest
+    receipt — passes that ledger instead, and reads a window rather than a life.
+    """
     return await client.request(
-        AccountTx(account=treasury, ledger_index_min=-1, ledger_index_max=-1, limit=200)
+        AccountTx(
+            account=treasury,
+            ledger_index_min=-1 if ledger_index_min is None else ledger_index_min,
+            ledger_index_max=-1,
+            limit=200,
+        )
     )
 
 
@@ -707,7 +721,13 @@ def _outflows_since(outflows: Sequence[Outflow], since: str) -> list[Outflow]:
     return [o for o in outflows if o.close_time >= since]
 
 
-async def history(treasury: str, since: str = "", *, json_rpc_url: str) -> Sequence[Outflow]:
+async def history(
+    treasury: str,
+    since: str = "",
+    *,
+    json_rpc_url: str,
+    ledger_index_min: int | None = None,
+) -> Sequence[Outflow]:
     """Read-only rail history for reconciliation (plan D17) — no wallet, no signing.
 
     For a caller that must never hold a signing key — the notary, in
@@ -719,7 +739,11 @@ async def history(treasury: str, since: str = "", *, json_rpc_url: str) -> Seque
     :class:`~merkl.core.policy.state.Outflow` value objects: evidence for
     ``SignerEngine.reconcile`` to compare against state it wrote itself, never
     a decision this function or its caller gets to make.
+
+    ``ledger_index_min`` bounds the read below; ``since`` filters what comes
+    back by close time. Both are optional and unbounded by default, which reads
+    from as far back as the node has.
     """
     client = AsyncJsonRpcClient(json_rpc_url)
-    response = await _account_tx(client, treasury)
+    response = await _account_tx(client, treasury, ledger_index_min)
     return _outflows_since(_outflows_from_response(response, treasury), since)

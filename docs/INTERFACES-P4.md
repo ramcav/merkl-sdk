@@ -448,8 +448,22 @@ outflows = await history(treasury, since, json_rpc_url="https://s.altnet.ripplet
 ```
 
 ```
-async def history(treasury: str, since: str = "", *, json_rpc_url: str) -> Sequence[Outflow]
+async def history(
+    treasury: str,
+    since: str = "",
+    *,
+    json_rpc_url: str,
+    ledger_index_min: int | None = None,   # added in 0.2.0
+) -> Sequence[Outflow]
 ```
+
+`ledger_index_min` bounds the `account_tx` read below; `since` filters what
+comes back by close time. Unbounded by default, which reads from as far back as
+the node has — on a full-history node, genesis. **A caller that knows when its
+own interest in the treasury began should say so**: the notary does, from the
+ledger of its earliest settled receipt, and reads a window instead of a life.
+Pass it only when the installed signature accepts it (`inspect.signature`), the
+same way `history` itself is checked for below.
 
 A module-level function, not a method — it builds its own throwaway
 `AsyncJsonRpcClient` for `json_rpc_url` and closes over nothing that could

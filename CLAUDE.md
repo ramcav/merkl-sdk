@@ -14,7 +14,8 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
   decision flow, JSON-RPC over a Unix socket
 - `merkl.adapters` — the edge: `fake` (in-memory rail), `xrpl` (multisigned
   Payments + treasury bootstrap, plus a module-level `history()` that reads
-  `account_tx` with no wallet — the notary's reconciliation path),
+  `account_tx` with no wallet, bounded below by `ledger_index_min` — the
+  notary's reconciliation path),
   `signer_dev` / `signer_nitro` (SignerPort clients), `nitro` (KMS sealing and
   the CMS envelope it answers with)
 - `ReceiptBuilder` (`merkl/sdk/receipts.py`) — propose → route → co-sign →
