@@ -1,0 +1,94 @@
+# The trading agent, configured. Copy to trader.toml and edit.
+#
+# Two rules about this file:
+#
+#   * no secret is written in it. A key is a path to a file you chmod 0600; a
+#     token is the *name* of an environment variable. Nothing in the agent ever
+#     prints one.
+#   * no money number is a TOML float. Prices and amounts are decimal strings,
+#     because 0.1 + 0.2 is a bug in a payments system.
+#
+# And one thing that is deliberately absent: the policy. The agent is told which
+# policy *version* its intents must name and nothing about what that policy
+# says — no cap, no window, no threshold, no destination list. It finds out by
+# proposing something and being refused. Do not add the rules here.
+
+[agent]
+agent_id = "agent-trader"
+# Ed25519 private key, PEM, chmod 0600. This is the identity the co-signer
+# authenticates. On its own it moves nothing: the treasury is multisigned and
+# the policy key is in the signer.
+#   openssl genpkey -algorithm ed25519 -out agent-ed25519.pem && chmod 600 agent-ed25519.pem
+key_file = "~/.merkl/trader/agent-ed25519.pem"
+# The standing instruction. Its hash is leaf 0 of every receipt this agent files,
+# so changing it changes the record from that point on — which is the point.
+mandate = """
+Trade the treasury's XRP against RLUSD on the XRP Ledger's own book. Keep enough
+XRP to pay your weekly compute bill. Prefer doing nothing to trading on a thin
+book or a wide spread.
+"""
+
+[treasury]
+address = "rTREASURYADDRESSGOESHERE00000000000"
+# The version string every intent must name. Which document that is, and what it
+# says, is between your admin and the signer.
+policy_version = "2026.09.1"
+# The wallet file `merkl treasury init` wrote. Holds seeds; chmod 0600. The agent
+# reads one wallet out of it to co-sign, and never prints any of it.
+wallet_file = "~/.merkl/trader/treasury.wallets.json"
+wallet_name = "agent-0"
+
+[rail]
+json_rpc_url = "https://xrplcluster.com"
+# Used to capture validator signatures across a submit, which is what lets a
+# reader establish ledger inclusion offline. Omit it and receipts still verify,
+# with ledger inclusion reported as unchecked.
+websocket_url = "wss://xrplcluster.com"
+
+[market]
+base = "XRP"
+quote_code = "RLUSD"
+quote_issuer = "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De"
+# Sizes, in the base asset, to walk the book at. What the agent is shown is what
+# each size would actually cost after eating the offers, not the top of book.
+depths = ["10", "100", "500"]
+# One external reference price, and its source stated plainly. It is allowed to
+# be down: a cycle where it is missing still runs, and the model is told it is
+# missing rather than shown a guess.
+reference_url = "https://api.coinbase.com/v2/prices/XRP-USD/spot"
+reference_path = "data.amount"
+reference_source = "coinbase spot XRP-USD"
+
+[signer]
+# The co-signer that holds the policy key. HTTPS in production; a Unix socket is
+# better still where the two processes share a host.
+url = "https://signer.internal.example:8787"
+# Relay bearer token, chmod 0600. It bounds who may call the signer's non-propose
+# methods. It moves no funds and it is never printed.
+token_file = "~/.merkl/trader/relay-token.txt"
+
+[notary]
+url = "https://api.merkl.ai"
+# The *name* of the environment variable holding the API key, not the key.
+api_key_env = "MERKL_API_KEY"
+
+[model]
+name = "claude-sonnet-5"
+api_key_env = "ANTHROPIC_API_KEY"
+max_tokens = 4096
+# What the agent charges itself per million tokens. Set these to what you
+# actually pay; they are the only input to the compute bill.
+usd_per_million_input = "2.00"
+usd_per_million_output = "10.00"
+
+[loop]
+interval_seconds = 900
+# journal.md, journal.jsonl, state.json and receipts/ all live here.
+home = "~/.merkl/trader"
+
+[bill]
+# Once a week the agent proposes to pay the operator for the tokens it burned,
+# converted at the price it can see. If that payment is refused, or the treasury
+# cannot cover it, the agent writes "out of business" and exits non-zero.
+bill_day = "monday"
+operator = "rOPERATORADDRESSGOESHERE00000000000"
