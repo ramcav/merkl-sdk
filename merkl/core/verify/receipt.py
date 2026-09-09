@@ -213,17 +213,23 @@ def _member(content: JSONValue, key: str) -> Any:
     return content.get(key) if isinstance(content, Mapping) else None
 
 
+def _currency_word(currency: JSONValue) -> str:
+    if isinstance(currency, str):
+        return currency
+    if isinstance(currency, Mapping):
+        return str(currency.get("code", "?"))
+    return "?"
+
+
 def _amount_words(intent: JSONValue) -> str:
+    """What this intent moves, in words. A trade's outflow is its sell ceiling."""
+    if _member(intent, "type") == "swap":
+        sell = _member(intent, "sell")
+        ceiling = _member(sell, "max_amount") or "?"
+        return f"up to {ceiling} {_currency_word(_member(sell, 'currency'))}"
     amount = _member(intent, "amount")
     value = _member(amount, "value") or "?"
-    currency = _member(amount, "currency")
-    if isinstance(currency, str):
-        code = currency
-    elif isinstance(currency, Mapping):
-        code = str(currency.get("code", "?"))
-    else:
-        code = "?"
-    return f"{value} {code}"
+    return f"{value} {_currency_word(_member(amount, 'currency'))}"
 
 
 def _summarize(
@@ -295,7 +301,21 @@ def _summarize(
         approved = "No person was asked: the policy allowed it outright."
 
     settled = None
-    if isinstance(settlement, Mapping):
+    if isinstance(settlement, Mapping) and _member(intent, "type") == "swap":
+        buy = _member(intent, "buy")
+        spent = _member(result, "spent")
+        cost = (
+            f"{spent.get('value')} {_currency_word(spent.get('currency'))}"
+            if isinstance(spent, Mapping)
+            else _amount_words(intent)
+        )
+        settled = (
+            f"The treasury bought {_member(buy, 'amount') or '?'} "
+            f"{_currency_word(_member(buy, 'currency'))} for {cost} on "
+            f"{settlement.get('rail', envelope.rail)}, transaction "
+            f"{str(settlement.get('tx_hash', ''))[:16]}…"
+        )
+    elif isinstance(settlement, Mapping):
         destination = _member(intent, "destination") or "?"
         settled = (
             f"{_amount_words(intent)} went to {destination} on "

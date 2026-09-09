@@ -51,7 +51,7 @@ from typing import Any, Final
 
 from merkl.core.canonical import JSONObject, format_instant, parse_decimal, shift_instant
 from merkl.core.checks import VerificationResult
-from merkl.core.intent import Intent
+from merkl.core.intent import Intent, currency_code
 from merkl.core.policy.approvals import ApprovalAssertion
 from merkl.core.rail import (
     ANCHOR_PLACEHOLDER_HEX,
@@ -411,7 +411,9 @@ class ReceiptBuilder:
             result=Result(
                 outcome=ResultOutcome.SETTLED.value,
                 engine_result=ref.engine_result,
-                balance_deltas=_deltas(intent),
+                balance_deltas=_deltas(intent, ref),
+                delivered=ref.delivered,
+                spent=ref.spent,
             ),
             reasoning=reasoning,
         )
@@ -603,17 +605,43 @@ def _display_name(receipt: Receipt) -> str:
     intent = receipt.leaves.intent
     if intent is None:  # pragma: no cover - every receipt has leaf 1
         return "Payment"
-    return f"Pay {intent.amount.value} to {intent.destination[:12]}…"
+    if intent.is_swap:
+        buy, sell = intent.deliver_amount, intent.outflow
+        return f"Buy {buy.value} {currency_code(buy.currency)} for up to {sell.value}"
+    return f"Pay {intent.outflow.value} to {intent.destination[:12]}…"
 
 
-def _deltas(intent: Intent) -> tuple[BalanceDelta, ...]:
-    """The money that moved, as signed decimal strings. Never a float."""
-    amount: Decimal = parse_decimal(intent.amount.value, "amount")
+def _deltas(intent: Intent, settled: SettlementRef | None = None) -> tuple[BalanceDelta, ...]:
+    """The money that moved, as signed decimal strings. Never a float.
+
+    A trade's two sides land on the same account — the treasury sold one asset
+    and bought another — and both come from what the rail *reported*, never from
+    the intent's ceiling: the sell side is what was actually spent. When the rail
+    did not report them there are no deltas to state, and the leaf carries none
+    rather than a plausible number.
+    """
+    if intent.is_swap:
+        delivered = settled.delivered if settled else None
+        spent = settled.spent if settled else None
+        if delivered is None or spent is None:
+            return ()
+        return (
+            BalanceDelta(
+                account=intent.treasury,
+                currency=spent.currency,
+                value=f"-{parse_decimal(spent.value, 'spent')}",
+            ),
+            BalanceDelta(
+                account=intent.treasury,
+                currency=delivered.currency,
+                value=str(parse_decimal(delivered.value, "delivered")),
+            ),
+        )
+    amount: Decimal = parse_decimal(intent.outflow.value, "amount")
+    currency = intent.outflow.currency
     return (
-        BalanceDelta(account=intent.treasury, currency=intent.amount.currency, value=f"-{amount}"),
-        BalanceDelta(
-            account=intent.destination, currency=intent.amount.currency, value=str(amount)
-        ),
+        BalanceDelta(account=intent.treasury, currency=currency, value=f"-{amount}"),
+        BalanceDelta(account=intent.destination, currency=currency, value=str(amount)),
     )
 
 

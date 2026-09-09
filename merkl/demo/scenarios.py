@@ -17,25 +17,42 @@ worth much.
 3  over-threshold approval   two of three people sign the challenge, then it settles
 4  structuring               small payments, none over a cap, adding up past the window
 5  reference mismatch        right supplier, right amount, wrong invoice
+6  the agent trades          a trade inside the cap settles; an oversize one and one
+                             in an asset it may not hold do not
 ```
+
+Scenario 6 needs a *book* — a price at which one asset becomes another. The
+in-memory rail has one, configured and deterministic. The public XRPL testnet
+has no reliable liquidity in any pair, and a demo that minted its own issuer and
+placed its own offers would be demonstrating the demo rather than the signer, so
+:func:`run_all` skips it on an environment that says it has no book, by name and
+with a reason, rather than pretending.
 """
 
 from __future__ import annotations
 
 import dataclasses
 from collections.abc import Awaitable, Callable, Sequence
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Final, Protocol
 
-from merkl.core.intent import CurrencyRef, Reference
+from merkl.core.intent import CurrencyRef, IssuedCurrency, Reference
 from merkl.core.policy.approvals import ApprovalAssertion
-from merkl.core.policy.document import PolicyDocument
-from merkl.core.policy.engine import RULE_DESTINATION, RULE_REFERENCE, RULE_WINDOW
+from merkl.core.policy.document import PolicyDocument, asset_key
+from merkl.core.policy.engine import (
+    RULE_ASSET,
+    RULE_DESTINATION,
+    RULE_PER_TX_CAP,
+    RULE_REFERENCE,
+    RULE_WINDOW,
+)
 from merkl.core.receipt import PolicyOutcome, ResultOutcome
 from merkl.demo.rig import (
     ATTACKER,
     RLUSD,
     SUPPLIER,
+    XRP,
     Rig,
     approvals_for,
     build_policy,
@@ -47,6 +64,16 @@ from merkl.shared.errors import MerklError
 
 STRUCTURING_LIMIT: Final = 8
 """How many payments the structuring scenario will try before giving up."""
+
+TRADE_RATE: Final = Decimal("0.4925")
+"""The in-memory book: RLUSD sold per XRP bought. One number, so a run replays."""
+
+TRADE_SELL: Final = "100.00"
+TRADE_BUY: Final = "200"
+OVERSIZE_SELL: Final = "5000.00"
+OVERSIZE_BUY: Final = "10000"
+FORBIDDEN: Final = IssuedCurrency(code="EURC", issuer="rEURCISSUER00000000000000000000000")
+"""An asset the trading policy does not allowlist. Real enough to ask for."""
 
 
 class ScenarioError(MerklError):
@@ -105,6 +132,13 @@ class Environment(Protocol):
     def rig(self, name: str, policy: PolicyDocument | None = None) -> Rig:
         """A signer with fresh state, for one scenario."""
 
+    @property
+    def has_book(self) -> bool:
+        """Whether this rail can price one asset in another, so a trade can fill."""
+
+    def trading_rig(self, name: str) -> Rig:
+        """A signer whose policy grants may_swap, against a rail with a book."""
+
 
 @dataclasses.dataclass
 class FakeEnvironment:
@@ -125,6 +159,29 @@ class FakeEnvironment:
 
     def rig(self, name: str, policy: PolicyDocument | None = None) -> Rig:
         return build_rig(self.home / name, policy=policy or self.policy())
+
+    @property
+    def has_book(self) -> bool:
+        return True
+
+    def trading_rig(self, name: str) -> Rig:
+        """The trading policy: may_swap, two assets, and no invoice to reference.
+
+        A trade has nothing to reference — there is no supplier and no document,
+        only a price — so the reference binding that guards this agent's payments
+        is off in the section that lets it trade.
+        """
+        policy = self.policy(
+            may_swap=True,
+            other_asset=XRP,
+            reference_required=False,
+            reference_hashes=(),
+        )
+        return build_rig(
+            self.home / name,
+            policy=policy,
+            rates={(asset_key(self.asset), asset_key(XRP)): TRADE_RATE},
+        )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -157,6 +214,9 @@ class Scenario:
     run: Callable[[Environment], Awaitable[ScenarioResult]]
     expect: tuple[str, ...]
     """The policy outcomes, in order. A scenario whose story changed fails here."""
+
+    needs_book: bool = False
+    """Whether this scenario needs a rail that can price one asset in another."""
 
 
 class _Queue:
@@ -392,6 +452,77 @@ async def reference_mismatch(env: Environment) -> ScenarioResult:
     )
 
 
+# -- 6. the agent trades ------------------------------------------------------ #
+
+
+async def agent_trades(env: Environment) -> ScenarioResult:
+    """The agent is free to trade. The policy it cannot change bounds every trade."""
+    rig = env.trading_rig("trading")
+    inside = await rig.builder.execute(
+        instruction=rig.instruction("put idle RLUSD into XRP"),
+        intent=rig.swap_intent(
+            sell=TRADE_SELL, buy=TRADE_BUY, sell_asset=env.asset, buy_asset=XRP
+        ),
+        reasoning=rig.reasoning("the book quoted better than the desk"),
+    )
+    require(inside.outcome == PolicyOutcome.ALLOW.value, f"denied: {inside.reason}")
+    require(inside.settled, "a trade inside the cap must reach the rail")
+    settlement = inside.receipt.leaves.settlement
+    require(
+        settlement is not None and settlement.observed_anchor == inside.envelope.left.hex(),
+        "a trade anchors its authorization exactly as a payment does",
+    )
+    result = inside.receipt.leaves.result
+    require(
+        result is not None and result.spent is not None and result.delivered is not None,
+        "a settled trade records what it bought and what it cost",
+    )
+    assert result is not None and result.spent is not None  # narrowed by require()
+    require(
+        result.spent.decimal <= Decimal(TRADE_SELL),
+        "the ledger may never spend more than the ceiling the policy bounded",
+    )
+
+    rig.clock.advance(60)
+    oversize = await rig.builder.execute(
+        instruction=rig.instruction("put everything into XRP"),
+        intent=rig.swap_intent(
+            sell=OVERSIZE_SELL, buy=OVERSIZE_BUY, sell_asset=env.asset, buy_asset=XRP
+        ),
+        reasoning=rig.reasoning("the book looked good enough to size up"),
+    )
+    require(oversize.outcome == PolicyOutcome.DENY.value, "an oversize trade must be refused")
+    require(not oversize.settled, "nothing may reach the rail")
+    require(RULE_PER_TX_CAP in _failed_rules(oversize), "the cap rule must fail")
+
+    rig.clock.advance(60)
+    forbidden = await rig.builder.execute(
+        instruction=rig.instruction("rotate into euros"),
+        intent=rig.swap_intent(
+            sell=TRADE_SELL, buy=TRADE_BUY, sell_asset=env.asset, buy_asset=FORBIDDEN
+        ),
+        reasoning=rig.reasoning("the euro line looked cheap"),
+    )
+    require(forbidden.outcome == PolicyOutcome.DENY.value, "an unallowed asset must be refused")
+    require(RULE_ASSET in _failed_rules(forbidden), "the asset rule must fail on the buy side")
+
+    return ScenarioResult(
+        name="agent-trades",
+        title="The agent trades, inside a policy it cannot change",
+        question="Can an agent be free to trade and still be bounded?",
+        outcomes=(inside, oversize, forbidden),
+        rig=rig,
+        notes=(
+            "The sold side is the outflow. A trade is capped, windowed and escalated by "
+            "the same arithmetic a payment is — the sell ceiling is what the policy bounds.",
+            "The ledger delivers exactly what was bought or the transaction fails, so the "
+            "limit price is enforced by the chain and the receipt records what it cost.",
+            "Both sides of the trade have to be assets the agent may hold. Buying one it "
+            "may not hold moves the treasury somewhere the policy never allowed.",
+        ),
+    )
+
+
 SCENARIOS: Final[tuple[Scenario, ...]] = (
     Scenario(
         name="benign-payment",
@@ -428,6 +559,14 @@ SCENARIOS: Final[tuple[Scenario, ...]] = (
         run=reference_mismatch,
         expect=("deny", "allow"),
     ),
+    Scenario(
+        name="agent-trades",
+        title="The agent trades, inside a policy it cannot change",
+        question="Can an agent be free to trade and still be bounded?",
+        run=agent_trades,
+        expect=("allow", "deny", "deny"),
+        needs_book=True,
+    ),
 )
 
 
@@ -439,9 +578,20 @@ async def run_scenario(scenario: Scenario, env: Environment) -> ScenarioResult:
     return result
 
 
+def supported(env: Environment) -> tuple[Scenario, ...]:
+    """The scenarios this environment can actually run, in order.
+
+    A scenario a rail cannot support is left out here rather than faked inside
+    it: the demo's whole claim is that the same story reaches the same verdict on
+    every rail, and a trade against a rail with no book would be a story about
+    nothing.
+    """
+    return tuple(s for s in SCENARIOS if not s.needs_book or env.has_book)
+
+
 async def run_all(env: Environment) -> list[ScenarioResult]:
-    """All five, in order, each with its own signer state."""
-    return [await run_scenario(scenario, env) for scenario in SCENARIOS]
+    """Every scenario this environment supports, in order, each with fresh state."""
+    return [await run_scenario(scenario, env) for scenario in supported(env)]
 
 
 __all__ = [
@@ -457,8 +607,10 @@ __all__ = [
     "benign_payment",
     "injection_drain",
     "over_threshold_approval",
+    "agent_trades",
     "reference_mismatch",
     "run_all",
+    "supported",
     "require",
     "run_scenario",
     "structuring",

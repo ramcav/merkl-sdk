@@ -22,15 +22,15 @@
       "file": "policies.json"
     },
     {
-      "cases": 4,
+      "cases": 6,
       "file": "receipts.json"
     },
     {
-      "cases": 6,
+      "cases": 8,
       "file": "verdicts.json"
     },
     {
-      "cases": 4,
+      "cases": 6,
       "file": "cards.json"
     },
     {

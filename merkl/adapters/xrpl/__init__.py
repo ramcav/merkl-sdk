@@ -20,9 +20,12 @@ from merkl.adapters.xrpl.adapter import (
     to_xrpl_amount,
 )
 from merkl.adapters.xrpl.bootstrap import (
+    Reserves,
     TreasurySetup,
+    TrustLine,
     bootstrap_treasury,
     load_wallets,
+    read_reserves,
     verify_treasury,
 )
 
@@ -32,13 +35,16 @@ __all__ = [
     "TESTNET_JSON_RPC",
     "TESTNET_UNL_URL",
     "TESTNET_WEBSOCKET",
+    "Reserves",
     "TreasurySetup",
+    "TrustLine",
     "XrplAdapterError",
     "XrplSettlementAdapter",
     "bootstrap_treasury",
     "currency_code",
     "history",
     "load_wallets",
+    "read_reserves",
     "ripple_time",
     "signer_address",
     "to_xrpl_amount",

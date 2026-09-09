@@ -22,7 +22,7 @@ NODE_MISSING = shutil.which("node") is None
 
 
 class TestWritePages:
-    async def test_five_pages_are_written_in_order(self, tmp_path: Path) -> None:
+    async def test_every_page_is_written_in_order(self, tmp_path: Path) -> None:
         env = FakeEnvironment(home=tmp_path / "rig")
         results = await run_all(env)
         reports = write_pages(results, tmp_path / "out", rail="fake")
@@ -33,6 +33,7 @@ class TestWritePages:
             "3-over-threshold-approval.html",
             "4-structuring.html",
             "5-reference-mismatch.html",
+            "6-agent-trades.html",
         ]
         for r in reports:
             assert r.page.exists()

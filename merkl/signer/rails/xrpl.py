@@ -16,10 +16,20 @@ so the prefix and suffix come off before decoding.
 
 Every field is on an allowlist. XRPL has several ways to make a Payment deliver
 something other than `Amount` to `Destination` — `SendMax`, `DeliverMin`, `Paths`
-and `tfPartialPayment` between them — and Intent v1 expresses none of them, so
-their *presence* is the finding. `DestinationTag` is on the same footing: an
+and `tfPartialPayment` between them. `DestinationTag` is on the same footing: an
 exchange treats it as part of the address, and an intent that does not name one
-must not settle with one.
+must not settle with one. A payment intent expresses none of these, so for a
+payment their *presence* is the finding.
+
+A `swap` intent expresses exactly one of them, and only one. A trade is a
+cross-currency Payment to self: `Destination == Account`, `Amount` is the buy
+side, `SendMax` is the sell ceiling, and the ledger delivers exactly `Amount`
+for at most `SendMax` or the transaction fails. So the swap branch — and only
+the swap branch — puts `SendMax` on the allowlist, holds it against
+`sell.max_amount`, and requires `Destination` to be the treasury. `Paths`,
+`DeliverMin`, `DestinationTag` and `tfPartialPayment` stay findings for both
+shapes: a partial fill, a routed path or a tag would each make the settled
+transaction something other than the trade the policy bounded.
 
 Issued amounts need one piece of care. XRPL normalises an issued amount's
 mantissa, so `"250.00"` comes back as `"250"`. The comparison is therefore
@@ -37,7 +47,7 @@ from xrpl.core.binarycodec import decode
 from xrpl.utils import xrp_to_drops
 
 from merkl.core.canonical import parse_decimal
-from merkl.core.intent import Intent, IssuedCurrency
+from merkl.core.intent import Amount, Intent, IssuedCurrency, currency_code
 from merkl.core.rail import (
     ANCHOR_PLACEHOLDER_HEX,
     MEMO_AGENT_TYPE,
@@ -89,7 +99,10 @@ ALLOWED_FIELDS: Final[frozenset[str]] = frozenset(
         "SourceTag",
     }
 )
-"""Everything Intent v1 can account for. Anything else is a finding, not a detail."""
+"""Everything a payment intent can account for. Anything else is a finding."""
+
+SWAP_FIELDS: Final[frozenset[str]] = ALLOWED_FIELDS | {"SendMax"}
+"""A swap adds exactly one field, and nothing else: the sell ceiling."""
 
 TF_FULLY_CANONICAL_SIG: Final = 0x80000000
 """The one flag with no effect on where the money goes."""
@@ -145,7 +158,8 @@ class XrplPayloadCodec:
             return [f"the payload does not decode as an XRPL transaction: {exc}"]
 
         found: list[str] = []
-        unknown = sorted(set(tx) - ALLOWED_FIELDS)
+        allowed = SWAP_FIELDS if intent.is_swap else ALLOWED_FIELDS
+        unknown = sorted(set(tx) - allowed)
         if unknown:
             found.append(f"the transaction carries fields Intent v1 cannot account for: {unknown}")
 
@@ -159,8 +173,15 @@ class XrplPayloadCodec:
             found.append(
                 f"Destination is {tx.get('Destination')!r}, the intent pays {intent.destination!r}"
             )
+        if intent.is_swap and tx.get("Destination") != tx.get("Account"):
+            found.append(
+                f"Destination is {tx.get('Destination')!r} and Account is {tx.get('Account')!r}; "
+                "a trade converts inside the treasury, so they must be the same account"
+            )
 
-        found.extend(self._amount_problems(tx.get("Amount"), intent))
+        found.extend(self._amount_problems(tx.get("Amount"), intent.deliver_amount, "Amount"))
+        if intent.is_swap:
+            found.extend(self._amount_problems(tx.get("SendMax"), intent.outflow, "SendMax"))
         found.extend(self._flag_problems(tx.get("Flags")))
         found.extend(self._network_problems(tx.get("NetworkID")))
         found.extend(self._source_tag_problems(tx.get("SourceTag"), source_tag))
@@ -168,6 +189,7 @@ class XrplPayloadCodec:
             self._memo_problems(
                 tx.get("Memos"),
                 commitment,
+                action=intent.type,
                 agent_id=agent_id,
                 session_id=session_id,
                 task_id=task_id,
@@ -204,38 +226,46 @@ class XrplPayloadCodec:
             ]
         return []
 
-    def _amount_problems(self, amount: Any, intent: Intent) -> list[str]:
-        currency = intent.amount.currency
-        wanted = parse_decimal(intent.amount.value, "intent.amount.value")
+    def _amount_problems(self, amount: Any, expected_amount: Amount, field: str) -> list[str]:
+        """One XRPL amount field against one amount the intent names.
+
+        Shared by ``Amount`` and a swap's ``SendMax`` so the two are read by the
+        same rules: same currency form, same issuer, same numeric comparison.
+        """
+        currency = expected_amount.currency
+        wanted = parse_decimal(expected_amount.value, f"intent.{field}.value")
+
+        if amount is None:
+            return [f"{field} is missing; the intent names {wanted} {currency_code(currency)}"]
 
         if isinstance(currency, IssuedCurrency):
             if not isinstance(amount, dict):
-                return [f"Amount is drops, the intent is {currency.code}"]
+                return [f"{field} is drops, the intent is {currency.code}"]
             code = str(amount.get("currency", ""))
             if code.upper() != _currency_code(currency.code):
                 return [
-                    f"Amount currency is {code!r}, the intent is {currency.code!r} "
+                    f"{field} currency is {code!r}, the intent is {currency.code!r} "
                     f"({_currency_code(currency.code)})"
                 ]
             if amount.get("issuer") != currency.issuer:
                 return [
-                    f"Amount issuer is {amount.get('issuer')!r}, the intent names "
+                    f"{field} issuer is {amount.get('issuer')!r}, the intent names "
                     f"{currency.issuer!r}"
                 ]
             try:
                 # XRPL normalises an issued mantissa: "250.00" comes back as "250".
                 delivered = Decimal(str(amount.get("value", "")))
             except Exception:
-                return [f"Amount value {amount.get('value')!r} is not a number"]
+                return [f"{field} value {amount.get('value')!r} is not a number"]
             if delivered != wanted:
-                return [f"Amount is {delivered} {currency.code}, the intent is {wanted}"]
+                return [f"{field} is {delivered} {currency.code}, the intent is {wanted}"]
             return []
 
         if isinstance(amount, dict):
-            return [f"Amount is an issued currency, the intent is {currency}"]
+            return [f"{field} is an issued currency, the intent is {currency}"]
         expected = str(xrp_to_drops(wanted))
         if str(amount) != expected:
-            return [f"Amount is {amount} drops, the intent is {expected} drops"]
+            return [f"{field} is {amount} drops, the intent is {expected} drops"]
         return []
 
     def _flag_problems(self, flags: Any) -> list[str]:
@@ -267,6 +297,7 @@ class XrplPayloadCodec:
         memos: Any,
         commitment: str | None,
         *,
+        action: str,
         agent_id: str | None,
         session_id: str | None,
         task_id: str | None,
@@ -321,8 +352,8 @@ class XrplPayloadCodec:
         for key in ("action", "agent_id", "session_id", "task_id"):
             if key not in parsed:
                 problems.append(f"the agent memo is missing {key}")
-        if parsed.get("action") != "payment":
-            problems.append(f"the agent memo action is {parsed.get('action')!r}, not 'payment'")
+        if parsed.get("action") != action:
+            problems.append(f"the agent memo action is {parsed.get('action')!r}, not {action!r}")
         if agent_id and parsed.get("agent_id") != agent_id:
             problems.append(
                 f"the agent memo names {parsed.get('agent_id')!r}, the request is {agent_id}"

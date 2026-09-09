@@ -30,7 +30,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from merkl.core.canonical import JSONObject, format_decimal, parse_decimal, parse_instant
 from merkl.core.crypto import ed25519_verify, tagged
-from merkl.core.intent import CurrencyRef, Intent, currency_from_content
+from merkl.core.intent import Amount, CurrencyRef, Intent, currency_from_content
 from merkl.core.merkle import MerkleTree
 from merkl.core.policy.document import asset_key
 from merkl.core.policy.state import Outflow
@@ -122,6 +122,18 @@ class FakeLedger:
     validators: tuple[FakeValidator, ...] = dataclasses.field(default_factory=validator_set)
     """Who signs closed ledgers. A verifier pins these; the proof never names them."""
 
+    rates: dict[tuple[str, str], Decimal] = dataclasses.field(default_factory=dict)
+    """The book, as ``(sold asset, bought asset) -> units sold per unit bought``.
+
+    One number rather than an order book because a scenario needs a *price*, not
+    a market: the interesting behaviour is what the policy does with the cost,
+    and a configured rate makes that replay byte-identically offline. An asset
+    pair with no rate has no book, and a trade in it fails the way an unfunded
+    payment does."""
+
+    def rate(self, sold: str, bought: str) -> Decimal | None:
+        return self.rates.get((sold, bought))
+
     def credit(self, account: str, asset: str, value: str) -> None:
         key = (account, asset)
         self.balances[key] = self.balances.get(key, Decimal(0)) + parse_decimal(value, "value")
@@ -171,11 +183,13 @@ class FakeSettlementAdapter:
         fields: JSONObject = {
             "account": intent.treasury,
             "destination": intent.destination,
-            "amount": intent.amount.to_content(),
+            "amount": intent.deliver_amount.to_content(),
             "memo_type": MEMO_TYPE,
             "sequence": sequence,
             "fee": "10",
         }
+        if intent.is_swap:
+            fields["send_max"] = intent.outflow.to_content()
         prefix = tagged(FAKE_TX_TAG, canonical_bytes(fields)) + b"\x00"
         payload = prefix + bytes.fromhex(commitment)
         return UnsignedTx(
@@ -240,24 +254,31 @@ class FakeSettlementAdapter:
         destination = str(fields["destination"])
         amount = fields["amount"]
         assert isinstance(amount, dict)
-        value = str(amount["value"])
-        asset = asset_key(_currency(amount))
-        if parse_decimal(self._ledger.balance(account, asset), "balance") < parse_decimal(
-            value, "value"
-        ):
-            raise FakeRailError(f"{account} does not hold {value} {asset}", "tecUNFUNDED_PAYMENT")
+        bought = Amount.from_content(amount)
+        send_max = fields.get("send_max")
+        delivered, spent = self._fill(account, bought, send_max)
+        asset = asset_key(spent.currency)
+
+        if parse_decimal(self._ledger.balance(account, asset), "balance") < spent.decimal:
+            raise FakeRailError(
+                f"{account} does not hold {spent.value} {asset}", "tecUNFUNDED_PAYMENT"
+            )
 
         self._ledger.ledger_index += 1
         close_time = self._clock.now()  # type: ignore[attr-defined]
-        self._ledger.credit(account, asset, f"-{value}")
-        self._ledger.credit(destination, asset, value)
+        self._ledger.credit(account, asset, f"-{spent.value}")
+        self._ledger.credit(
+            destination if send_max is None else account,
+            asset_key(delivered.currency),
+            delivered.value,
+        )
 
         tx_hash = fake_tx_id(bytes.fromhex(signed.blob))
         outflow = Outflow(
             tx_hash=tx_hash,
             treasury=account,
             destination=destination,
-            value=value,
+            value=spent.value,
             asset=asset,
             ledger_index=self._ledger.ledger_index,
             close_time=close_time,
@@ -274,6 +295,8 @@ class FakeSettlementAdapter:
             ].hex(),
             signed_tx_blob=signed.blob,
             engine_result="tesSUCCESS",
+            delivered=delivered,
+            spent=spent,
         )
         self._proofs[tx_hash] = self._build_proof(ref, signed)
         return ref
@@ -291,6 +314,36 @@ class FakeSettlementAdapter:
         ]
 
     # -- helpers ----------------------------------------------------------- #
+
+    def _fill(self, account: str, bought: Amount, send_max: object) -> tuple[Amount, Amount]:
+        """What arrives and what leaves. For a payment they are the same amount.
+
+        A trade is filled at the ledger's configured rate, all-or-nothing: the
+        cost of exactly ``bought`` is computed, and if it is above the ceiling
+        the transaction fails rather than delivering less — the same guarantee
+        XRPL gives a cross-currency Payment with no ``tfPartialPayment``. The
+        ceiling is therefore enforced by the rail, and the policy only ever had
+        to bound it.
+        """
+        if send_max is None:
+            return bought, bought
+        if not isinstance(send_max, dict):  # pragma: no cover - prepare builds this
+            raise FakeRailError("send_max is not an amount object", "temMALFORMED")
+        ceiling = Amount.from_content(send_max)
+        rate = self._ledger.rate(asset_key(ceiling.currency), asset_key(bought.currency))
+        if rate is None:
+            raise FakeRailError(
+                f"no book between {asset_key(ceiling.currency)} and {asset_key(bought.currency)}",
+                "tecPATH_DRY",
+            )
+        cost = Amount.from_decimal(bought.decimal * rate, ceiling.currency)
+        if cost.decimal > ceiling.decimal:
+            raise FakeRailError(
+                f"{bought.value} {asset_key(bought.currency)} costs {cost.value}, above the "
+                f"{ceiling.value} ceiling",
+                "tecPATH_PARTIAL",
+            )
+        return bought, cost
 
     def _build_proof(self, ref: SettlementRef, signed: SignedTx) -> SettlementProof:
         """A proof shaped like the real one, and complete the way a real one is not.

@@ -54,6 +54,7 @@ _SOURCE_WORDS: Final[dict[str, str]] = {
 _RULE_NAMES: Final[dict[str, str]] = {
     "destination_allowlist": "destination not on allowlist",
     "asset_allowlist": "asset not on allowlist",
+    "may_swap": "the agent may not trade",
     "per_tx_cap": "over the per-transaction cap",
     "sliding_window": "over the sliding-window cap",
     "reference_binding": "reference mismatch",
@@ -74,17 +75,114 @@ def _member(content: JSONValue, key: str) -> Any:
     return content.get(key) if isinstance(content, Mapping) else None
 
 
+def _currency_word(currency: JSONValue) -> str:
+    if isinstance(currency, str):
+        return currency
+    if isinstance(currency, Mapping):
+        return str(currency.get("code", "?"))
+    return "?"
+
+
 def _amount_words(intent: JSONValue) -> str:
     amount = _member(intent, "amount")
     value = _member(amount, "value") or "?"
-    currency = _member(amount, "currency")
-    if isinstance(currency, str):
-        code = currency
-    elif isinstance(currency, Mapping):
-        code = str(currency.get("code", "?"))
-    else:
-        code = "?"
-    return f"{value} {code}"
+    return f"{value} {_currency_word(_member(amount, 'currency'))}"
+
+
+def _swap_lines(intent: JSONValue, result: JSONValue, *, settled: bool) -> list[CardLine]:
+    """The lines a trade puts on a card, before the who and the when.
+
+    Settled, a trade is read as three facts: what arrived, what it cost against
+    the limit that was authorized, and the price those two imply. Refused, there
+    is only what was asked — a limit and a target, with no price, because nothing
+    was quoted and nothing was filled.
+    """
+    sell, buy = _member(intent, "sell"), _member(intent, "buy")
+    sell_code = _currency_word(_member(sell, "currency"))
+    buy_code = _currency_word(_member(buy, "currency"))
+    ceiling = str(_member(sell, "max_amount") or "?")
+    bought = str(_member(buy, "amount") or "?")
+    if not settled:
+        return [CardLine("Asked", f"to buy {bought} {buy_code} for up to {ceiling} {sell_code}")]
+
+    spent = _member(result, "spent")
+    spent_value = str(spent.get("value") or "") if isinstance(spent, Mapping) else ""
+    lines = [
+        CardLine("Bought", f"{bought} {buy_code}"),
+        CardLine(
+            "Sold",
+            f"{spent_value} {sell_code} (limit {ceiling} {sell_code})"
+            if spent_value
+            else f"not stated (limit {ceiling} {sell_code})",
+        ),
+    ]
+    rate = rate_string(spent_value, bought) if spent_value else None
+    if rate is not None:
+        lines.append(CardLine("Rate", f"{rate} {sell_code}/{buy_code}"))
+    return lines
+
+
+RATE_DIGITS: Final = 6
+"""Significant digits a rendered rate carries. Six, in both implementations."""
+
+
+def _split_decimal(value: str) -> tuple[int, int]:
+    """A canonical decimal string as ``(mantissa, scale)``: ``"2.50" -> (250, 2)``."""
+    whole, _, fraction = value.partition(".")
+    return int(whole + fraction or "0"), len(fraction)
+
+
+def _round_half_even(numerator: int, denominator: int) -> int:
+    """``numerator / denominator`` to the nearest integer, ties to even. Integers only."""
+    quotient, remainder = divmod(numerator, denominator)
+    twice = remainder * 2
+    if twice > denominator or (twice == denominator and quotient % 2):
+        return quotient + 1
+    return quotient
+
+
+def rate_string(spent: str, bought: str) -> str | None:
+    """``spent / bought`` as a decimal string of at most six significant digits.
+
+    Integer arithmetic end to end — the two decimal strings become a fraction and
+    the fraction is rounded once, half to even — so ``@merkl-ai/verify`` computes
+    the same digits from the same two strings without a decimal library and
+    without ever touching a float. Trailing fractional zeros are stripped and the
+    result is never in scientific notation, because this number is read by a
+    person on a receipt.
+
+    ``None`` when either side is zero: a rate with no denominator is not a rate,
+    and a card says nothing rather than something shaped like a number.
+    """
+    numerator, spent_scale = _split_decimal(spent)
+    denominator, bought_scale = _split_decimal(bought)
+    if numerator <= 0 or denominator <= 0:
+        return None
+    numerator *= 10**bought_scale
+    denominator *= 10**spent_scale
+
+    exponent = len(str(numerator)) - len(str(denominator))
+    shift = RATE_DIGITS - exponent
+    for _ in range(3):
+        if shift >= 0:
+            digits = _round_half_even(numerator * 10**shift, denominator)
+        else:
+            digits = _round_half_even(numerator, denominator * 10**-shift)
+        length = len(str(digits))
+        if length == RATE_DIGITS:
+            break
+        shift += RATE_DIGITS - length
+    else:  # pragma: no cover - two corrections are always enough
+        return None
+
+    text = str(digits)
+    if shift <= 0:
+        return text + "0" * -shift
+    if shift >= len(text):
+        text = "0" * (shift - len(text) + 1) + text
+    whole, fraction = text[: len(text) - shift], text[len(text) - shift :]
+    fraction = fraction.rstrip("0")
+    return f"{whole}.{fraction}" if fraction else whole
 
 
 def _shorten(value: str, *, keep: int = 6) -> str:
@@ -169,10 +267,13 @@ def _blocked_rule(decision: JSONValue) -> str | None:
     rules = _member(decision, "rules")
     if not isinstance(rules, list):
         return None
+    # A skipped rule did not apply, so it did not block anything. Naming one here
+    # would tell a reader a trade was refused by the destination allowlist, which
+    # a trade does not have.
     blocked = [
         str(r.get("name") or "")
         for r in rules
-        if isinstance(r, Mapping) and r.get("outcome") not in ("pass", None)
+        if isinstance(r, Mapping) and r.get("outcome") in ("fail", "escalate")
     ]
     if not blocked:
         return None
@@ -340,25 +441,25 @@ def receipt_card(
     when = _when(settlement)
     tx = str(_member(settlement, "tx_hash") or "")
 
+    swap = _member(intent, "type") == "swap"
     body: list[CardLine] = []
-    if settled:
+    if swap:
+        # A trade's destination is the treasury, so "To" would repeat "From".
+        body.extend(_swap_lines(intent, result, settled=settled))
+    elif settled:
         body.append(CardLine("Paid", amount))
         if destination:
             body.append(CardLine("To", _labelled(destination, names)))
-        body.append(CardLine("From", _labelled(treasury, names) if treasury else "?"))
-        body.append(CardLine("By", agent))
-        if when:
-            body.append(CardLine("On", when))
-        if tx:
-            body.append(CardLine("Ref", f"tx {_shorten(tx, keep=8)}"))
     else:
         body.append(CardLine("Asked", amount))
         if destination:
             body.append(CardLine("To", _labelled(destination, names)))
-        body.append(CardLine("From", _labelled(treasury, names) if treasury else "?"))
-        body.append(CardLine("By", agent))
-        if when:
-            body.append(CardLine("On", when))
+    body.append(CardLine("From", _labelled(treasury, names) if treasury else "?"))
+    body.append(CardLine("By", agent))
+    if when:
+        body.append(CardLine("On", when))
+    if settled and tx:
+        body.append(CardLine("Ref", f"tx {_shorten(tx, keep=8)}"))
 
     approved_ids: list[str] = []
     quorum_check = verdict.result.get("policy.approval_quorum")
