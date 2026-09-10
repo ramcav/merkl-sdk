@@ -24,15 +24,23 @@ to trade has to declare its lines while it still can.
 
 Seeds are written to one ``0600`` file and never printed, logged or returned.
 
-Mainnet is possible and deliberately awkward. There is no faucet, so the wallets
-are read from an existing seed file rather than created; the reserve arithmetic
-is printed from the network's own numbers before anything is submitted; and the
-caller must confirm in words, because step 2 is irreversible on an account with
-real money in it.
+Mainnet is possible and deliberately awkward. There is no faucet: either an
+operator's existing seed file is read, or fresh keys are generated locally and
+the caller waits, watching the ledger, until somebody funds the address it
+prints. The reserve arithmetic comes from the network's own numbers before
+anything is submitted, and the caller must confirm in words, because step 2 is
+irreversible on an account with real money in it.
+
+The work is split in two — :func:`create_wallets` and :func:`install_signer_list`
+— because something has to happen in the middle. On mainnet that is the funding
+wait; with ``--enrol`` it is the call that tells the dashboard which address to
+show. :func:`bootstrap_treasury` is still the one-call form for callers with
+nothing to do in between.
 """
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import json
 import os
@@ -105,6 +113,18 @@ class TrustLine:
         return {"code": self.code, "issuer": self.issuer, "limit": self.limit}
 
 
+DROPS_PER_XRP: Final = 1_000_000
+
+FEE_MARGIN_XRP: Final = Decimal("1")
+"""What init leaves over for its own transactions, above the locked reserve.
+
+A signer list, an ``AccountSet`` and one ``TrustSet`` per asset cost a base fee
+each — tens of drops in total on a healthy network, and more when it is loaded.
+One XRP is thousands of times that and still a rounding error against what a
+treasury holds, so it is the margin rather than an arithmetic that would have to
+be right about fee escalation to avoid stranding a half-configured account."""
+
+
 @dataclasses.dataclass(frozen=True)
 class Reserves:
     """What the network requires an account to hold, in XRP.
@@ -120,7 +140,20 @@ class Reserves:
     def required(self, owned: int) -> Decimal:
         return self.base + self.owner * owned
 
-    def explain(self, trust_lines: int) -> list[str]:
+    def minimum(self, trust_lines: int, *, fee_margin: Decimal = FEE_MARGIN_XRP) -> Decimal:
+        """What the treasury must hold before init can finish: reserve plus fees.
+
+        The signer list is one owned object, each trust line is another, and
+        every one of them is locked for as long as it exists. The margin on top
+        is not locked — it is what pays for the three transactions that install
+        the arrangement.
+        """
+        return self.required(1 + trust_lines) + fee_margin
+
+    def minimum_drops(self, trust_lines: int, *, fee_margin: Decimal = FEE_MARGIN_XRP) -> int:
+        return int(self.minimum(trust_lines, fee_margin=fee_margin) * DROPS_PER_XRP)
+
+    def explain(self, trust_lines: int, *, fee_margin: Decimal = FEE_MARGIN_XRP) -> list[str]:
         """The arithmetic, itemised, so nobody has to take the total on trust."""
         owned = 1 + trust_lines
         lines = [
@@ -131,6 +164,10 @@ class Reserves:
             total = self.owner * trust_lines
             lines.append(f"  trust lines           {total} XRP  ({trust_lines} x {self.owner})")
         lines.append(f"  minimum balance       {self.required(owned)} XRP, permanently locked")
+        lines.append(f"  fees                  {fee_margin} XRP  (for setup, not locked)")
+        lines.append(
+            f"  fund at least         {self.minimum(trust_lines, fee_margin=fee_margin)} XRP"
+        )
         return lines
 
 
@@ -203,9 +240,9 @@ def _require_testnet(url: str) -> None:
         )
 
 
-async def read_reserves(json_rpc_url: str) -> Reserves:
+async def read_reserves(json_rpc_url: str, *, client: Any | None = None) -> Reserves:
     """The network's own base and owner reserves, in XRP."""
-    client = AsyncJsonRpcClient(json_rpc_url)
+    client = client or AsyncJsonRpcClient(json_rpc_url)
     response = await client.request(ServerInfo())
     ledger = (response.result.get("info") or {}).get("validated_ledger") or {}
     base, owner = ledger.get("reserve_base_xrp"), ledger.get("reserve_inc_xrp")
@@ -240,21 +277,54 @@ async def _set_trust_lines(
         _require_success(result.result, f"TrustSet {line.code}.{line.issuer}")
 
 
-async def bootstrap_treasury(
+@dataclasses.dataclass(frozen=True)
+class TreasuryKeys:
+    """The accounts a treasury is made of, before any of it is installed.
+
+    Holds ``Wallet`` objects, which hold seeds — so this never crosses back up
+    into the CLI, never appears in a printed line and never reaches the notary.
+    What *does* is :meth:`addresses`, which is public in the strongest sense:
+    the whole point of enrolling before the ledger work is that the page can
+    show the customer an address to fund.
+    """
+
+    treasury: Wallet
+    agents: tuple[Wallet, ...]
+    policy_address: str
+    wallet_file: Path
+    network: str
+    created: bool = False
+    """True when this run generated the seeds, false when it read somebody's file."""
+
+    @property
+    def address(self) -> str:
+        return str(self.treasury.classic_address)
+
+    def addresses(self) -> tuple[str, ...]:
+        return tuple(str(w.classic_address) for w in self.agents)
+
+
+async def create_wallets(
     *,
     policy_public_key: str,
     agent_count: int = 1,
     json_rpc_url: str = TESTNET_JSON_RPC,
     wallet_file: Path | str | None = None,
-    disable_master: bool = True,
     network: str = NETWORK_XRPL_TESTNET,
-    trust_lines: Sequence[TrustLine] = (),
-) -> TreasurySetup:
-    """Fund a treasury, install the signer list, disable the master key, verify.
+    client: Any | None = None,
+) -> TreasuryKeys:
+    """Bring the treasury and its agents into existence, and write the seed file.
 
-    On testnet the wallets come from the faucet. On mainnet there is no faucet,
-    so they are read from ``wallet_file`` — an operator funds those accounts
-    themselves, and this refuses to run against accounts it cannot see money in.
+    On testnet that means the faucet. On mainnet there is no faucet, so either
+    the operator's own seed file is read (the flow that has always been there)
+    or, when there is none, fresh keys are generated locally — an account on
+    XRPL exists the moment somebody pays into it, so a key with no money is a
+    perfectly good treasury waiting to be funded, and generating it here is what
+    lets the dashboard print an address to send to.
+
+    A seed file that already exists is never written over. Whichever way the
+    keys arrived, the ledger work has not started: nothing is installed and
+    nothing is irreversible yet.
     """
     if agent_count < 1:
         raise XrplAdapterError("a treasury needs at least one agent")
@@ -262,40 +332,131 @@ async def bootstrap_treasury(
     if not mainnet:
         _require_testnet(json_rpc_url)
 
-    client = AsyncJsonRpcClient(json_rpc_url)
+    client = client or AsyncJsonRpcClient(json_rpc_url)
     path = Path(
         wallet_file
         or Path.home() / ".merkl" / (MAINNET_WALLET_FILE if mainnet else DEFAULT_WALLET_FILE)
     )
-    if mainnet:
+    policy_address = signer_address(policy_public_key)
+
+    if mainnet and path.exists():
         treasury, agents = _existing_wallets(path, agent_count)
+        return TreasuryKeys(
+            treasury=treasury,
+            agents=tuple(agents),
+            policy_address=policy_address,
+            wallet_file=path,
+            network=network,
+        )
+
+    if mainnet:
+        treasury = Wallet.create()
+        agents = [Wallet.create() for _ in range(agent_count)]
     else:
         treasury = await generate_faucet_wallet(client, debug=False)
         agents = [await generate_faucet_wallet(client, debug=False) for _ in range(agent_count)]
-    policy_address = signer_address(policy_public_key)
 
-    if not mainnet:
-        _write_secret(
-            path,
-            {
-                "network": json_rpc_url,
-                "policy_network": network,
-                "policy_address": policy_address,
-                "wallets": {
-                    "treasury": {"seed": treasury.seed, "address": treasury.classic_address},
-                    **{
-                        f"agent-{i}": {"seed": w.seed, "address": w.classic_address}
-                        for i, w in enumerate(agents)
-                    },
+    _write_secret(
+        path,
+        {
+            "network": json_rpc_url,
+            "policy_network": network,
+            "policy_address": policy_address,
+            "wallets": {
+                "treasury": {"seed": treasury.seed, "address": treasury.classic_address},
+                **{
+                    f"agent-{i}": {"seed": w.seed, "address": w.classic_address}
+                    for i, w in enumerate(agents)
                 },
             },
-        )
+        },
+    )
+    return TreasuryKeys(
+        treasury=treasury,
+        agents=tuple(agents),
+        policy_address=policy_address,
+        wallet_file=path,
+        network=network,
+        created=True,
+    )
+
+
+async def account_drops(
+    address: str, json_rpc_url: str = TESTNET_JSON_RPC, *, client: Any | None = None
+) -> int | None:
+    """The account's validated balance in drops, or ``None`` when it does not exist.
+
+    An unfunded XRPL address is not an error and not a zero balance: it is an
+    account the ledger has never heard of. Those are different facts and the
+    caller shows them differently — "send XRP here" against "keep sending, it is
+    not enough yet".
+    """
+    client = client or AsyncJsonRpcClient(json_rpc_url)
+    response = await client.request(AccountInfo(account=address, ledger_index="validated"))
+    data = response.result.get("account_data") or {}
+    balance = data.get("Balance")
+    if balance is None:
+        return None
+    try:
+        return int(balance)
+    except (TypeError, ValueError):  # pragma: no cover - rippled sends a decimal string
+        return None
+
+
+async def await_funding(
+    address: str,
+    required_drops: int,
+    json_rpc_url: str = TESTNET_JSON_RPC,
+    *,
+    client: Any | None = None,
+    poll_seconds: float = 5.0,
+    sleep: Any = None,
+    on_poll: Any = None,
+) -> int:
+    """Watch the ledger until ``address`` holds enough, then return what it holds.
+
+    This is the one place ``merkl treasury init`` blocks on a human. It never
+    times out: the customer is at their exchange's withdrawal screen and how
+    long that takes is not this program's business. A node that will not answer
+    is a poll that reported nothing, not a run that gave up on a treasury whose
+    keys are already on disk.
+    """
+    sleeper = sleep or asyncio.sleep
+    while True:
+        try:
+            drops = await account_drops(address, json_rpc_url, client=client)
+        except Exception:  # noqa: BLE001 - a node that hiccups is not a funding answer
+            drops = None
+        if drops is not None and drops >= required_drops:
+            return drops
+        if on_poll is not None:
+            on_poll(drops)
+        await sleeper(poll_seconds)
+
+
+async def install_signer_list(
+    keys: TreasuryKeys,
+    *,
+    json_rpc_url: str = TESTNET_JSON_RPC,
+    disable_master: bool = True,
+    trust_lines: Sequence[TrustLine] = (),
+    client: Any | None = None,
+) -> TreasurySetup:
+    """The three transactions, in the order that is the security property.
+
+    Trust lines, then the signer list, then the master key off, then the
+    read-back that refuses to report success unless both held.
+    """
+    client = client or AsyncJsonRpcClient(json_rpc_url)
+    treasury = keys.treasury
+    agents = list(keys.agents)
+    agent_count = len(agents)
 
     await _set_trust_lines(client, treasury, trust_lines)
 
     quorum = agent_count + 1
     entries = [SignerEntry(account=w.classic_address, signer_weight=1) for w in agents]
-    entries.append(SignerEntry(account=policy_address, signer_weight=agent_count))
+    entries.append(SignerEntry(account=keys.policy_address, signer_weight=agent_count))
     signer_list = SignerListSet(
         account=treasury.classic_address,
         signer_quorum=quorum,
@@ -326,14 +487,14 @@ async def bootstrap_treasury(
     setup = TreasurySetup(
         treasury=str(treasury.classic_address),
         agents=tuple(str(w.classic_address) for w in agents),
-        policy_address=policy_address,
+        policy_address=keys.policy_address,
         quorum=quorum,
         master_disabled=master_disabled,
         regular_key=str(regular_key) if regular_key else None,
         signer_list_tx=str(signer_list_result.result.get("hash", "")),
         disable_master_tx=disable_tx,
-        wallet_file=str(path),
-        network=network,
+        wallet_file=str(keys.wallet_file),
+        network=keys.network,
         trust_lines=tuple(trust_lines),
     )
     if disable_master and not setup.safe:
@@ -345,19 +506,49 @@ async def bootstrap_treasury(
     return setup
 
 
+async def bootstrap_treasury(
+    *,
+    policy_public_key: str,
+    agent_count: int = 1,
+    json_rpc_url: str = TESTNET_JSON_RPC,
+    wallet_file: Path | str | None = None,
+    disable_master: bool = True,
+    network: str = NETWORK_XRPL_TESTNET,
+    trust_lines: Sequence[TrustLine] = (),
+    client: Any | None = None,
+) -> TreasurySetup:
+    """Fund a treasury, install the signer list, disable the master key, verify.
+
+    The one-call form, kept because it is what the demo rig and the testnet
+    scenario have always used. ``merkl treasury init`` runs the two halves
+    itself so it can enrol with the notary — and, on mainnet, wait for money —
+    in between.
+    """
+    client = client or AsyncJsonRpcClient(json_rpc_url)
+    keys = await create_wallets(
+        policy_public_key=policy_public_key,
+        agent_count=agent_count,
+        json_rpc_url=json_rpc_url,
+        wallet_file=wallet_file,
+        network=network,
+        client=client,
+    )
+    return await install_signer_list(
+        keys,
+        json_rpc_url=json_rpc_url,
+        disable_master=disable_master,
+        trust_lines=trust_lines,
+        client=client,
+    )
+
+
 def _existing_wallets(path: Path, agent_count: int) -> tuple[Wallet, list[Wallet]]:
     """Read an already-funded treasury and its agents from a seed file.
 
-    Mainnet's substitute for the faucet. The file is the operator's, written and
-    funded by them; nothing here creates an account on a chain with real money
-    on it, and nothing here writes a seed back over one that already exists.
+    Mainnet's original substitute for the faucet, and still the flow an operator
+    who already has accounts wants: the file is theirs, written and funded by
+    them, and nothing here writes a seed back over one that already exists.
     """
-    if not path.exists():
-        raise XrplAdapterError(
-            f"{path} does not exist. Mainnet has no faucet: create and fund the treasury "
-            "and agent accounts yourself, write their seeds into this file (0600), then "
-            "run this again."
-        )
     wallets = load_wallets(path)
     if "treasury" not in wallets:
         raise XrplAdapterError(f"{path} names no 'treasury' wallet")
