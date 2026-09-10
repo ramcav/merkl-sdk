@@ -4,13 +4,29 @@
 # treasury's signer is the image plus that volume, and nothing on the host.
 #
 #   docker run --rm -v merkl-signer:/var/lib/merkl-signer -p 127.0.0.1:8787:8787 \
-#     ghcr.io/ramcav/merkl-signer:0.2.0
+#     ghcr.io/ramcav/merkl-signer:0.2.1
 #
 # Every subcommand of the CLI is reachable through the same entrypoint, so the
 # keystore is created where it will be served from:
 #
-#   docker run --rm -it -v merkl-signer:/var/lib/merkl-signer ghcr.io/ramcav/merkl-signer:0.2.0 \
+#   docker run --rm -it -v merkl-signer:/var/lib/merkl-signer ghcr.io/ramcav/merkl-signer:0.2.1 \
 #     treasury init --xrpl-testnet --home /var/lib/merkl-signer
+#
+# WHY THERE ARE TWO PROCESSES IN HERE
+#
+# merkl.signer.server refuses to bind anything but loopback or a Unix socket. A
+# signer reachable from the network is a signer whose only protection is the
+# agent key, so the refusal is right and it is not moving. But a published port
+# (-p 127.0.0.1:8787:8787) and a compose service reached as `signer:8787` both
+# need something listening on 0.0.0.0 *inside* the container, and loopback in
+# here is not loopback out there.
+#
+# So the entrypoint runs the proxy that refusal names — merkl.signer.forward,
+# stdlib asyncio, no new dependency — on $MERKL_SIGNER_LISTEN, relaying byte for
+# byte to the signer on a Unix socket. What faces the world holds no key, parses
+# no protocol and refuses nothing; authentication stays where it is audited, in
+# the signer. The two are supervised as one pair: if either exits, so does the
+# container.
 #
 # Unattested, and every receipt it signs says so. nitro/ is the attested build.
 FROM python:3.12-slim
@@ -30,11 +46,22 @@ RUN useradd --system --uid 10001 --user-group --no-create-home merkl \
 COPY docker/signer-entrypoint.sh /usr/local/bin/signer-entrypoint
 RUN chmod 0755 /usr/local/bin/signer-entrypoint
 
+# Where the forwarder listens, and where the signer's socket is made. The socket
+# is runtime state in the image's own filesystem, never the volume: a bind mount
+# from a macOS or Windows host cannot hold a Unix socket, and the volume is for
+# what is worth keeping.
+#
+# PYTHONUNBUFFERED so the signer's boot banner reaches `docker logs` when it is
+# printed rather than when the process ends. A crash-looping container whose
+# logs are empty is one nobody can diagnose.
+ENV MERKL_SIGNER_LISTEN=0.0.0.0:8787 \
+    MERKL_SIGNER_SOCKET=/run/merkl-signer/signer.sock \
+    PYTHONUNBUFFERED=1
+
 VOLUME ["/var/lib/merkl-signer"]
 EXPOSE 8787
 
 ENTRYPOINT ["signer-entrypoint"]
 CMD ["signer", "serve", \
      "--policy", "/var/lib/merkl-signer/policy.signed.json", \
-     "--home", "/var/lib/merkl-signer", \
-     "--host", "0.0.0.0", "--port", "8787"]
+     "--home", "/var/lib/merkl-signer"]
