@@ -85,16 +85,36 @@ class Pair:
         return matches[0]
 
     def wait_until_answering(self) -> None:
+        """Wait for the *signer*, not the forwarder.
+
+        The forwarder answers 503 the moment it is up, before the signer has a
+        socket — which is the point of it (a signer waiting for its first policy
+        from the notary is unreachable for as long as the customer takes to
+        press Publish), and which makes "something answered" the wrong readiness
+        check.
+        """
         until = time.monotonic() + DEADLINE
         while time.monotonic() < until:
             if self.process.poll() is not None:
                 pytest.fail(f"the entrypoint exited early: {self.stop()}")
             try:
-                httpx.get(f"{self.base_url}/health", timeout=2.0)
+                response = httpx.get(f"{self.base_url}/health", timeout=2.0)
             except httpx.HTTPError:
                 time.sleep(0.2)
-            else:
+                continue
+            if response.status_code != 503:
                 return
+            time.sleep(0.2)
+        pytest.fail(f"the signer did not answer on {self.base_url} in {DEADLINE}s: {self.stop()}")
+
+    def wait_for_forwarder(self) -> httpx.Response:
+        """Wait for anything at all to answer, 503 included."""
+        until = time.monotonic() + DEADLINE
+        while time.monotonic() < until:
+            try:
+                return httpx.get(f"{self.base_url}/health", timeout=2.0)
+            except httpx.HTTPError:
+                time.sleep(0.2)
         pytest.fail(f"nothing answered on {self.base_url} within {DEADLINE}s: {self.stop()}")
 
     def wait_for_exit(self) -> int:
@@ -113,7 +133,11 @@ class Pair:
 
 
 def run_entrypoint(
-    home: Path, socket_dir: Path, *arguments: str, listen_port: int | None = None
+    home: Path,
+    socket_dir: Path,
+    *arguments: str,
+    listen_port: int | None = None,
+    agent_dir: Path | None = None,
 ) -> Pair:
     port = listen_port if listen_port is not None else free_port()
     socket_path = socket_dir / "signer.sock"
@@ -123,6 +147,8 @@ def run_entrypoint(
         "MERKL_SIGNER_PASSPHRASE": PASSPHRASE,
         "MERKL_SIGNER_LISTEN": f"127.0.0.1:{port}",
         "MERKL_SIGNER_SOCKET": str(socket_path),
+        "MERKL_HOME": str(home),
+        "MERKL_AGENT_DIR": str(agent_dir or home / "no-agent-dir"),
         "HOME": str(home),
     }
     process = subprocess.Popen(
@@ -160,9 +186,7 @@ def policy(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def serving(home: Path, socket_dir: Path, policy: Path) -> Iterator[Pair]:
-    pair = run_entrypoint(
-        home, socket_dir, "signer", "serve", "--policy", str(policy), "--home", str(home)
-    )
+    pair = run_entrypoint(home, socket_dir, "signer", "serve", "--policy", str(policy))
     try:
         pair.wait_until_answering()
         yield pair
@@ -220,8 +244,6 @@ class TestSupervision:
             "serve",
             "--policy",
             str(tmp_path / "there-is-no-policy.json"),
-            "--home",
-            str(home),
             listen_port=port,
         )
         assert pair.wait_for_exit() == 2
@@ -232,16 +254,92 @@ class TestSupervision:
             probe.bind(("127.0.0.1", port))  # and the forwarder is not still holding the port
 
 
+class TestBootstrap:
+    """`signer bootstrap` is served the same way `serve` is: with a forwarder."""
+
+    def test_it_gets_a_forwarder_too(self, home: Path, socket_dir: Path) -> None:
+        """Mainnet with no --confirm exits 5 before touching a key or a network.
+
+        The exit code is the point twice over: 5 is `treasury init`'s refusal to
+        disable a master key nobody typed the sentence for, and the container
+        reporting it at all is the pair path — a subcommand exec'd straight
+        through would say nothing about a signer.
+        """
+        pair = run_entrypoint(home, socket_dir, "signer", "bootstrap", "--xrpl-mainnet")
+        assert pair.wait_for_exit() == 5
+        output = pair.stop()
+        assert "there is nobody here to ask" in output
+        assert "the signer exited with 5" in output
+
+
+class TestWaitingForTheFirstPolicy:
+    """A signer that is following a notary with nothing published yet.
+
+    It has no socket to forward to for as long as the customer takes to sign the
+    policy. The forwarder is up throughout and says so — 503 in the signer's own
+    error shape, rather than a refused connection that reads as "the container
+    never started".
+    """
+
+    def test_the_public_address_answers_503_rather_than_refusing(
+        self, home: Path, socket_dir: Path
+    ) -> None:
+        (home / "notary.json").write_text(
+            json.dumps(
+                {
+                    "url": f"http://127.0.0.1:{free_port()}",
+                    "signer_id": "sig_01",
+                    "signer_token": "sgn_" + "b" * 43,
+                    "org_slug": "acme",
+                    "treasury_url": "https://app.merkl.ai/acme/treasuries/rT",
+                }
+            )
+        )
+        pair = run_entrypoint(home, socket_dir, "signer", "serve")
+        try:
+            response = pair.wait_for_forwarder()
+            assert response.status_code == 503
+            assert response.json()["error"]["code"] == "signer_unavailable"
+            assert response.json()["protocol"] == "merkl-signer-rpc-v1"
+            assert pair.process.poll() is None, "and it is still waiting, not dead"
+        finally:
+            pair.stop()
+
+
+class TestTheAgentDirectory:
+    """Whatever a one-shot subcommand left in /agent goes back to its owner."""
+
+    def test_the_bundle_is_handed_back_to_whoever_owns_the_directory(
+        self, home: Path, socket_dir: Path, tmp_path: Path
+    ) -> None:
+        agent_dir = tmp_path / "merkl-agent"
+        agent_dir.mkdir()
+        (agent_dir / "trader.toml").write_text("[agent]\n")
+        before = agent_dir.stat().st_uid
+
+        pair = run_entrypoint(home, socket_dir, "signer", "token", "list", agent_dir=agent_dir)
+        assert pair.wait_for_exit() == 0
+
+        assert (agent_dir / "trader.toml").stat().st_uid == before
+        assert (agent_dir / "trader.toml").read_text() == "[agent]\n"
+
+    def test_an_agent_directory_that_is_not_there_is_not_an_error(
+        self, home: Path, socket_dir: Path, tmp_path: Path
+    ) -> None:
+        pair = run_entrypoint(
+            home, socket_dir, "signer", "token", "list", agent_dir=tmp_path / "nowhere"
+        )
+        assert pair.wait_for_exit() == 0
+
+
 class TestEveryOtherSubcommand:
-    """`treasury init`, `signer token`, `policy show` — exec'd straight through, as before."""
+    """`treasury init`, `signer token`, `policy show` — run straight through, as before."""
 
     def test_a_non_serve_command_runs_the_cli_and_starts_no_forwarder(
         self, home: Path, socket_dir: Path
     ) -> None:
         port = free_port()
-        pair = run_entrypoint(
-            home, socket_dir, "signer", "token", "list", "--home", str(home), listen_port=port
-        )
+        pair = run_entrypoint(home, socket_dir, "signer", "token", "list", listen_port=port)
         assert pair.wait_for_exit() == 0
         assert "no relay tokens configured" in pair.stop()
         with socket.socket() as probe:

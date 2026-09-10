@@ -47,6 +47,33 @@ DEFAULT_LISTEN: Final = "0.0.0.0:8787"
 DEFAULT_UPSTREAM: Final = "/run/merkl-signer/signer.sock"
 CHUNK_BYTES: Final = 64 * 1024
 
+UNAVAILABLE_BODY: Final = (
+    b'{"protocol":"merkl-signer-rpc-v1","error":{"code":"signer_unavailable",'
+    b'"message":"the signer behind this address is not accepting connections yet '
+    b'\\u2014 it is starting, or it is waiting for its first policy from the notary"},'
+    b'"id":null}'
+)
+"""What a caller gets when there is nothing upstream to forward to.
+
+The alternative was to drop the connection, which is what this did before, and
+which is indistinguishable from a container that is not running at all. A signer
+following the notary spends its first seconds — or its first hour, if nobody has
+published a policy yet — with no socket to forward to, and "connection refused"
+is a poor way to say "give the customer time to press Publish".
+
+It is not a parse and it is not a refusal: nothing about the request is read,
+this is written on *connect* failure alone, and a request that reaches the signer
+is answered by the signer. The forwarder still understands no protocol; it can
+only say that there is no protocol behind it."""
+
+UNAVAILABLE_RESPONSE: Final = (
+    b"HTTP/1.1 503 Service Unavailable\r\n"
+    b"Content-Type: application/json\r\n"
+    b"Content-Length: " + str(len(UNAVAILABLE_BODY)).encode() + b"\r\n"
+    b"Connection: close\r\n"
+    b"\r\n" + UNAVAILABLE_BODY
+)
+
 Handler = Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]]
 
 
@@ -134,8 +161,16 @@ def _forward_to(upstream: str) -> Handler:
         try:
             up_reader, up_writer = await _open_upstream(upstream)
         except OSError:
-            # The signer is not up yet, or not there at all. The client gets a
-            # dropped connection, which is what it would get talking to it directly.
+            # The signer is not up yet, or not there at all. Say so, in the
+            # signer's own error shape, rather than dropping the connection: a
+            # signer following the notary has no socket until the first policy
+            # exists, and a customer who has not pressed Publish yet deserves a
+            # sentence rather than "connection refused".
+            try:
+                writer.write(UNAVAILABLE_RESPONSE)
+                await writer.drain()
+            except OSError:
+                pass
             await _shut(writer)
             return
         outbound = asyncio.create_task(_pump(reader, up_writer))

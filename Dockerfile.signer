@@ -4,13 +4,15 @@
 # treasury's signer is the image plus that volume, and nothing on the host.
 #
 #   docker run --rm -v merkl-signer:/var/lib/merkl-signer -p 127.0.0.1:8787:8787 \
-#     ghcr.io/ramcav/merkl-signer:0.2.1
+#     ghcr.io/ramcav/merkl-signer:0.3.0
 #
 # Every subcommand of the CLI is reachable through the same entrypoint, so the
-# keystore is created where it will be served from:
+# keystore, the treasury's seeds and the agents' keys are created where they
+# will be served from and never travel:
 #
-#   docker run --rm -it -v merkl-signer:/var/lib/merkl-signer ghcr.io/ramcav/merkl-signer:0.2.1 \
-#     treasury init --xrpl-testnet --home /var/lib/merkl-signer
+#   docker run --rm -it -v merkl-signer:/var/lib/merkl-signer -v "$PWD/merkl-agent:/agent" \
+#     ghcr.io/ramcav/merkl-signer:0.3.0 treasury init --xrpl-testnet \
+#     --enrol enr_... --notary https://api.merkl.ai
 #
 # WHY THERE ARE TWO PROCESSES IN HERE
 #
@@ -41,7 +43,8 @@ RUN pip install --no-cache-dir "/src[signer-xrpl]" && rm -rf /src
 # default, so a bind mount from the host still works), takes ownership of the
 # volume once and drops to this user before anything of the signer's runs.
 RUN useradd --system --uid 10001 --user-group --no-create-home merkl \
-    && mkdir -p /var/lib/merkl-signer && chown merkl:merkl /var/lib/merkl-signer
+    && mkdir -p /var/lib/merkl-signer /agent \
+    && chown merkl:merkl /var/lib/merkl-signer /agent
 
 COPY docker/signer-entrypoint.sh /usr/local/bin/signer-entrypoint
 RUN chmod 0755 /usr/local/bin/signer-entrypoint
@@ -54,7 +57,16 @@ RUN chmod 0755 /usr/local/bin/signer-entrypoint
 # PYTHONUNBUFFERED so the signer's boot banner reaches `docker logs` when it is
 # printed rather than when the process ends. A crash-looping container whose
 # logs are empty is one nobody can diagnose.
-ENV MERKL_SIGNER_LISTEN=0.0.0.0:8787 \
+# MERKL_HOME is the volume, so nothing the customer pastes needs a --home: the
+# keystore, the seeds, the agents' request keys, the relay tokens and the policy
+# all land in the one directory `docker run -v merkl-signer:...` preserves.
+#
+# /agent is where `treasury init` leaves the agent bundle. The printed line
+# bind-mounts ./merkl-agent onto it; the entrypoint hands the contents back to
+# whoever owns that directory afterwards, so the bundle is readable without sudo.
+ENV MERKL_HOME=/var/lib/merkl-signer \
+    MERKL_AGENT_DIR=/agent \
+    MERKL_SIGNER_LISTEN=0.0.0.0:8787 \
     MERKL_SIGNER_SOCKET=/run/merkl-signer/signer.sock \
     PYTHONUNBUFFERED=1
 
@@ -62,6 +74,7 @@ VOLUME ["/var/lib/merkl-signer"]
 EXPOSE 8787
 
 ENTRYPOINT ["signer-entrypoint"]
-CMD ["signer", "serve", \
-     "--policy", "/var/lib/merkl-signer/policy.signed.json", \
-     "--home", "/var/lib/merkl-signer"]
+# No --policy and no --home: $MERKL_HOME says where everything is, and `serve`
+# takes <home>/policy.signed.json — or, when the volume holds a notary.json,
+# waits for the notary's first policy and picks up every change after it.
+CMD ["signer", "serve"]

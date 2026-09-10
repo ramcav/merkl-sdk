@@ -263,6 +263,7 @@ def build_server(
     host: str = "127.0.0.1",
     port: int = 0,
     relay_tokens: tuple[RelayToken, ...] = (),
+    router: RpcRouter | None = None,
 ) -> ThreadingHTTPServer:
     """Bind a signer server. ``socket_path`` wins; otherwise localhost only.
 
@@ -270,8 +271,14 @@ def build_server(
     from the network is a signer whose only protection is the agent key — and,
     once configured, the relay credential (docs/SIGNER-RPC.md, "Who may call
     what").
+
+    ``router`` lets a caller hand in the one it already holds. There must be
+    exactly one per engine, because the lock is on the router: a second one
+    would let a call arriving over the socket and a call applied in-process
+    evaluate the same window at the same time, which is the race a spending
+    limit exists to prevent.
     """
-    router = RpcRouter(engine, relay_tokens)
+    router = router or RpcRouter(engine, relay_tokens)
     handler = type("MerklSignerHandler", (_Handler,), {"router": router})
     if socket_path is not None:
         return _UnixHTTPServer(str(socket_path), handler)  # type: ignore[arg-type]
@@ -290,10 +297,16 @@ def serve(
     host: str = "127.0.0.1",
     port: int = 8787,
     relay_tokens: tuple[RelayToken, ...] = (),
+    router: RpcRouter | None = None,
 ) -> None:  # pragma: no cover - the blocking entry point
     """Serve until interrupted. Used by ``merkl signer serve``."""
     server = build_server(
-        engine, socket_path=socket_path, host=host, port=port, relay_tokens=relay_tokens
+        engine,
+        socket_path=socket_path,
+        host=host,
+        port=port,
+        relay_tokens=relay_tokens,
+        router=router,
     )
     try:
         server.serve_forever()

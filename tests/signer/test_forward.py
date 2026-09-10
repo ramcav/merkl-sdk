@@ -23,6 +23,8 @@ import pytest_asyncio
 from merkl.signer.forward import (
     DEFAULT_LISTEN,
     LISTEN_ENV,
+    UNAVAILABLE_BODY,
+    UNAVAILABLE_RESPONSE,
     UPSTREAM_ENV,
     build_forwarder,
     main,
@@ -263,20 +265,40 @@ class TestClosing:
                 await writer.wait_closed()
                 await asyncio.wait_for(ended.wait(), timeout=5)
 
-    async def test_an_upstream_that_is_not_there_drops_the_connection(
+    async def test_an_upstream_that_is_not_there_answers_503_and_keeps_serving(
         self, socket_dir: Path
     ) -> None:
-        """Exactly what talking to the signer directly would give, and it keeps serving."""
+        """A signer waiting for its first policy has no socket. Say so, twice over.
+
+        Dropping the connection — what this used to do — is indistinguishable
+        from a container that never started, and a customer who has not pressed
+        Publish yet has done nothing wrong.
+        """
         server = await build_forwarder(f"{LOCAL}:0", str(socket_dir / "nothing-here.sock"))
         async with server:
             reader, writer = await connect(server)
-            assert await asyncio.wait_for(reader.read(), timeout=5) == b""
+            answer = await asyncio.wait_for(reader.read(), timeout=5)
+            assert answer.startswith(b"HTTP/1.1 503 Service Unavailable")
+            assert b'"code":"signer_unavailable"' in answer
+            assert b"merkl-signer-rpc-v1" in answer
             writer.close()
             await writer.wait_closed()
+
             second, second_writer = await connect(server)
-            assert await asyncio.wait_for(second.read(), timeout=5) == b""
+            assert (await asyncio.wait_for(second.read(), timeout=5)).startswith(b"HTTP/1.1 503")
             second_writer.close()
             await second_writer.wait_closed()
+
+    async def test_the_unavailable_answer_is_a_constant_and_reads_no_request(self) -> None:
+        """It is written on connect failure, before a byte of the request is read.
+
+        A constant rather than something built per connection, so there is no
+        argument through which a request's bytes could reach a caller's terminal
+        — the forwarder carries destinations and bearers, and it echoes neither.
+        """
+        assert UNAVAILABLE_RESPONSE.startswith(b"HTTP/1.1 503 Service Unavailable")
+        assert UNAVAILABLE_BODY in UNAVAILABLE_RESPONSE
+        assert b"Content-Length: " + str(len(UNAVAILABLE_BODY)).encode() in UNAVAILABLE_RESPONSE
 
 
 class TestMain:
