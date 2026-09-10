@@ -137,6 +137,7 @@ class XrplPayloadCodec:
         agent_id: str | None = None,
         session_id: str | None = None,
         task_id: str | None = None,
+        **_: object,
     ) -> list[str]:
         """Every disagreement between these bytes and this intent."""
         try:
