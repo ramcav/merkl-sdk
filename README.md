@@ -198,6 +198,10 @@ settles. Every page is a self-contained `verify.html` that `merkl verify` and
 agreeing on the same bytes. `merkl/demo/scenarios.py` is the source; run
 `pytest tests/demo/ tests/scenarios/` to see the same claims as tests.
 
+`examples/trader/` is the same idea with real money on the other end: a trading
+agent that runs as a plain process, pays its own compute bill out of the
+treasury it trades, and learns what its policy permits from the refusals.
+
 ### Add a rail
 
 A rail is one adapter. Nothing in `merkl.core` or `merkl.signer` changes.
