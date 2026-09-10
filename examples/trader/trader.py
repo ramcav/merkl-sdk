@@ -740,7 +740,7 @@ async def build(settings: configuration.Config, *, dry_run: bool = False) -> Tra
     )
 
     store = LocalReceiptStore(settings.loop.receipt_dir)
-    api_key = configuration.read_secret_env(settings.notary.api_key_env)
+    api_key = settings.notary.api_key()
     builder = ReceiptBuilder(
         signer=signer,
         settlement=rail,

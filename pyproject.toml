@@ -83,6 +83,10 @@ packages = ["merkl"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "INSTALL.md" = "merkl/INSTALL.md"
+# The trading agent's example config is also the template `merkl treasury init`
+# fills in for the agent bundle, so there is one copy of it in the repository and
+# the build moves it next to merkl/cli/bundle.py rather than duplicating it.
+"examples/trader/config.example.toml" = "merkl/cli/trader.example.toml"
 
 [tool.mypy]
 strict = true

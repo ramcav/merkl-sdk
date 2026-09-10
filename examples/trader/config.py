@@ -85,7 +85,25 @@ class SignerConfig:
 @dataclasses.dataclass(frozen=True)
 class NotaryConfig:
     url: str
-    api_key_env: str
+    api_key_env: str | None = None
+    """The *name* of an environment variable holding the API key."""
+
+    api_key_file: Path | None = None
+    """A ``0600`` file holding it instead — what ``merkl treasury init`` writes.
+
+    A file rather than an environment variable because the bundle is a folder:
+    everything else the agent needs is already a file beside this one, and a
+    setup that ends by telling somebody to export a variable ends with the key
+    in a shell history. Both work, and the file wins when both are set — an
+    operator who put a key in the folder meant that key."""
+
+    def api_key(self) -> str:
+        """The key itself. Never logged, never echoed."""
+        if self.api_key_file is not None:
+            return read_secret_file(self.api_key_file)
+        if self.api_key_env:
+            return read_secret_env(self.api_key_env)
+        raise ConfigError("notary needs either api_key_file or api_key_env")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -198,10 +216,7 @@ def parse(raw: dict[str, Any]) -> Config:
             url=_string(signer, "url", "signer"),
             token_file=_optional_path(signer, "token_file"),
         ),
-        notary=NotaryConfig(
-            url=_string(notary, "url", "notary"),
-            api_key_env=_string(notary, "api_key_env", "notary"),
-        ),
+        notary=_notary(notary),
         model=ModelConfig(
             name=_string(model, "name", "model"),
             api_key_env=_string(model, "api_key_env", "model"),
@@ -214,6 +229,22 @@ def parse(raw: dict[str, Any]) -> Config:
             home=_path(loop, "home", "loop"),
         ),
         bill=BillConfig(bill_day=day, operator=_string(bill, "operator", "bill")),
+    )
+
+
+def _notary(table: dict[str, Any]) -> NotaryConfig:
+    """``[notary]`` — one of the two ways of naming the API key, or a refusal."""
+    api_key_file = _optional_path(table, "api_key_file")
+    api_key_env = _optional_string(table, "api_key_env")
+    if api_key_file is None and api_key_env is None:
+        raise ConfigError(
+            "notary needs api_key_file (a 0600 file, what `merkl treasury init` writes) "
+            "or api_key_env (the name of an environment variable)"
+        )
+    return NotaryConfig(
+        url=_string(table, "url", "notary"),
+        api_key_env=api_key_env,
+        api_key_file=api_key_file,
     )
 
 
