@@ -29,6 +29,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+HOME_HELP = (
+    "Everything this signer owns: keystore, seeds, relay tokens, policy "
+    "(default: $MERKL_HOME, else ~/.merkl/signer)"
+)
+
 
 def _ensure_hook(
     hooks: dict[str, Any], event: str, command: str, matcher_entry: dict[str, Any]
@@ -326,9 +331,7 @@ def main() -> None:
     serve_p.add_argument(
         "--policy", type=Path, required=True, help="Signed policy document (JSON)"
     )
-    serve_p.add_argument(
-        "--home", type=Path, default=None, help="Keystore and state directory (~/.merkl/signer)"
-    )
+    serve_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
     serve_p.add_argument(
         "--socket", type=Path, default=None, help="Unix socket to bind (preferred)"
     )
@@ -353,18 +356,12 @@ def main() -> None:
     token_sub = token_p.add_subparsers(dest="token_command", metavar="<subcommand>")
     token_add_p = token_sub.add_parser("add", help="Register a new relay token; prints it once")
     token_add_p.add_argument("id", help="A label for this token (e.g. 'dashboard', 'ci')")
-    token_add_p.add_argument(
-        "--home", type=Path, default=None, help="Signer directory (~/.merkl/signer)"
-    )
+    token_add_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
     token_revoke_p = token_sub.add_parser("revoke", help="Remove a relay token by id")
     token_revoke_p.add_argument("id", help="The token id to remove")
-    token_revoke_p.add_argument(
-        "--home", type=Path, default=None, help="Signer directory (~/.merkl/signer)"
-    )
+    token_revoke_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
     token_list_p = token_sub.add_parser("list", help="List relay token ids (never the tokens)")
-    token_list_p.add_argument(
-        "--home", type=Path, default=None, help="Signer directory (~/.merkl/signer)"
-    )
+    token_list_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
 
     # treasury
     treasury_p = sub.add_parser("treasury", help="Set up and check a co-signed treasury")
@@ -380,7 +377,7 @@ def main() -> None:
         "reserves printed and a typed confirmation required",
     )
     init_p.add_argument("--agents", type=int, default=1, help="How many agent keys (default 1)")
-    init_p.add_argument("--home", type=Path, default=None, help="Signer keystore directory")
+    init_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
     init_p.add_argument(
         "--wallet-file", type=Path, default=None, help="Where to write seeds (0600)"
     )

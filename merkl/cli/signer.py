@@ -14,6 +14,7 @@ import os
 import sys
 from pathlib import Path
 
+from merkl.cli.home import resolve_home
 from merkl.core.policy.approvals import verify_policy_signature
 from merkl.core.policy.document import PolicyError, SignedPolicy
 from merkl.signer.engine import SignerEngine
@@ -30,7 +31,6 @@ from merkl.signer.risk import StaticRiskScorer
 from merkl.signer.server import serve
 from merkl.signer.state import SealedStateStore
 
-DEFAULT_HOME = Path.home() / ".merkl" / "signer"
 RAIL_ENDPOINT_ENV = "MERKL_RAIL_ENDPOINT"
 
 
@@ -82,7 +82,7 @@ def serve_command(
     rail_endpoint: str | None = None,
 ) -> int:
     """Load the policy, unseal the key and the state, then serve."""
-    home = home or DEFAULT_HOME
+    home = resolve_home(home)
     try:
         policy = SignedPolicy.from_content(json.loads(policy_path.read_text()))
     except (OSError, json.JSONDecodeError) as exc:
@@ -154,7 +154,7 @@ def token_command(action: str, token_id: str | None, *, home: Path | None = None
     to pick up a change. ``add`` prints the fresh bearer token exactly once —
     only its SHA-256 is ever written to disk.
     """
-    home = home or DEFAULT_HOME
+    home = resolve_home(home)
     store = RelayTokenStore(home / "relay")
     if action == "add":
         if not token_id:

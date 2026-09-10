@@ -21,7 +21,7 @@ import json
 import sys
 from pathlib import Path
 
-from merkl.cli.signer import DEFAULT_HOME
+from merkl.cli.home import resolve_home
 from merkl.core.rail import NETWORK_XRPL_MAINNET, NETWORK_XRPL_TESTNET
 from merkl.signer.keystore import DevKeystore
 
@@ -54,7 +54,7 @@ def init_command(
 
     mainnet = network == NETWORK_XRPL_MAINNET
     endpoint = json_rpc_url or (MAINNET_JSON_RPC if mainnet else TESTNET_JSON_RPC)
-    keystore = DevKeystore((home or DEFAULT_HOME) / "keystore")
+    keystore = DevKeystore(resolve_home(home) / "keystore")
 
     try:
         lines = tuple(TrustLine.parse(entry) for entry in trust)
