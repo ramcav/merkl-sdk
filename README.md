@@ -239,11 +239,18 @@ volume holds the keystore, the sealed rule state, the relay tokens and the
 signed policy; the signer is the image plus that volume:
 
 ```bash
-docker run --rm -it -v merkl-signer:/var/lib/merkl-signer ghcr.io/ramcav/merkl-signer:0.2.0 \
+docker run --rm -it -v merkl-signer:/var/lib/merkl-signer ghcr.io/ramcav/merkl-signer:0.2.1 \
   treasury init --xrpl-testnet --home /var/lib/merkl-signer   # keystore made where it is served
 docker run -d --name merkl-signer -v merkl-signer:/var/lib/merkl-signer \
-  -p 127.0.0.1:8787:8787 ghcr.io/ramcav/merkl-signer:0.2.0      # serves policy.signed.json from the volume
+  -p 127.0.0.1:8787:8787 ghcr.io/ramcav/merkl-signer:0.2.1      # serves policy.signed.json from the volume
 ```
+
+Inside the container the signer is on a Unix socket, and a forwarder
+(`merkl.signer.forward`, stdlib only) relays `$MERKL_SIGNER_LISTEN` —
+`0.0.0.0:8787` by default — to it byte for byte. That is the "proxy in front"
+`merkl.signer.server` demands before it will answer anything but loopback: the
+guard stays, and what faces the network holds no key and refuses nothing. Both
+processes are supervised as one; if either exits, the container does.
 
 Or from a checkout, without Docker:
 
