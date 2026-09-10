@@ -317,7 +317,12 @@ class ReceiptBuilder:
         receipt = self._build(receipt_id, leaves, response)
         receipt, action_id = await self._join_session(receipt, response, depends_on)
         await self._store_receipt(receipt)
-        notary_error = await self._file_with_notary(receipt, None)
+        # Built before the filing, not after it. The notary opens its human queue
+        # entry from this member of `POST /v1/receipts`; a receipt filed without
+        # it leaves the Approvals page reading "nothing is waiting on a person"
+        # for a payment the signer escalated, and nothing in a leaf can be used
+        # to reconstruct it (the expiry and the quorum are committed nowhere
+        # until the escalation resolves).
         pending_escalation: JSONObject | None = (
             {
                 "challenge": str(response["challenge"]),
@@ -326,6 +331,9 @@ class ReceiptBuilder:
             }
             if escalating
             else None
+        )
+        notary_error = await self._file_with_notary(
+            receipt, None, pending_escalation=pending_escalation
         )
         return ReceiptOutcome(
             receipt=receipt,
@@ -500,20 +508,34 @@ class ReceiptBuilder:
             await put_proof(receipt.envelope.receipt_id, proof)
 
     async def _file_with_notary(
-        self, receipt: Receipt, proof: SettlementProof | None
+        self,
+        receipt: Receipt,
+        proof: SettlementProof | None,
+        *,
+        pending_escalation: JSONObject | None = None,
     ) -> str | None:
-        """File the receipt with the notary, proof included. Returns any error.
+        """File the receipt with the notary, proof or open challenge included.
 
-        Never raises. The payment has settled, the local store has the record,
-        and a witness that is unreachable is not permitted to turn a completed
-        payment into a failed call (plan D12). The failure is returned so it can
-        be reported rather than lost.
+        Returns any error. Never raises: the payment has settled, the local store
+        has the record, and a witness that is unreachable is not permitted to
+        turn a completed payment into a failed call (plan D12). The failure is
+        returned so it can be reported rather than lost.
+
+        ``pending_escalation`` is passed only when there is one, so a notary
+        implementation written against the older
+        :class:`~merkl.core.ports.NotaryPort` signature keeps working for every
+        settled and denied receipt — the same downgrade rule the settlement-proof
+        store follows. One handed an escalating receipt reports the ``TypeError``
+        as a filing failure rather than dropping the payment on the floor.
         """
         if self._notary is None:
             return None
+        extra: dict[str, Any] = (
+            {} if pending_escalation is None else {"pending_escalation": pending_escalation}
+        )
         try:
             await self._notary.file_receipt(
-                receipt.envelope, receipt.leaves, settlement_proof=proof
+                receipt.envelope, receipt.leaves, settlement_proof=proof, **extra
             )
         except Exception as exc:  # noqa: BLE001 - a witness may be down; a payer may not care
             return str(exc)

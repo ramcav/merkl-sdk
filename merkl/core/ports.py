@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, Protocol, runtime_checkable
 
-from merkl.core.canonical import JSONValue
+from merkl.core.canonical import JSONObject, JSONValue
 from merkl.core.intent import Intent
 from merkl.core.policy.approvals import ApprovalAssertion
 from merkl.core.policy.engine import Decision, RiskScore
@@ -153,6 +153,13 @@ class NotaryPort(Protocol):
     Filing them together is one round trip and the ordinary case; the second
     method is for a capture completed afterwards, such as validations collected
     late, which must still be able to reach the receipt it belongs to.
+
+    ``pending_escalation`` is ``{challenge, expires_at, quorum}`` for a receipt
+    whose decision is still ``escalate``. It is not in any leaf — nothing about a
+    challenge is committed until the escalation resolves — so a notary that opens
+    a human queue entry has no other way to learn one exists. Only ever passed
+    when there *is* one; a receipt that settled or was denied is filed with the
+    signature this port has always had.
     """
 
     async def file_receipt(
@@ -161,6 +168,7 @@ class NotaryPort(Protocol):
         leaves: ReceiptLeaves,
         *,
         settlement_proof: SettlementProof | None = None,
+        pending_escalation: JSONObject | None = None,
     ) -> None: ...
 
     async def file_settlement_proof(self, receipt_id: str, proof: SettlementProof) -> None: ...
