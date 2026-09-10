@@ -17,8 +17,11 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
   `account_tx` with no wallet, bounded below by `ledger_index_min` — the
   notary's reconciliation path),
   `signer_dev` / `signer_nitro` (SignerPort clients), `nitro` (KMS sealing and
-  the CMS envelope it answers with), `notary` (`HttpNotary`: files a receipt and
-  its settlement capture with merkl-api, afterwards and never on the decision path)
+  the CMS envelope it answers with), `notary` (everything that talks to
+  merkl-api: `HttpNotary` files a receipt and its settlement capture afterwards
+  and never on the decision path; `EnrolClient` is the two calls
+  `merkl treasury init --enrol` makes; `NotaryFollower` is how a self-hosted
+  signer *pulls* its policy and its approvals, because nothing can route to it)
 - `ReceiptBuilder` (`merkl/sdk/receipts.py`) — propose → route → co-sign →
   settle → attest, joining the enclosing session as one `transaction` action and
   filing the receipt with its `SettlementProof` to the local store and the notary
@@ -34,8 +37,11 @@ Standalone repository, published to PyPI as `merkl-sdk` (split out of the `ramca
 - `@trace` and `@guardrail` decorators for auto-recording actions (concurrency-safe via `contextvars`)
 - `merkl` CLI — `merkl install --claude-code [--global]` writes hooks into
   `settings.json`; `merkl demo [--xrpl-testnet]` runs the scenarios;
-  `merkl policy sign|show` and `merkl signer token add|revoke|list` manage
-  policy admin signatures and relay bearer tokens
+  `merkl policy sign|show` and `merkl signer token add|revoke|list [--env]`
+  manage policy admin signatures and relay bearer tokens;
+  `merkl treasury init|enrol|verify` and `merkl signer serve|bootstrap` are the
+  five-minute setup (below). Every command's `--home` defaults to `$MERKL_HOME`,
+  else `~/.merkl/signer`
 - `HookState` (`merkl/hooks/claude_code.py`) — one tempfile-backed object per Claude Code session, owns session_id, turn rotation, dataflow snippets, sub-agent parent linkage
 - Framework integrations: LangChain, OpenAI, Google ADK, CrewAI — all route through `merkl.integrations._common.record_tool_call` so new action fields plumb through one call site
 - Shared value objects (`SHA256Hash`, `canonical_hash`, `SessionId`, `ActionId`, `Timestamp`, enums, errors) imported by both SDK and merkl-api
@@ -245,16 +251,44 @@ merkl/demo/
   the shape `merkl disclose` and `merkl receipt show` read. A `ReceiptStorePort`
   and a `SettlementProofStorePort`; the latter is probed for, never assumed, so
   an older store keeps working
-- `merkl/adapters/notary.py` — `HttpNotary`: `POST /v1/receipts` with
+- `merkl/adapters/notary/client.py` — `HttpNotary`: `POST /v1/receipts` with
   `settlement_proof` inline, and `POST /v1/receipts/{id}/settlement-proof` for a
   capture that completed late. Filing never raises at the payer
+- `merkl/adapters/notary/enrol.py` — `EnrolClient`: `POST /v1/signers/enrol`
+  (before a single transaction, so the page can show an address to fund) and
+  `POST /v1/signers/ready` (after the read-back). `NotaryRecord` is
+  `<home>/notary.json`, 0600, holding the signer's own bearer
+- `merkl/adapters/notary/follower.py` — `NotaryFollower`: the daemon thread that
+  pulls the policy and the escalations, applies them through the *same*
+  `RpcRouter` the socket goes through, and heartbeats. Verifies everything it is
+  handed; never raises out of its thread; lives here and not under
+  `merkl/signer/`, which knows no notary (`docs/SIGNER-RPC.md` §7)
 - `merkl/sdk/decorators.py` — `@trace`, `@guardrail` + `set_current_session` / `reset_current_session` backed by `contextvars`
 - `merkl/integrations/_common.py` — `record_tool_call()` shared by every framework adapter
 - `merkl/integrations/` — langchain.py, openai.py, google_adk.py, crewai.py
 - `merkl/hooks/claude_code.py` — Claude Code PostToolUse + SessionEnd hook; `HookState` class owns all per-session scratch state
 - `merkl/cli/main.py` — the CLI: `verify`, `receipt show`, `disclose`, `approve`,
-  `reject`, `reconcile`, `install`, `signer serve|token`, `policy sign|show`,
-  `treasury init --xrpl-testnet|--xrpl-mainnet [--trust CODE.issuer]`, `demo`
+  `reject`, `reconcile`, `install`, `signer serve|bootstrap|token`,
+  `policy sign|show`, `treasury init|enrol|verify`, `xrpl pin-unl`, `demo`
+- `merkl/cli/home.py` — `$MERKL_HOME` and the layout under it. One directory
+  holds the keystore, the seeds, the agents' request keys, the relay tokens, the
+  policy and `notary.json`; the image sets it to the volume, which is why the
+  printed `docker run` lines carry no `--home`
+- `merkl/cli/bundle.py` — the agent bundle: `trader.toml` (the shipped
+  `examples/trader/config.example.toml` filled in line by line, comments and
+  all), the agent's Ed25519 request key, its wallet alone, its relay token and
+  its notary API key. Secrets 0600, paths relative, one builder for both
+  destinations (a directory, or `ready.agent_bundle`)
+- `merkl/cli/treasury.py` — `treasury init`: keys, enrol, wait for funding, the
+  sentence, the ledger work, ready, the bundle — in that order, because the
+  customer is watching a page while it runs. `treasury enrol` re-sends both
+  notary calls from `<home>/treasury.json` when only that half failed (exit 7)
+- `merkl/signer/forward.py` — the stdlib TCP forwarder the image runs in front
+  of the signer's Unix socket. Parses nothing; answers a constant
+  `503 signer_unavailable` when there is nothing upstream yet
+- `docker/signer-entrypoint.sh` — supervises the signer and the forwarder as one
+  pair for `signer serve` and `signer bootstrap`, runs every other subcommand
+  straight through, and hands `/agent` back to whoever owns it afterwards
 - `merkl/cli/verify.py` — `merkl verify` over a receipt, a bundle or a rendered
   verify.html; exit 0 nothing contradicted, 1 contradicted, 2 unreadable
 - `merkl/cli/demo.py` — `merkl demo`: fake rail always, XRPL testnet with
@@ -264,11 +298,14 @@ merkl/demo/
   Ed25519 key over `policy_hash`, in the same `ApprovalAssertion` shape a
   WebAuthn admin's ceremony produces) and `merkl policy show` (a document
   rendered in words)
-- `merkl/cli/signer.py` — `merkl signer serve` (loads `relay-tokens.json` from
-  `--home` if present; resolves the keystore passphrase from
-  `$MERKL_SIGNER_PASSPHRASE` or a prompt and never writes one; refuses to start
-  when `--rail-endpoint`/`$MERKL_RAIL_ENDPOINT` names a different chain than the
-  policy's `network`) and `merkl signer token add|revoke|list`
+- `merkl/cli/signer.py` — `merkl signer serve` (`--policy` optional, defaulting
+  to `<home>/policy.signed.json`; follows the notary when `<home>/notary.json`
+  exists; loads `relay-tokens.json` from `--home` if present; resolves the
+  keystore passphrase from `$MERKL_SIGNER_PASSPHRASE` or a prompt and never
+  writes one; refuses to start when `--rail-endpoint`/`$MERKL_RAIL_ENDPOINT` — or,
+  with neither, `notary.json`'s network — names a different chain than the
+  policy's `network`), `merkl signer bootstrap` (init then serve, non-interactive,
+  what a managed container runs) and `merkl signer token add|revoke|list`
 - `merkl/cli/xrpl_unl.py` — `merkl xrpl pin-unl <url|file>`: audits a published
   validator list and writes the pinned master-key set (§ verify.py's
   `--validator`, `merkl.core.verify.xrpl.pin_validator_list`)
@@ -296,7 +333,7 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # 1598 tests, 10 skipped
+pytest                                          # 1775 tests, 10 skipped
 npm test                                        # 257 JS tests, node --test, no bundler
 mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py merkl/sdk/receipt_store.py nitro merkl/demo merkl/cli
 ruff check merkl/ tests/
@@ -316,18 +353,52 @@ MERKL_XRPL_TESTNET=1 pytest tests/demo/test_xrpl_demo.py -v -s
 MERKL_XRPL_TESTNET=1 merkl demo --xrpl-testnet
 ```
 
+## The signer image
+
+`Dockerfile.signer` builds `ghcr.io/ramcav/merkl-signer`. The whole design is
+one sentence: **the signer is the image plus one volume, and every secret it
+holds was born inside it.**
+
+```bash
+docker build -f Dockerfile.signer -t merkl-signer:local .
+docker run -it --rm -v merkl-signer:/var/lib/merkl-signer -v "$PWD/merkl-agent:/agent" \
+  merkl-signer:local treasury init --xrpl-testnet
+docker run -d --name merkl-signer -v merkl-signer:/var/lib/merkl-signer \
+  -p 127.0.0.1:8787:8787 merkl-signer:local
+```
+
+- `ENV MERKL_HOME=/var/lib/merkl-signer` is the volume, so no printed line needs
+  `--home`, and `signer serve` needs no `--policy` either. `CMD` is just
+  `["signer", "serve"]`.
+- `/agent` is created writable and is where `treasury init` leaves the agent
+  bundle. The entrypoint chowns its contents to the owner of the directory after
+  a one-shot subcommand, so a bind-mounted `./merkl-agent` is readable on the
+  host without sudo. It is a no-op when `/agent` is the image's own directory.
+- **Two processes for `serve` and `bootstrap`.** `merkl.signer.server` refuses to
+  bind anything but loopback or a Unix socket, so the entrypoint runs the signer
+  on a socket and `merkl.signer.forward` on `$MERKL_SIGNER_LISTEN` in front of
+  it. They are supervised as one pair: if either exits, the container does, with
+  that code. Every other subcommand runs straight through and starts no
+  forwarder.
+- `.dockerignore` excludes `examples/` **except** `config.example.toml`, which
+  `pyproject.toml` force-includes into the wheel as the agent bundle's template.
+  Removing that exception breaks the build, not just the bundle.
+- `tests/docker/test_signer_entrypoint.py` runs the real script against the real
+  CLI — no container, because what is being checked is the supervision, the argv
+  handling and the `/agent` hand-back, all of which are the script's.
+
 ## Releasing
 
 ```bash
 # bump the version in BOTH pyproject.toml and merkl/core/verify/js/package.json,
 # add a CHANGELOG.md section, commit, then:
-git tag v0.2.1 && git push origin v0.2.1
+git tag v0.3.0 && git push origin v0.3.0
 ```
 
-Both files and `CHANGELOG.md` are at `0.2.1` (the signer image's bind fix, the
-relay rejection that no longer echoes a presented bearer, and
-`@merkl-ai/verify`'s `./package.json` export). Drafting the notes is not cutting
-the release: the tag is.
+Both files and `CHANGELOG.md` are at `0.3.0` (the five-minute setup: `$MERKL_HOME`,
+`treasury init` making every key where it is served from, the agent bundle, the
+notary follower, `signer bootstrap`). Drafting the notes is not cutting the
+release: the tag is.
 
 The tag is the release decision: `.github/workflows/release.yml` refuses a tag that disagrees with `pyproject.toml` **or** with `@merkl-ai/verify`'s `package.json`, runs both suites and all three vector checks, builds, publishes to PyPI via Trusted Publishing (OIDC, gated by the `pypi` environment) and `@merkl-ai/verify` to npm with provenance (gated by the `npm` environment), and creates a GitHub Release from the matching CHANGELOG section. The two packages are versioned in lockstep because they are two implementations of one spec (plan D19): a reader holding one has to be able to assume the other agrees with it. `examples/` holds runnable demo agents against a local notary; `docs/adr/` records the shared-kernel design decisions.
 

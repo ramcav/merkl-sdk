@@ -9,6 +9,78 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-10
+
+### Added — phase 17, the five-minute setup
+
+- **`$MERKL_HOME`, and a home that holds everything.** Every command's `--home`
+  now defaults to `$MERKL_HOME`, else `~/.merkl/signer`. `treasury init` writes
+  the seed file, each agent's Ed25519 request key, the relay tokens, the notary
+  record and the policy under it — nothing outside it and the agent bundle. The
+  image sets it to the volume, so the printed `docker run` lines carry no
+  `--home` and `signer serve` needs no `--policy`.
+- **`merkl treasury init` is the whole setup, in the order the customer sees.**
+  It makes the treasury, its agents and one request key each; enrols with the
+  notary *before a single transaction*, so the page they left open can show them
+  an address to fund; on mainnet prints the minimum the network itself says the
+  account needs and polls until it is there; asks for the sentence; installs the
+  trust lines, the signer list and `asfDisableMaster`; reads the account back;
+  reports ready; and leaves an agent bundle. `--enrol TOKEN --notary URL`,
+  `--confirm SENTENCE`, `--agent-dir PATH`, `--bundle-to-notary` are new; the
+  operator's `--wallet-file` flow is unchanged and pinned by a test.
+- **Mainnet no longer needs an existing seed file.** With none, fresh keys are
+  generated locally and the address is printed to fund — an XRPL account exists
+  the moment somebody pays into it. An existing file is still read, never
+  written over.
+- **The agent bundle.** `trader.toml`, `agent-ed25519.pem`, `wallet.json`,
+  `relay-token.txt` and `notary-api-key.txt`, the last four at `0600`, written to
+  `--agent-dir` (default `/agent` in the image, else `<home>/agents/<id>/bundle`)
+  or sent to the notary for a signer Merkl runs. The config is
+  `examples/trader/config.example.toml` filled in line by line, comments intact;
+  every path in it is relative, so the folder can be moved or downloaded. The
+  treasury's own seed is never in one.
+- **`merkl signer serve` follows the notary.** With a `notary.json` in `<home>`
+  it waits for the first published policy (every 10 s), picks up changes (every
+  30 s), pulls the approvals people gave in the dashboard (every 5 s while it
+  holds pending escalations, else 30 s) and heartbeats with the hash actually in
+  force. Everything pulled is verified here — a policy against the pinned admin,
+  an approval against the policy's approvers — so the notary is a postbox and
+  never an authority. `docs/SIGNER-RPC.md` §7 is normative.
+- **`merkl signer bootstrap`** — `treasury init` non-interactively (mainnet
+  requires `--confirm`, exit 5) and then `serve`, in one process. What a managed
+  container runs.
+- **`merkl treasury enrol --enrol TOKEN --notary URL`** — re-sends both notary
+  calls from what is on disk. The one failure this setup can have that leaves
+  nothing to undo now has a one-line fix, and `init` exits 7 and prints it
+  rather than pretending the treasury is not there.
+- **`merkl signer token add <id> --env`** prints the two finished lines
+  (`MERKL_SIGNER_TOKEN=`, `SIGNER_RELAY_TOKENS=`) instead of the bare token.
+- **`api_key_file` in the trading agent's config**, beside `api_key_env`. Both
+  work; the file wins, because everything else in a bundle is already a file.
+
+### Changed
+
+- **The signer image**: `MERKL_HOME` and `MERKL_AGENT_DIR` set, `/agent` created
+  writable, `CMD` reduced to `["signer", "serve"]`. The entrypoint supervises the
+  forwarder for `signer bootstrap` as well as `signer serve`, and after any other
+  subcommand hands `/agent`'s contents back to whoever owns the directory — so a
+  bind-mounted `./merkl-agent` is readable on the host without sudo.
+- **`merkl.signer.forward` answers `503 signer_unavailable`** — a constant, in
+  this protocol's own error shape, written on connect failure before a byte of
+  the request is read — instead of dropping the connection. A signer waiting for
+  its first policy and a container that never started are different facts, and a
+  refused TCP connection cannot tell them apart.
+- **`RpcRouter.dispatch_local`**: in-process dispatch that takes the same lock
+  and skips the relay-bearer check. In-process is not a relay. `build_server` and
+  `serve` accept the router so there is exactly one per engine — two would let a
+  call over the socket and a call applied in-process read the same window.
+- **`merkl.adapters.notary` is a package** (`client`, `enrol`, `follower`).
+  `from merkl.adapters.notary import HttpNotary` is unchanged.
+- **`bootstrap_treasury` split** into `create_wallets` and `install_signer_list`,
+  because something now happens in between: the enrolment call, and on mainnet
+  the wait for money. The one-call form stays for callers with nothing to do
+  there.
+
 ### Added — phase 14, the agent may trade
 
 - **Intent v1 gains `type: "swap"`.** A trade sells at most `sell.max_amount`
