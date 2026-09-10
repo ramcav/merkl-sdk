@@ -63,9 +63,22 @@ class RpcRouter:
         self._lock = threading.Lock()
 
     def dispatch(self, method: str, params: JSONObject, bearer: str | None = None) -> JSONObject:
-        engine = self._engine
         if method != "propose":
             require_relay_bearer(self._relay_tokens, bearer, method)
+        return self.dispatch_local(method, params)
+
+    def dispatch_local(self, method: str, params: JSONObject) -> JSONObject:
+        """Dispatch from inside this process, with no relay credential.
+
+        A relay token bounds who may *push* things at the signer over a
+        transport (``docs/SIGNER-RPC.md``, "Who may call what"). Something
+        running in the signer's own process has not crossed a transport and is
+        not a relay: the notary follower that pulls an approval and applies it
+        here is the same program, holding the same key, and asking it to present
+        a bearer to itself would be a credential check with no attacker on the
+        other side of it. The lock is the part that matters, and this takes it.
+        """
+        engine = self._engine
         if method == "health":
             return engine.health()
         if method == "public_key":
