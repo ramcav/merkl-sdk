@@ -39,6 +39,9 @@ wallet_file = "~/.merkl/trader/treasury.wallets.json"
 wallet_name = "agent-0"
 
 [rail]
+# The settlement family every intent names, and the one the policy names. There
+# is one real value today.
+name = "xrpl"
 json_rpc_url = "https://xrplcluster.com"
 # Used to capture validator signatures across a submit, which is what lets a
 # reader establish ledger inclusion offline. Omit it and receipts still verify,

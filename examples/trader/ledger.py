@@ -339,7 +339,7 @@ def runway_days(
 
 def _trim(value: Decimal) -> Decimal:
     """Six places is what a drop is worth; more is noise in a journal line."""
-    return value.quantize(DROP) + Decimal(0)
+    return value.quantize(DROP).normalize() + Decimal(0)
 
 
 __all__ = [

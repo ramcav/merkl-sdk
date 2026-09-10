@@ -51,6 +51,10 @@ class TreasuryConfig:
 
 @dataclasses.dataclass(frozen=True)
 class RailConfig:
+    name: str
+    """The settlement family named in every intent, and in the policy. ``xrpl``
+    in production; the in-memory rail the tests drive calls itself ``fake``."""
+
     json_rpc_url: str
     websocket_url: str | None
 
@@ -177,6 +181,7 @@ def parse(raw: dict[str, Any]) -> Config:
             wallet_name=_string(treasury, "wallet_name", "treasury"),
         ),
         rail=RailConfig(
+            name=_optional_string(rail, "name") or "xrpl",
             json_rpc_url=_string(rail, "json_rpc_url", "rail"),
             websocket_url=_optional_string(rail, "websocket_url"),
         ),

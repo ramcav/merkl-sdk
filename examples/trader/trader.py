@@ -54,8 +54,15 @@ from merkl.sdk.receipt_store import LocalReceiptStore
 from merkl.sdk.receipts import ReceiptBuilder, ReceiptOutcome, SystemClock
 from merkl.shared.hashing import SHA256Hash
 
-RAIL: Final = "xrpl"
-INTENT_TTL_SECONDS: Final = 600
+INTENT_TTL_SECONDS: Final = 3600
+"""How long an intent stays proposable.
+
+Long, on purpose. A proposal that escalates has to survive a person reading it
+and signing, and an intent that lapses in ten minutes turns every escalation
+into an expiry — the agent would propose, wait, be told the window closed, and
+propose again forever. The exposure is small: the nonce makes a replay a
+refusal, and a swap can only ever fill at the limit price the agent already
+set, so an hour-old intent cannot execute at a price it did not accept."""
 NONCE_LENGTH: Final = 32
 RECEIPTS_SHOWN: Final = 20
 
@@ -268,7 +275,10 @@ class Trader:
         """Finish a payment a human decided out of band (``ReceiptBuilder.resume``)."""
         receipt_id = str(SHA256Hash.from_bytes(f"resume:{pending.challenge}".encode()).hex()[:32])
         self.state.in_flight = books.InFlight(
-            receipt_id=receipt_id, nonce=str(pending.intent.get("nonce", "")), kind="resume", at=now
+            receipt_id=receipt_id,
+            nonce=str(pending.intent.get("nonce", "")),
+            kind="resume",
+            at=now,
         )
         self.state.pending = None
         self._save()
@@ -540,7 +550,7 @@ class Trader:
         treasury = self.settings.treasury.address
         return Intent(
             type="swap",
-            rail=RAIL,
+            rail=self.settings.rail.name,
             treasury=treasury,
             destination=treasury,
             sell=SwapSell(currency=sell, max_amount=sell_max),
@@ -555,7 +565,7 @@ class Trader:
         self, now: str, *, destination: str, amount: Amount, receipt_id: str
     ) -> Intent:
         return Intent(
-            rail=RAIL,
+            rail=self.settings.rail.name,
             treasury=self.settings.treasury.address,
             destination=destination,
             amount=amount,
@@ -739,7 +749,7 @@ async def build(settings: configuration.Config, *, dry_run: bool = False) -> Tra
         agent_sign=lambda message: loaded.sign(message).hex(),
         receipt_store=store,
         notary=HttpNotary(settings.notary.url, api_key=api_key),
-        rail=RAIL,
+        rail=settings.rail.name,
     )
     return Trader(
         settings,
