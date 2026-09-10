@@ -269,6 +269,17 @@ class TestTestnet:
         tokens = json.loads((sealed_home / "relay" / "relay-tokens.json").read_text())
         assert sorted(t["id"] for t in tokens["tokens"]) == ["agent-0", "agent-1"]
 
+    def test_two_agents_with_no_agent_dir_each_get_their_own_folder(
+        self, rail: FakeRail, sealed_home: Path
+    ) -> None:
+        treasury_cli.init_command(home=sealed_home, network=NETWORK_XRPL_TESTNET, agents=2)
+        for agent_id in ("agent-0", "agent-1"):
+            bundle = sealed_home / "agents" / agent_id / "bundle"
+            assert (bundle / TRADER_CONFIG).exists()
+            assert json.loads((bundle / AGENT_WALLET).read_text())["wallets"] == {
+                agent_id: json.loads((bundle / AGENT_WALLET).read_text())["wallets"][agent_id]
+            }
+
     def test_the_treasury_record_holds_public_facts_and_no_seed(
         self, rail: FakeRail, sealed_home: Path
     ) -> None:

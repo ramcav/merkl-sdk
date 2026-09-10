@@ -52,7 +52,7 @@ from merkl.cli.bundle import (
     read_agent_key,
 )
 from merkl.cli.home import (
-    agent_home,
+    CONTAINER_AGENT_DIR,
     agent_key_path,
     default_bundle_dir,
     notary_path,
@@ -544,13 +544,14 @@ def _bundle_dir(home: Path, agent_id: str, agent_dir: Path | None, count: int) -
 
     ``--agent-dir`` names the folder for *the* agent when there is one, which is
     the case the printed ``docker run`` line covers. With more than one, each
-    gets a subdirectory of it: two agents sharing a folder would share a wallet
+    gets a subdirectory of it — two agents sharing a folder would share a wallet
     file and a request key, which is the one thing the multisig arrangement
-    exists to prevent.
+    exists to prevent. ``<home>/agents/<id>/bundle`` is already per-agent, so
+    only the shared destinations need the extra level.
     """
-    if agent_dir is None:
-        return default_bundle_dir(home, agent_id) if count == 1 else agent_home(home, agent_id)
-    return agent_dir if count == 1 else agent_dir / agent_id
+    base = agent_dir if agent_dir is not None else default_bundle_dir(home, agent_id)
+    shared = agent_dir is not None or base == CONTAINER_AGENT_DIR
+    return base / agent_id if count > 1 and shared else base
 
 
 def _fresh_token(store: RelayTokenStore, token_id: str) -> str:

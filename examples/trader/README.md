@@ -67,6 +67,15 @@ it at all.
 Copy `config.example.toml`, edit it, and read the comments — they say which
 values are secrets and how each one is referenced rather than inlined.
 
+Or skip all five: `merkl treasury init` writes this file for you, already filled
+in, beside the key, the wallet and the tokens it generated. It lands in
+`./merkl-agent/` (or wherever `--agent-dir` says) with every path in it relative,
+so the folder can be moved. What it cannot fill in is `treasury.policy_version` —
+that is decided when you publish the policy — so it says
+`"<set this after you publish>"` and the signer will refuse every intent until
+you replace it. `[notary].api_key_file` names the `0600` file it wrote;
+`api_key_env` still works, and the file wins when both are set.
+
 ## Run it
 
 ```bash
