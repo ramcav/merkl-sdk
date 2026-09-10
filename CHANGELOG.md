@@ -9,6 +9,37 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-10
+
+### Fixed
+
+- **The signer image no longer crash-loops on first boot.** Its command asked
+  `merkl signer serve` for `--host 0.0.0.0`, which `merkl.signer.server` refuses
+  — "use a Unix socket, or bind loopback and put your own proxy in front of it"
+  — so `ghcr.io/ramcav/merkl-signer:0.2.0` died the moment it started. The guard
+  is right and is unchanged. The image now runs the proxy it names: the signer
+  binds a Unix socket, and `merkl.signer.forward` (new, stdlib asyncio, no new
+  dependency) listens on `$MERKL_SIGNER_LISTEN` — `0.0.0.0:8787` by default —
+  and relays to it byte for byte, parsing nothing and refusing nothing. What
+  faces the network holds no key; authentication stays in the signer, where it
+  is audited. `docker run -p 127.0.0.1:8787:8787` and a compose service reached
+  as `signer:8787` both work. The two processes are supervised as one pair: if
+  either exits, the container exits with that code, and every other subcommand
+  (`treasury init`, `signer token`, `policy show`) still passes straight through
+  the entrypoint. A `docker stop` exits `0` rather than reporting the signal.
+- **A refused relay token is no longer echoed back to the caller.** The
+  rejection took the bearer's id as everything before the first `:` — so a
+  bearer with no `:` in it, a bare secret, came back whole in the error message,
+  into the caller's terminal and its logs. A wrong-but-real credential pasted
+  into the wrong signer was leaked by the signer itself. The message now names a
+  token id only when this signer already holds one under that name, and says
+  nothing at all about the bytes presented otherwise.
+
+### Added
+
+- `@merkl-ai/verify` exports `./package.json`, so a consumer can read the
+  version of the verifier it has installed.
+
 ## [0.2.0] - 2026-09-07
 
 ### Added — phase 11
