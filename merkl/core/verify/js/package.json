@@ -1,16 +1,17 @@
 {
   "name": "@merkl-ai/verify",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Verify Merkl receipts and proof bundles offline. No dependencies, Web Crypto only.",
   "type": "module",
   "main": "./merkl-verify.js",
   "module": "./merkl-verify.js",
   "exports": {
     ".": "./merkl-verify.js",
-    "./cli": "./cli.mjs"
+    "./cli": "./cli.mjs",
+    "./package.json": "./package.json"
   },
   "bin": {
-    "merkl-verify": "./cli.mjs"
+    "merkl-verify": "cli.mjs"
   },
   "files": [
     "merkl-verify.js",

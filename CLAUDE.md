@@ -321,13 +321,13 @@ MERKL_XRPL_TESTNET=1 merkl demo --xrpl-testnet
 ```bash
 # bump the version in BOTH pyproject.toml and merkl/core/verify/js/package.json,
 # add a CHANGELOG.md section, commit, then:
-git tag v0.2.0 && git push origin v0.2.0
+git tag v0.2.1 && git push origin v0.2.1
 ```
 
-`CHANGELOG.md` carries a drafted `[0.2.0]` section already (the co-signer:
-scenarios, `merkl demo`, the README rewrite); `pyproject.toml` and
-`merkl/core/verify/js/package.json` are still `0.1.1` until that bump actually
-happens — drafting the notes is not cutting the release.
+Both files and `CHANGELOG.md` are at `0.2.1` (the signer image's bind fix, the
+relay rejection that no longer echoes a presented bearer, and
+`@merkl-ai/verify`'s `./package.json` export). Drafting the notes is not cutting
+the release: the tag is.
 
 The tag is the release decision: `.github/workflows/release.yml` refuses a tag that disagrees with `pyproject.toml` **or** with `@merkl-ai/verify`'s `package.json`, runs both suites and all three vector checks, builds, publishes to PyPI via Trusted Publishing (OIDC, gated by the `pypi` environment) and `@merkl-ai/verify` to npm with provenance (gated by the `npm` environment), and creates a GitHub Release from the matching CHANGELOG section. The two packages are versioned in lockstep because they are two implementations of one spec (plan D19): a reader holding one has to be able to assume the other agrees with it. `examples/` holds runnable demo agents against a local notary; `docs/adr/` records the shared-kernel design decisions.
 

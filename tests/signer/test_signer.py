@@ -557,6 +557,25 @@ class TestRelayAuthOverHttp:
         finally:
             server.shutdown()
 
+    def test_the_401_body_never_carries_the_token_that_was_presented(self, tmp_path: Path) -> None:
+        """A wrong-but-real secret must not come back down the wire into a client log."""
+        server, base, _, _ = self._serve_with_token(tmp_path)
+        presented = "7a378d65f0b14c2e9d3a6f5b8c1e4d7a0b2c3d4e5f60718293a4b5c6d7e8f9012"
+        try:
+            for response in (
+                httpx.post(
+                    base,
+                    json={"method": "health"},
+                    headers={"Authorization": f"Bearer {presented}"},
+                ),
+                httpx.get(f"{base}/health", headers={"Authorization": f"Bearer {presented}"}),
+            ):
+                assert response.status_code == 401
+                assert presented not in response.text
+                assert presented[:8] not in response.text
+        finally:
+            server.shutdown()
+
     def test_the_right_bearer_is_accepted(self, tmp_path: Path) -> None:
         server, base, _, bearer = self._serve_with_token(tmp_path)
         try:
