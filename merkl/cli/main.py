@@ -9,7 +9,8 @@ Usage:
     merkl reconcile --treasury <id>        # outflows against receipts, both directions
     merkl install --claude-code            # install hook in .claude/settings.json
     merkl signer serve --policy p.json     # run the dev co-signer
-    merkl treasury init --xrpl-testnet     # fund and lock down a testnet treasury
+    merkl treasury init --xrpl-testnet     # keys, ledger, agent bundle, in one run
+    merkl treasury enrol --enrol T --notary U  # re-send an enrolment that failed
     merkl treasury verify <address>        # check the signer list and master key
     merkl xrpl pin-unl <url|file> -o u.json  # audit a validator list, pin its master keys
     merkl demo [--xrpl-testnet]            # run the five scenarios, write pages to open
@@ -33,6 +34,40 @@ HOME_HELP = (
     "Everything this signer owns: keystore, seeds, relay tokens, policy "
     "(default: $MERKL_HOME, else ~/.merkl/signer)"
 )
+
+MAINNET_CONFIRMATION = "disable the master key on mainnet"
+"""Repeated here for the help text alone; ``merkl.cli.treasury`` is normative."""
+
+
+def _add_enrolment_flags(parser: argparse.ArgumentParser, *, required: bool = False) -> None:
+    """``--enrol``/``--notary``/``--agent-dir``/``--bundle-to-notary``, shared by two commands."""
+    parser.add_argument(
+        "--enrol",
+        default=None,
+        required=required,
+        metavar="TOKEN",
+        help="The one-shot enrolment token the dashboard printed (enr_…)",
+    )
+    parser.add_argument(
+        "--notary",
+        default=None,
+        required=required,
+        metavar="URL",
+        help="The notary to enrol with (https://api.merkl.ai)",
+    )
+    parser.add_argument(
+        "--agent-dir",
+        type=Path,
+        default=None,
+        help="Where to write the agent bundle (default: /agent if it exists, "
+        "else <home>/agents/<id>/bundle)",
+    )
+    parser.add_argument(
+        "--bundle-to-notary",
+        action="store_true",
+        help="Send the agent bundle to the notary instead of writing it, for a signer "
+        "Merkl runs. The dashboard hands it to the customer once.",
+    )
 
 
 def _ensure_hook(
@@ -388,6 +423,22 @@ def main() -> None:
         metavar="CODE.issuer",
         help="A trust line to set before the master key is disabled (repeatable)",
     )
+    _add_enrolment_flags(init_p)
+    init_p.add_argument(
+        "--confirm",
+        default=None,
+        metavar="SENTENCE",
+        help=f"Skip the mainnet prompt by typing it here: {MAINNET_CONFIRMATION!r}. "
+        "Anything else is not a confirmation.",
+    )
+
+    enrol_p = treasury_sub.add_parser(
+        "enrol",
+        help="Re-send enrol and ready to the notary from what is already on disk",
+    )
+    enrol_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
+    _add_enrolment_flags(enrol_p, required=True)
+
     verify_p = treasury_sub.add_parser("verify", help="Check a treasury's flags and signer list")
     verify_p.add_argument("address", help="Treasury account address")
 
@@ -546,7 +597,7 @@ def main() -> None:
             raise SystemExit(show_command(args.document, as_json=args.as_json))
         policy_p.print_help()
     elif args.command == "treasury":
-        from merkl.cli.treasury import init_command, verify_command
+        from merkl.cli.treasury import enrol_command, init_command, verify_command
 
         if args.treasury_command == "init":
             from merkl.core.rail import NETWORK_XRPL_MAINNET, NETWORK_XRPL_TESTNET
@@ -561,6 +612,21 @@ def main() -> None:
                     wallet_file=args.wallet_file,
                     network=(NETWORK_XRPL_MAINNET if args.xrpl_mainnet else NETWORK_XRPL_TESTNET),
                     trust=tuple(args.trust),
+                    enrol=args.enrol,
+                    notary=args.notary,
+                    confirm=args.confirm,
+                    agent_dir=args.agent_dir,
+                    bundle_to_notary=args.bundle_to_notary,
+                )
+            )
+        if args.treasury_command == "enrol":
+            raise SystemExit(
+                enrol_command(
+                    home=args.home,
+                    enrol=args.enrol,
+                    notary=args.notary,
+                    agent_dir=args.agent_dir,
+                    bundle_to_notary=args.bundle_to_notary,
                 )
             )
         if args.treasury_command == "verify":
