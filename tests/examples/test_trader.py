@@ -631,6 +631,42 @@ async def test_an_escalation_is_waited_on_and_then_resumed(tmp_path: Path) -> No
 
 
 @pytest.mark.asyncio
+async def test_a_pending_saved_by_one_process_is_resumed_by_another(tmp_path: Path) -> None:
+    """The escalation outlives the process that opened it, and so must its transaction.
+
+    An agent is a plain process somebody restarts. When it comes back to a
+    pending escalation it has the state file and nothing else — no memoised
+    autofill, no prepared transaction in memory — so if ``prepared_tx`` did not
+    survive to disk, finishing the payment would mean preparing it again against
+    a ledger that has moved, and the bytes would no longer be the ones the policy
+    key signed.
+    """
+    model = ScriptedModel(swaps(sell="25", buy="12", why="a rotation worth asking about"))
+    rig = build(tmp_path, model, document=policy(per_tx_cap="50", human_threshold="20"))
+
+    await rig.trader.cycle()
+    pending = rig.trader.state.pending
+    assert pending is not None
+    assert pending.prepared_tx is not None, "the state file carries what the signer was shown"
+
+    # Round-trip through the file the way a restart does, and forget everything
+    # the rail memoised — a second process memoised nothing.
+    reloaded = books.Pending.from_content(json.loads(json.dumps(pending.to_content())))
+    assert reloaded.prepared_tx == pending.prepared_tx
+    rig.trader.state.pending = reloaded
+    rig.rail._sequences.clear()
+
+    rig.queue.answer = {"status": "approved", "signer_decision": await approve(rig, reloaded)}
+    rig.clock.advance(900)
+    rig.model.then(holds("nothing to do"))
+    await rig.trader.cycle()
+
+    assert rig.trader.state.pending is None
+    assert len(rig.ledger.outflows) == 1, "the approved trade reached the rail"
+    assert "a human answered escalation" in rig.journal()
+
+
+@pytest.mark.asyncio
 async def test_an_escalation_answered_without_the_signer_decision_is_not_invented(
     tmp_path: Path,
 ) -> None:
@@ -655,9 +691,16 @@ async def approve(rig: Rig, pending: books.Pending) -> dict[str, Any]:
     from merkl.core.intent import Intent
 
     intent = Intent.from_content(pending.intent)
-    unsigned = await rig.rail.prepare(
-        intent, ANCHOR_PLACEHOLDER_HEX, agent_id=AGENT_ID, task_id=pending.receipt_id
-    )
+    # The relay has the transaction from the propose request, not a fresh one —
+    # the same content the agent kept, which is the whole point of keeping it.
+    if pending.prepared_tx is not None:
+        unsigned = await rig.rail.anchored_from_content(
+            pending.prepared_tx, ANCHOR_PLACEHOLDER_HEX
+        )
+    else:
+        unsigned = await rig.rail.prepare(
+            intent, ANCHOR_PLACEHOLDER_HEX, agent_id=AGENT_ID, task_id=pending.receipt_id
+        )
     assertions = [
         fixtures.ed25519_assertion(
             approver_id="alice@example.com",

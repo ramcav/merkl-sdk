@@ -25,13 +25,15 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import json
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
 from typing import Any, Final
 
 from xrpl.asyncio.clients import AsyncJsonRpcClient, AsyncWebsocketClient
+from xrpl.asyncio.ledger import get_latest_validated_ledger_sequence
 from xrpl.asyncio.transaction import autofill, sign, submit_and_wait
 from xrpl.core import keypairs
 from xrpl.core.binarycodec import encode, encode_for_multisigning
@@ -49,6 +51,7 @@ from merkl.core.canonical import (
     format_decimal,
     format_instant,
     parse_decimal,
+    parse_instant,
 )
 from merkl.core.intent import Amount, Intent, IssuedCurrency
 from merkl.core.policy.document import asset_key
@@ -123,6 +126,54 @@ def to_xrpl_amount(amount: Amount) -> str | IssuedCurrencyAmount:
     if currency != NATIVE:
         raise XrplAdapterError(f"XRPL's native asset is XRP, not {currency!r}")
     return str(xrp_to_drops(Decimal(amount.value)))
+
+
+LEDGER_SECONDS: Final = Decimal("3.5")
+"""Roughly how long an XRPL ledger takes to close.
+
+An observed average, not a promise: the network has run between three and five
+seconds for years. It is used only to turn a deadline in seconds into a number
+of ledgers, and the margin below absorbs the error in either direction."""
+
+LEDGER_MARGIN: Final = 4
+"""Extra ledgers past the intent's expiry, so the two deadlines do not race.
+
+The intent expires at an instant and the transaction expires at a ledger; a
+transaction that died fourteen seconds before the intent it carries would be a
+payment refused for a reason nobody could see in the receipt."""
+
+MIN_LEDGER_WINDOW: Final = 20
+"""Never shorter than xrpl-py's own default, whatever the intent says.
+
+A near-expired intent is still refused by the signer, which checks ``expires_at``
+against its own clock. Handing the ledger a transaction that cannot be included
+before it dies would turn that clean denial into a submitted transaction that
+fails, which is a worse receipt and a spent fee."""
+
+
+def last_ledger_for(expires_at: str, *, now: str, current_ledger: int) -> int:
+    """The ``LastLedgerSequence`` for a transaction carrying an intent to ``expires_at``.
+
+    ``ceil(seconds_remaining / 3.5) + 4``, floored at twenty ledgers, added to the
+    ledger the network has validated now.
+
+    xrpl-py's default is ``current + 20`` — about seventy seconds — which is right
+    for a payment submitted immediately and wrong for every payment that
+    escalates. The whole point of an escalation is that minutes pass while a
+    person decides; the transaction the signer authorized is prepared *before*
+    they are asked, and if it expires while they are thinking, their approval
+    buys nothing and the agent has to propose the whole thing again. The intent
+    already carries the only deadline anybody agreed to, so the transaction is
+    made to live exactly that long.
+
+    A pure function of three values, so the arithmetic can be pinned without a
+    network: the adapter supplies ``now`` from its clock and ``current_ledger``
+    from the node.
+    """
+    remaining = parse_instant(expires_at, "intent.expires_at") - parse_instant(now, "now")
+    seconds = max(Decimal(0), Decimal(str(remaining.total_seconds())))
+    ledgers = int((seconds / LEDGER_SECONDS).to_integral_value(rounding=ROUND_CEILING))
+    return current_ledger + max(ledgers + LEDGER_MARGIN, MIN_LEDGER_WINDOW)
 
 
 def ripple_time(value: int) -> str:
@@ -200,6 +251,14 @@ class XrplSettlementAdapter:
         placeholder and preparing with the real commitment differ in exactly the
         32 anchor bytes — the fee, sequence and last-ledger fields must not move
         between the call the signer inspected and the call that gets submitted.
+
+        ``LastLedgerSequence`` is then overwritten with a window derived from the
+        *intent's own* expiry rather than left at xrpl-py's default of twenty
+        ledgers (~70 seconds). See :func:`last_ledger_for`: an intent that says it
+        is good for an hour must produce a transaction that is still submittable
+        in an hour, because an escalation is a person reading an email, and a
+        transaction that expired while they thought about it is a payment that
+        cannot be made from the approval they gave.
         """
         if intent.rail != RAIL_XRPL:
             raise XrplAdapterError(f"this adapter settles xrpl, not {intent.rail!r}")
@@ -216,10 +275,21 @@ class XrplSettlementAdapter:
         )
         base = self._prepared.get(intent.nonce)
         if base is None:
-            base = await autofill(
+            filled = await autofill(
                 self._payment(intent, ANCHOR_PLACEHOLDER_HEX, attr),
                 self._client,
                 signers_count=self._signers_count,
+            )
+            validated = await get_latest_validated_ledger_sequence(self._client)
+            base = Payment.from_xrpl(
+                {
+                    **filled.to_xrpl(),
+                    "LastLedgerSequence": last_ledger_for(
+                        intent.expires_at,
+                        now=format_instant(datetime.now(tz=UTC)),
+                        current_ledger=validated,
+                    ),
+                }
             )
             self._prepared[intent.nonce] = base
 
@@ -237,6 +307,47 @@ class XrplSettlementAdapter:
             commitment=commitment,
             handle=payment,
         )
+
+    async def anchored_from_content(self, content: JSONObject, commitment: str) -> UnsignedTx:
+        """Rebuild a transaction from what the caller kept, never from the ledger.
+
+        Two independent things happen here, and the second checks the first:
+
+        1. the signing payload is the recorded one with the commitment spliced
+           into its anchor — 32 bytes rewritten, nothing else touched, which is
+           exactly what the signer did before it signed;
+        2. the ``Payment`` handle is reconstructed from ``fields``, because
+           ``agent_sign`` and ``submit`` need a real xrpl-py object and the wire
+           form deliberately does not carry one.
+
+        The reconstruction is then re-encoded and held against the spliced
+        payload. If they differ, ``fields`` and ``signing_payload`` describe
+        different transactions and this refuses rather than signing the one and
+        submitting the other. No autofill, no ``ledger_index``, no clock: this is
+        called when the ledger has moved on and the point is that the transaction
+        has not.
+        """
+        recorded = UnsignedTx.from_content(content)
+        if recorded.rail != RAIL_XRPL:
+            raise XrplAdapterError(f"this adapter settles xrpl, not {recorded.rail!r}")
+        spliced = recorded.with_anchor(commitment)
+        fields = recorded.fields
+        attr = {
+            "agent_id": str(_memo_field(fields, "agent_id")),
+            "session_id": str(_memo_field(fields, "session_id")),
+            "task_id": str(_memo_field(fields, "task_id")),
+            "action": str(_memo_field(fields, "action") or "payment"),
+            "source_tag": int(str(fields.get("source_tag") or MERKL_SOURCE_TAG)),
+        }
+        payment = _with_memos(_payment_from_fields(fields, attr), commitment, attr)
+        rebuilt = encode_for_multisigning(payment.to_xrpl(), self._policy_address).lower()
+        if rebuilt != spliced.signing_payload:
+            raise XrplAdapterError(
+                "the prepared transaction's fields do not re-encode to its signing payload; "
+                "refusing to sign one transaction and submit another"
+            )
+        self._attribution.setdefault(str(fields.get("nonce") or commitment), attr)
+        return dataclasses.replace(spliced, handle=payment)
 
     def _payment(self, intent: Intent, commitment: str, attr: dict[str, Any]) -> Payment:
         memo_data = (
@@ -648,6 +759,38 @@ def _handle(unsigned: UnsignedTx) -> Payment:
             "this unsigned transaction has no xrpl payload; it must be prepared by this adapter"
         )
     return payment
+
+
+def _memo_field(fields: JSONObject, key: str) -> Any:
+    """One member of the agent memo recorded in ``UnsignedTx.fields``."""
+    memo = fields.get("agent_memo")
+    return memo.get(key, "") if isinstance(memo, dict) else ""
+
+
+def _payment_from_fields(fields: JSONObject, attr: dict[str, Any]) -> Payment:
+    """The ``Payment`` a recorded ``UnsignedTx`` describes, memos aside.
+
+    Every value comes from ``fields`` — the fee, the sequence and the
+    last-ledger included — so nothing here consults the network. The memos are
+    rewritten afterwards by :func:`_with_memos`, and the whole result is then
+    held against the recorded payload by the caller, which is what makes this
+    reconstruction checkable rather than trusted.
+    """
+    send_max = fields.get("send_max")
+    network_id = int(str(fields.get("network_id") or 0))
+    return Payment(
+        account=str(fields.get("account", "")),
+        destination=str(fields.get("destination", "")),
+        amount=to_xrpl_amount(Amount.from_content(fields.get("amount"))),
+        send_max=(to_xrpl_amount(Amount.from_content(send_max)) if send_max else None),
+        source_tag=int(str(attr.get("source_tag") or MERKL_SOURCE_TAG)),
+        fee=str(fields.get("fee", "")),
+        sequence=int(str(fields.get("sequence") or 0)),
+        last_ledger_sequence=int(str(fields.get("last_ledger_sequence") or 0)),
+        network_id=network_id or None,
+        memos=[],
+        signing_pub_key="",
+    )
 
 
 def _with_memos(payment: Payment, commitment: str, attr: dict[str, Any]) -> Payment:

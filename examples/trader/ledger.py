@@ -83,6 +83,14 @@ class Pending:
     instruction: JSONObject
     reasoning: JSONObject | None
     opened_at: str
+    prepared_tx: JSONObject | None = None
+    """The transaction the signer was shown, kept so a later process can submit it.
+
+    Without it, finishing this payment means preparing it again — and the
+    sequence, fee and last-ledger the rail fills in then belong to a ledger that
+    has moved on, so the bytes no longer match the ones the policy key signed.
+    The approval a person gave would buy nothing. It holds the anchor placeholder
+    and no signature, so it is not a secret and authorizes nothing on its own."""
 
     def to_content(self) -> JSONObject:
         return {
@@ -94,6 +102,7 @@ class Pending:
             "instruction": self.instruction,
             "reasoning": self.reasoning,
             "opened_at": self.opened_at,
+            "prepared_tx": self.prepared_tx,
         }
 
     @classmethod
@@ -107,6 +116,7 @@ class Pending:
             instruction=dict(data["instruction"]),
             reasoning=dict(data["reasoning"]) if data.get("reasoning") else None,
             opened_at=str(data.get("opened_at", "")),
+            prepared_tx=dict(data["prepared_tx"]) if data.get("prepared_tx") else None,
         )
 
 

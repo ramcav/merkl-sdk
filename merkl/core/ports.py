@@ -58,6 +58,27 @@ class SettlementPort(Protocol):
         """
         ...
 
+    async def anchored_from_content(self, content: JSONObject, commitment: str) -> UnsignedTx:
+        """Rebuild a previously prepared transaction and write ``commitment`` in.
+
+        The same result :meth:`prepare` would give — *if* it were called in the
+        same process, in the same minute, against the same ledger. It often is
+        not: an escalation is answered by a person, minutes or hours later, and
+        the process that submits may not be the process that proposed. A fresh
+        ``prepare`` there re-autofills, and the sequence, fee or last-ledger it
+        picks up are not the ones the policy key signed, so the transaction is
+        refused by the caller's own equality check with nothing wrong.
+
+        So the caller keeps the ``UnsignedTx.to_content()`` it sent in the
+        propose request and hands it back. The adapter reproduces the signing
+        payload from that content rather than from the network, and rebuilds
+        whatever private handle it needs to sign and submit. It must refuse
+        content whose ``fields`` and ``signing_payload`` disagree; the caller's
+        comparison against the bytes the signer actually signed is still the last
+        word.
+        """
+        ...
+
     async def agent_sign(self, unsigned: UnsignedTx) -> PartialTx:
         """Sign with the agent's key. One of the two signatures quorum requires."""
         ...

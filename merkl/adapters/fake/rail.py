@@ -201,6 +201,16 @@ class FakeSettlementAdapter:
             commitment=commitment,
         )
 
+    async def anchored_from_content(self, content: JSONObject, commitment: str) -> UnsignedTx:
+        """The recorded transaction with ``commitment`` spliced into its anchor.
+
+        Nothing is looked up: the payload is the one the caller kept, and the
+        splice is the same 32-byte rewrite the signer performed. This rail has no
+        handle to rebuild — ``agent_sign`` signs the payload itself — so the
+        whole method is the splice.
+        """
+        return UnsignedTx.from_content(content).with_anchor(commitment)
+
     async def agent_sign(self, unsigned: UnsignedTx) -> PartialTx:
         signature = self._agent_key.sign(unsigned.payload_bytes).hex()  # type: ignore[attr-defined]
         return PartialTx(

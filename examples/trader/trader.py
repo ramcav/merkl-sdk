@@ -288,6 +288,7 @@ class Trader:
             decision=decision,
             receipt_id=receipt_id,
             reasoning=(Reasoning.from_content(pending.reasoning) if pending.reasoning else None),
+            prepared_tx=pending.prepared_tx,
         )
         self.state.in_flight = None
         self.state.lesson = "" if outcome.settled else _lesson(outcome)
@@ -508,6 +509,7 @@ class Trader:
                     else None
                 ),
                 opened_at=now,
+                prepared_tx=outcome.prepared_tx,
             )
         if outcome.notary_error:
             self.journal.note(

@@ -276,6 +276,41 @@ forward `{challenge, assertions}` to this method and store the returned decision
 beside the receipt; until it does, a rejection filed through the API leaves the
 escalation pending in the signer and the reservation held until it expires.
 
+#### Finishing an escalation somewhere else
+
+`approve` decides once: the signer drops its pending escalation the instant one
+caller's assertions complete the quorum, so whichever caller made that call is
+the only party that ever sees the resulting `allow`. When that caller is the
+notary relaying a person's approval — or a self-hosted signer's own follower
+(§7) — the agent picks the flow back up with `ReceiptBuilder.resume()`.
+
+That agent is usually **a different process from the one that proposed**, and it
+is always a *later* one. It must not prepare the transaction again. A rail
+autofills sequence, fee and last-ledger from the ledger as it is at the moment of
+preparing; minutes have passed, the ledger has closed, and the bytes that come
+back are not the bytes the policy key signed — so the payment is refused by the
+agent's own equality check with nothing actually wrong.
+
+Two agent-side rules follow, neither of which touches this contract:
+
+* **Keep the transaction, do not rebuild it.** The propose request's
+  `prepared_tx` is handed back on `ReceiptOutcome.prepared_tx` while a decision
+  is pending, and `resume(prepared_tx=…)` reproduces the anchored transaction
+  from it (`SettlementPort.anchored_from_content`) instead of preparing afresh.
+  It holds the anchor placeholder and no signature, so it authorizes nothing and
+  is not a secret; losing it costs a re-proposal, not a payment.
+* **Give it a window worth having.** The XRPL adapter sets `LastLedgerSequence`
+  from the intent's own `expires_at` — `ceil(seconds_remaining / 3.5) + 4`
+  ledgers, floored at twenty — rather than xrpl-py's default of twenty, which is
+  about seventy seconds. An escalation is a person reading an email. A
+  transaction that dies while they think about it turns their approval into
+  nothing.
+
+The signer is unchanged by both: it is handed bytes, it checks them against the
+intent, it signs them. The agent's comparison of the transaction it is about to
+submit against `signed_payload` is still the last word before anything reaches
+the ledger.
+
 ### `settle` / `release`
 
 ```json

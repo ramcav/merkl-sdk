@@ -116,6 +116,21 @@ class ReceiptOutcome:
     notary does not yet, so a caller can retry rather than discover the gap at
     audit time."""
 
+    prepared_tx: JSONObject | None = None
+    """The transaction the signer was shown, kept for whoever finishes this.
+
+    Present whenever the outcome is still pending. An escalation is answered by a
+    person, and the process that submits may be a later one on another machine —
+    at which point preparing the transaction *again* asks the ledger for a fresh
+    sequence, fee and last-ledger, and produces bytes the policy key never signed.
+    The cure is to keep the bytes rather than rebuild them: hand this back to
+    :meth:`ReceiptBuilder.resume` as ``prepared_tx`` and the rail reproduces the
+    transaction from it (:meth:`~merkl.core.ports.SettlementPort.anchored_from_content`).
+
+    It is not a secret and it is not an authorization: it is an unsigned
+    transaction still holding the anchor placeholder, worth nothing without the
+    policy signature the signer has not yet given."""
+
     pending_escalation: JSONObject | None = None
     """``{challenge, expires_at, quorum}`` when this decision is still
     ``escalate``. The signer's ``propose`` response carries these at the top
@@ -206,7 +221,13 @@ class ReceiptBuilder:
 
         if response["outcome"] != PolicyOutcome.ALLOW.value:
             return await self._refused(
-                receipt_id, instruction, intent, response, reasoning, depends_on
+                receipt_id,
+                instruction,
+                intent,
+                response,
+                reasoning,
+                depends_on,
+                prepared_tx=unsigned.to_content(),
             )
         return await self._settle(receipt_id, instruction, intent, response, reasoning, depends_on)
 
@@ -219,6 +240,7 @@ class ReceiptBuilder:
         receipt_id: str | None = None,
         reasoning: Reasoning | None = None,
         depends_on: str | None = None,
+        prepared_tx: JSONObject | None = None,
     ) -> ReceiptOutcome:
         """Finish a payment whose decision was already reached out of band.
 
@@ -238,7 +260,15 @@ class ReceiptBuilder:
             return await self._refused(
                 receipt_id, instruction, intent, decision, reasoning, depends_on
             )
-        return await self._settle(receipt_id, instruction, intent, decision, reasoning, depends_on)
+        return await self._settle(
+            receipt_id,
+            instruction,
+            intent,
+            decision,
+            reasoning,
+            depends_on,
+            prepared_tx=prepared_tx,
+        )
 
     # -- steps ------------------------------------------------------------- #
 
@@ -291,6 +321,7 @@ class ReceiptBuilder:
         response: JSONObject,
         reasoning: Reasoning | None,
         depends_on: str | None,
+        prepared_tx: JSONObject | None = None,
     ) -> ReceiptOutcome:
         """A denial or an unresolved escalation. Both leave a receipt behind."""
         decision = PolicyDecision.from_content(response["decision"])
@@ -342,6 +373,9 @@ class ReceiptBuilder:
             reason=reason,
             notary_error=notary_error,
             pending_escalation=pending_escalation,
+            # Only while somebody is still deciding. A denied payment is over,
+            # and the transaction it would have been is not worth keeping.
+            prepared_tx=prepared_tx if escalating else None,
         )
 
     async def _settle(
@@ -352,6 +386,7 @@ class ReceiptBuilder:
         response: JSONObject,
         reasoning: Reasoning | None,
         depends_on: str | None,
+        prepared_tx: JSONObject | None = None,
     ) -> ReceiptOutcome:
         decision = PolicyDecision.from_content(response["decision"])
         left = str(response["left"])
@@ -368,13 +403,24 @@ class ReceiptBuilder:
                 "the signer's LEFT does not match the leaves it was given; refusing to submit"
             )
 
-        anchored = await self._rail.prepare(
-            intent,
-            left,
-            agent_id=self._agent_id,
-            session_id=str(getattr(get_current_session(), "session_id", "") or ""),
-            task_id=receipt_id,
-        )
+        # Rebuilt from what the caller kept, when the caller kept it. Preparing
+        # afresh asks the ledger for a sequence, a fee and a last-ledger *now*,
+        # and "now" for a resumed escalation is minutes after the policy key
+        # signed — in a process that may never have prepared this payment at all.
+        # Those are bytes nobody authorized, and the check below would refuse
+        # them with nothing actually wrong.
+        if prepared_tx is not None:
+            anchored = await self._rail.anchored_from_content(prepared_tx, left)
+        else:
+            anchored = await self._rail.prepare(
+                intent,
+                left,
+                agent_id=self._agent_id,
+                session_id=str(getattr(get_current_session(), "session_id", "") or ""),
+                task_id=receipt_id,
+            )
+        # Either way, this is the last word: the bytes about to be submitted are
+        # the bytes the policy key signed, or nothing is submitted.
         if anchored.signing_payload != response["signed_payload"]:
             await self._release(reservation_id)
             raise ReceiptBuildError(

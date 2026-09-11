@@ -58,6 +58,38 @@ Releases are cut by pushing a `v<version>` tag; see
 - **`api_key_file` in the trading agent's config**, beside `api_key_env`. Both
   work; the file wins, because everything else in a bundle is already a file.
 
+### Fixed
+
+- **An approved escalation can be submitted by the process that resumes it.**
+  `ReceiptBuilder.resume()` prepared the transaction again, and a rail autofills
+  the sequence, fee and last-ledger from the ledger *now* — minutes after the
+  policy key signed, often in a process that never prepared this payment — so the
+  bytes no longer matched and the payment was refused with `the anchored
+  transaction differs from the bytes the policy key signed`. Inside one process
+  `execute` got away with it only because adapters memoise their autofill.
+  `ReceiptOutcome` now carries `prepared_tx` while a decision is pending, and
+  `resume(prepared_tx=…)` rebuilds the anchored transaction from it through the
+  new `SettlementPort.anchored_from_content` (XRPL and fake adapters) instead of
+  preparing afresh. The comparison against `signed_payload` is untouched and is
+  still the last word: a tampered record is refused, and so is one from another
+  payment. `examples/trader` persists `prepared_tx` in its pending record, so an
+  agent restarted mid-escalation can still finish it.
+- **A transaction lives as long as the intent it carries.** The XRPL adapter set
+  `LastLedgerSequence` from xrpl-py's default of twenty ledgers — about seventy
+  seconds — which is right for a payment submitted immediately and useless for
+  one waiting on a person. It is now derived from the intent's own `expires_at`:
+  `ceil(seconds_remaining / 3.5) + 4` ledgers, floored at twenty, in the pure
+  `merkl.adapters.xrpl.last_ledger_for`.
+- **An escalated receipt now reaches the notary with its open challenge.**
+  `ReceiptBuilder` built the `pending_escalation` block *after* filing, so
+  `POST /v1/receipts` never carried it: the receipt landed, the escalation row
+  was never opened, and the dashboard's Approvals page said "nothing is waiting
+  on a person" for a payment the signer had escalated. The block is built first
+  and passed through to `HttpNotary`, which sends it as `docs/INTERFACES-P4.md`
+  sec 2 describes. Passed only when there is one, so a notary implementation
+  written against the older `NotaryPort` signature keeps filing settled and
+  denied receipts unchanged.
+
 ### Changed
 
 - **The signer image**: `MERKL_HOME` and `MERKL_AGENT_DIR` set, `/agent` created
