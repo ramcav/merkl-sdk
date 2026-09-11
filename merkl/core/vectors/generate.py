@@ -1356,6 +1356,77 @@ def _deny_receipt(rng: random.Random) -> Receipt:
     )
 
 
+def _pending_receipt(rng: random.Random) -> Receipt:
+    """An escalation still open: a person has been asked and has not answered.
+
+    The half of the escalation flow the vectors never had. It is filed the moment
+    the signer escalates, before anybody signs anything, so leaves 3 and 4 are
+    null and leaf 5 says ``pending`` — not ``settled``, because nothing did, and
+    not ``expired``, because nothing ran out of time. Every verifier has to read
+    that word and say *waiting*; a reader shown EXPIRED here would be told
+    something false about a payment that is still live.
+
+    Leaf 2 carries the escalation member without approvals, which is what makes
+    the challenge recomputable while it is still worth approving.
+    """
+    instruction = Instruction(
+        source="human_input",
+        content_hash=digest("pay the annual audit fee"),
+        ref="01936b2e-3333-7000-8000-000000000004",
+    )
+    intent = _intent(
+        amount=Amount(value="7200.00", currency=RLUSD),
+        nonce="00112233445566778899aabbccddeeff",
+        reference=Reference(kind="invoice", id="AUD-2026-01", hash=digest("audit invoice pdf")),
+    )
+    decision = PolicyDecision(
+        policy_hash=POLICY_HASH,
+        rules=(
+            PolicyRule("destination_allowlist", "pass", "known supplier"),
+            PolicyRule("per_tx_cap", "pass", "7200.00 RLUSD is within the 10000 RLUSD cap"),
+            PolicyRule(
+                "tier_threshold",
+                "escalate",
+                "7200.00 is at or above the human-approval threshold 1000.00 RLUSD",
+            ),
+        ),
+        outcome="escalate",
+        tier="human",
+    )
+    challenge = escalation_challenge(_authorization(instruction, intent, decision, None))
+    waiting = dataclasses.replace(
+        decision,
+        escalation=Escalation(
+            challenge=challenge.hex(),
+            expires_at="2026-01-02T04:04:05Z",
+            quorum=2,
+            approvals=(),
+        ),
+    )
+    leaves = ReceiptLeaves(
+        instruction=instruction,
+        intent=intent,
+        policy_decision=waiting,
+        signer_attestation=None,
+        settlement=None,
+        result=Result(
+            outcome="pending",
+            detail="Awaiting human approval; nothing was submitted.",
+        ),
+        reasoning=Reasoning(
+            content_hash=digest("model trace for the audit fee"),
+            source="claude-code",
+            note="Over the human threshold, so the signer escalated. Nobody has answered yet.",
+        ),
+    )
+    return Receipt.build(
+        receipt_id="01936b2e-2222-7000-8000-000000000007",
+        leaves=leaves,
+        agent_id="agent-accounts-payable",
+        signer_public_key=SIGNER_KEY,
+    )
+
+
 def _escalated_receipt(rng: random.Random) -> Receipt:
     """A payment over the human threshold, approved by two people, then settled.
 
@@ -1615,6 +1686,7 @@ def receipts(rng: random.Random) -> dict[str, Receipt]:
         "allow-settled": _allow_receipt(rng),
         "deny-not-submitted": _deny_receipt(rng),
         "escalated-approved-settled": _escalated_receipt(rng),
+        "escalated-pending": _pending_receipt(rng),
         "allow-settled-fake-rail": _fake_receipt(rng),
         "swap-settled": _swap_receipt(rng),
         "swap-denied-may-not-trade": _swap_denied_receipt(rng),
@@ -1634,6 +1706,11 @@ def receipt_vectors(built: dict[str, Receipt]) -> JSONObject:
         "escalated-approved-settled": (
             "A payment over the per-transaction cap: the signer escalated, two "
             "approvers signed the challenge, and the payment then settled."
+        ),
+        "escalated-pending": (
+            "The same escalation, still open. Nobody has answered, so leaves 3 and "
+            "4 are null and the result is 'pending' — waiting on a person, which is "
+            "a different fact from 'expired' and must never be shown as one."
         ),
         "allow-settled-fake-rail": (
             "The same allow on the fake rail, produced by an unattested dev signer: "
@@ -1657,6 +1734,7 @@ def receipt_vectors(built: dict[str, Receipt]) -> JSONObject:
         "allow-settled": ["intent", "settlement"],
         "deny-not-submitted": ["policy_decision"],
         "escalated-approved-settled": ["intent", "policy_decision", "result"],
+        "escalated-pending": ["policy_decision", "result"],
         "allow-settled-fake-rail": ["instruction", "settlement"],
         "swap-settled": ["intent", "result"],
         "swap-denied-may-not-trade": ["intent", "policy_decision"],

@@ -109,12 +109,28 @@ class PolicyOutcome(enum.StrEnum):
 
 
 class ResultOutcome(enum.StrEnum):
-    """How the attempt ended."""
+    """How the attempt ended — or, for ``pending``, that it has not."""
 
     SETTLED = "settled"
     DENIED = "denied"
     FAILED = "failed"
     EXPIRED = "expired"
+    """The escalation's deadline passed with nobody answering.
+
+    A real ending, and a different one from :attr:`PENDING`: an expired
+    escalation is over and the money is not moving, and the receipt says so."""
+
+    PENDING = "pending"
+    """The escalation is open. A person has been asked and has not answered.
+
+    Added in 0.3.0. Before it, an escalated receipt was filed as ``expired`` —
+    which every list that reads leaf 5 then showed as EXPIRED, on a payment
+    nothing was wrong with, in front of the reader the public page exists for.
+    "Waiting" and "ran out of time" are different facts about a payment and the
+    record has to be able to tell them apart.
+
+    ``expired`` keeps its own meaning and every receipt already carrying it still
+    verifies: this is a new member of an existing enum, not a rename."""
 
 
 def _member(data: Mapping[str, Any], key: str, owner: str) -> Any:

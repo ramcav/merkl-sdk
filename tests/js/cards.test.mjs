@@ -72,3 +72,38 @@ test('a settled trade reads Bought, Sold against its limit, and Rate', () => {
     'Refused by rule: the agent may not trade',
   );
 });
+
+test('a pending receipt reads as waiting, not as expired', async (t) => {
+  // Before 0.3.0 an escalated receipt was filed as `expired`, so every list that
+  // reads leaf 5 — including the public page, which is what strangers see —
+  // showed EXPIRED for a payment nothing was wrong with. The word is what those
+  // readers see, so the word is what is pinned.
+  const receipt = RECEIPTS['escalated-pending'];
+
+  await t.test('leaf 5 says pending', () => {
+    assert.equal(receipt.leaves[5].outcome, 'pending');
+  });
+
+  await t.test('the card says AWAITING APPROVAL and is not marked failed', async () => {
+    const verdict = await verifyReceipt(receipt);
+    const card = receiptCard(verdict, receipt.envelope, receipt.leaves);
+    assert.equal(card.status, 'AWAITING APPROVAL');
+    assert.notEqual(card.status_mark, '✗');
+  });
+
+  await t.test('the sentence a reader gets says somebody is deciding', async () => {
+    const verdict = await verifyReceipt(receipt);
+    assert.match(verdict.summary.settled, /waiting for a person/);
+    assert.doesNotMatch(verdict.summary.settled, /expired/i);
+  });
+
+  await t.test('an older receipt that says expired still reads as expired', async () => {
+    // 0.3.0 added a word; it did not take one away.
+    const older = JSON.parse(JSON.stringify(receipt));
+    older.leaves[5].outcome = 'expired';
+    const verdict = await verifyReceipt(older);
+    const card = receiptCard(verdict, older.envelope, older.leaves);
+    assert.equal(card.status, 'EXPIRED');
+    assert.match(verdict.summary.settled, /deadline passed/);
+  });
+});

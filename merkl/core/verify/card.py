@@ -242,6 +242,10 @@ def _status(result: JSONValue, decision: JSONValue) -> str:
         return STATUS_SETTLED
     if outcome == "failed":
         return STATUS_FAILED
+    # Waiting, not finished. Read before `expired` because the two are near
+    # neighbours and only one of them means the money is not coming.
+    if outcome == "pending":
+        return STATUS_AWAITING
     if outcome == "expired":
         return STATUS_EXPIRED
     if "rejected by" in detail:

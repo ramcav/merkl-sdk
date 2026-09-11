@@ -334,8 +334,13 @@ class ReceiptBuilder:
             signer_attestation=None,
             settlement=None,
             result=Result(
+                # `pending`, not `expired`: nobody has run out of time, somebody
+                # has been asked. Every list that reads leaf 5 — the notary's
+                # table, the Payments page, the public receipt page — takes this
+                # word at face value, and EXPIRED on a payment that is simply
+                # waiting is a false statement about it.
                 outcome=(
-                    ResultOutcome.EXPIRED.value if escalating else ResultOutcome.DENIED.value
+                    ResultOutcome.PENDING.value if escalating else ResultOutcome.DENIED.value
                 ),
                 detail=(
                     "Awaiting human approval; nothing was submitted."

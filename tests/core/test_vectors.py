@@ -169,6 +169,7 @@ class TestReceiptVectors:
             "allow-settled",
             "deny-not-submitted",
             "escalated-approved-settled",
+            "escalated-pending",
             "allow-settled-fake-rail",
             "swap-settled",
             "swap-denied-may-not-trade",

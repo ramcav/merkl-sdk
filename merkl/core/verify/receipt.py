@@ -324,6 +324,10 @@ def _summarize(
         )
     elif _member(result, "outcome") == "denied":
         settled = "Nothing settled. The refusal is what this receipt records."
+    elif _member(result, "outcome") == "pending":
+        settled = "Nothing has settled yet: this payment is waiting for a person to approve it."
+    elif _member(result, "outcome") == "expired":
+        settled = "Nothing settled. Nobody answered before the approval deadline passed."
 
     when = None
     close_time = _member(settlement, "close_time")

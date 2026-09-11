@@ -80,6 +80,16 @@ Releases are cut by pushing a `v<version>` tag; see
   one waiting on a person. It is now derived from the intent's own `expires_at`:
   `ceil(seconds_remaining / 3.5) + 4` ledgers, floored at twenty, in the pure
   `merkl.adapters.xrpl.last_ledger_for`.
+- **A receipt waiting on a person no longer says it expired.** The escalating
+  branch filed leaf 5 as `expired`, so the notary's receipts table, the
+  dashboard's Payments page and the public receipt page all showed EXPIRED for a
+  payment that was simply waiting — the wrong word, in front of the reader the
+  public page exists for. `ResultOutcome.PENDING` (`"pending"`) is added and
+  written instead; the detail sentence is unchanged. Both verifiers read it as
+  *AWAITING APPROVAL* and say "Nothing has settled yet: this payment is waiting
+  for a person to approve it". `expired` keeps its own meaning — nobody answered
+  before the deadline — and every receipt already carrying it still verifies and
+  still reads as expired. New vector case `escalated-pending`.
 - **An escalated receipt now reaches the notary with its open challenge.**
   `ReceiptBuilder` built the `pending_escalation` block *after* filing, so
   `POST /v1/receipts` never carried it: the receipt landed, the escalation row

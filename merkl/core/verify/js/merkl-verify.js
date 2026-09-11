@@ -3097,6 +3097,10 @@ export function summarize(contents, envelope, approvedIds = []) {
       `transaction ${String(settlement.tx_hash ?? '').slice(0, 16)}…`;
   } else if (member(settled, 'outcome') === 'denied') {
     settledLine = 'Nothing settled. The refusal is what this receipt records.';
+  } else if (member(settled, 'outcome') === 'pending') {
+    settledLine = 'Nothing has settled yet: this payment is waiting for a person to approve it.';
+  } else if (member(settled, 'outcome') === 'expired') {
+    settledLine = 'Nothing settled. Nobody answered before the approval deadline passed.';
   }
 
   let when = null;
@@ -3190,6 +3194,9 @@ function cardStatus(result, decision) {
   const decisionOutcome = String(member(decision, 'outcome') ?? '');
   if (outcome === 'settled') return 'SETTLED';
   if (outcome === 'failed') return 'FAILED';
+  // Waiting, not finished. Read before `expired` because the two are near
+  // neighbours and only one of them means the money is not coming.
+  if (outcome === 'pending') return 'AWAITING APPROVAL';
   if (outcome === 'expired') return 'EXPIRED';
   if (detail.includes('rejected by')) return 'REJECTED';
   if (outcome === 'denied' || decisionOutcome === 'deny') return 'REFUSED';

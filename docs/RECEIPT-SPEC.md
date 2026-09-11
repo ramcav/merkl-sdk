@@ -88,12 +88,21 @@ Order is part of the format. Index 0 is hashed first and no leaf ever moves.
 | 2 | `policy_decision` | `policy_hash` (digest), `rules[]` of `{name, outcome, detail}`, `outcome` (`allow` \| `deny` \| `escalate`), `tier`, `escalation`? |
 | 3 | `signer_attestation` | `{format, document, policy_public_key}` or `null` |
 | 4 | `settlement` | `rail`, `tx_hash`, `ledger_index` (integer), `close_time` (instant), `signed_tx_blob`?, `observed_anchor`?, `settlement_proof_ref`?, `policy_signature`? |
-| 5 | `result` | `outcome` (`settled` \| `denied` \| `failed` \| `expired`), `engine_result`?, `balance_deltas[]`, `outcome_hash`?, `detail`, `delivered`?, `spent`? |
+| 5 | `result` | `outcome` (`settled` \| `denied` \| `failed` \| `pending` \| `expired`), `engine_result`?, `balance_deltas[]`, `outcome_hash`?, `detail`, `delivered`?, `spent`? |
 | 6 | `reasoning` | `testimony: true`, `content_hash` (digest), `source`?, `note` |
 
 Leaves 0, 1 and 2 are present in every receipt, including a denied one. Any leaf
 may be `null`; a denied payment has `null` at 3 and 4 because there was no
 enclave signature to record and nothing was submitted.
+
+`result.outcome` distinguishes two kinds of "did not settle" that look alike and
+are not. **`pending`** (added in 0.3.0) means the policy escalated and a person
+has been asked and has not answered: nothing is wrong, nothing has ended, and a
+reader shown *expired* there would be told something false about a payment that
+is still live. **`expired`** means the escalation's deadline passed with no
+answer — over, and the money is not moving. A receipt written before 0.3.0 says
+`expired` for both; that is why `expired` keeps its meaning and its place in the
+enum rather than being renamed, and why every verifier must keep reading it.
 
 `escalation` is `{challenge (digest), expires_at (instant), quorum (integer ≥ 1),
 approvals[]}`. `challenge` is `LEFT_pre` (section 3.2), which is what approvers

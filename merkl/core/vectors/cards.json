@@ -945,6 +945,321 @@
       "card": {
         "body": [
           {
+            "label": "Asked",
+            "value": "7200.00 RLUSD"
+          },
+          {
+            "label": "To",
+            "value": "rSUPPL…000000"
+          },
+          {
+            "label": "From",
+            "value": "rTREAS…000000"
+          },
+          {
+            "label": "By",
+            "value": "agent-accounts-payable"
+          }
+        ],
+        "folds": {
+          "details": {
+            "authorization": {
+              "detail": "nothing settled, so no transaction was authorized",
+              "state": "absent"
+            },
+            "checks": [
+              {
+                "name": "receipt.version",
+                "status": "pass"
+              },
+              {
+                "name": "leaves.count",
+                "status": "pass"
+              },
+              {
+                "name": "leaves.required_present",
+                "status": "pass"
+              },
+              {
+                "name": "leaf.instruction",
+                "status": "pass"
+              },
+              {
+                "name": "leaf.intent",
+                "status": "pass"
+              },
+              {
+                "name": "leaf.policy_decision",
+                "status": "pass"
+              },
+              {
+                "name": "leaf.signer_attestation",
+                "status": "pass"
+              },
+              {
+                "name": "leaf.settlement",
+                "status": "pass"
+              },
+              {
+                "name": "leaf.result",
+                "status": "pass"
+              },
+              {
+                "name": "leaf.reasoning",
+                "status": "pass"
+              },
+              {
+                "name": "leaves.padding",
+                "status": "pass"
+              },
+              {
+                "name": "commitment.left",
+                "status": "pass"
+              },
+              {
+                "name": "policy.document",
+                "status": "pass"
+              },
+              {
+                "name": "policy.escalation_challenge",
+                "status": "pass"
+              },
+              {
+                "name": "policy.approval_quorum",
+                "status": "fail"
+              },
+              {
+                "name": "policy.signature",
+                "status": "not_implemented"
+              },
+              {
+                "name": "signer.attestation",
+                "status": "not_implemented"
+              },
+              {
+                "name": "intent.matches_settled_fields",
+                "status": "not_implemented"
+              },
+              {
+                "name": "settlement.anchor_equals_left",
+                "status": "not_implemented"
+              },
+              {
+                "name": "settlement.signed_blob",
+                "status": "not_implemented"
+              },
+              {
+                "name": "settlement.proof_matches_receipt",
+                "status": "not_implemented"
+              },
+              {
+                "name": "settlement.ledger_header",
+                "status": "not_implemented"
+              },
+              {
+                "name": "settlement.validator_quorum",
+                "status": "not_implemented"
+              },
+              {
+                "name": "settlement.ledger_inclusion",
+                "status": "not_implemented"
+              },
+              {
+                "name": "commitment.right",
+                "status": "pass"
+              },
+              {
+                "name": "commitment.root",
+                "status": "pass"
+              },
+              {
+                "name": "envelope.rail",
+                "status": "pass"
+              },
+              {
+                "name": "envelope.treasury",
+                "status": "pass"
+              },
+              {
+                "name": "envelope.policy_hash",
+                "status": "pass"
+              },
+              {
+                "name": "session.log_join",
+                "status": "not_implemented"
+              }
+            ],
+            "leaves": [
+              {
+                "detail": "recomputed 4e1a732ee1676809ecc89c43a8044de6705ecb68c8cb97928f49c230f6c097a5 vs committed 4e1a732ee1676809ecc89c43a8044de6705ecb68c8cb97928f49c230f6c097a5",
+                "index": 0,
+                "name": "instruction",
+                "plain": "instruction",
+                "present": true,
+                "status": "pass"
+              },
+              {
+                "detail": "recomputed 757e87a601f3ce71a4bcd1b7322b8fa44f0b60ed33ffaac1815609e046d58aea vs committed 757e87a601f3ce71a4bcd1b7322b8fa44f0b60ed33ffaac1815609e046d58aea",
+                "index": 1,
+                "name": "intent",
+                "plain": "intent",
+                "present": true,
+                "status": "pass"
+              },
+              {
+                "detail": "recomputed 193003b8a0e03c48e1f83c56aeb2272cc913f15b1ef4eb636983a178b1bfb667 vs committed 193003b8a0e03c48e1f83c56aeb2272cc913f15b1ef4eb636983a178b1bfb667",
+                "index": 2,
+                "name": "policy_decision",
+                "plain": "policy_decision",
+                "present": true,
+                "status": "pass"
+              },
+              {
+                "detail": "recomputed bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe vs committed bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+                "index": 3,
+                "name": "signer_attestation",
+                "plain": "signer_attestation",
+                "present": false,
+                "status": "pass"
+              },
+              {
+                "detail": "recomputed db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc vs committed db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+                "index": 4,
+                "name": "settlement",
+                "plain": "settlement",
+                "present": false,
+                "status": "pass"
+              },
+              {
+                "detail": "recomputed 1b2b5df056dd2d45c05a4ba5137b9d6e5cf8e5596fdecdfc7bbcd7d8d5bf1809 vs committed 1b2b5df056dd2d45c05a4ba5137b9d6e5cf8e5596fdecdfc7bbcd7d8d5bf1809",
+                "index": 5,
+                "name": "result",
+                "plain": "result",
+                "present": true,
+                "status": "pass"
+              },
+              {
+                "detail": "recomputed 85e8414e30d6dd95f8e3d68fed39c55ba1d276dc732deddb90b9156f02440bd6 vs committed 85e8414e30d6dd95f8e3d68fed39c55ba1d276dc732deddb90b9156f02440bd6",
+                "index": 6,
+                "name": "reasoning",
+                "plain": "reasoning",
+                "present": true,
+                "status": "pass"
+              }
+            ],
+            "ledger": {
+              "detail": "nothing settled, so there is no ledger inclusion to establish",
+              "state": "unchecked"
+            }
+          },
+          "reasoning": {
+            "note": "Over the human threshold, so the signer escalated. Nobody has answered yet.",
+            "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true."
+          },
+          "verify": {
+            "cli": "merkl verify",
+            "offline": "download the offline page"
+          }
+        },
+        "headline": "MERKL RECEIPT",
+        "provenance": [
+          {
+            "label": "Because",
+            "value": "a person typed it"
+          },
+          {
+            "label": "Allowed by",
+            "value": "policy 4bc56bce · awaiting a person"
+          },
+          {
+            "label": "Approved by",
+            "value": "awaiting 2 of 2"
+          },
+          {
+            "label": "Signed by",
+            "value": "policy key cb71a8…148a6a · unattested dev signer"
+          }
+        ],
+        "stamp": {
+          "checks": [
+            {
+              "name": "signature",
+              "ok": false
+            },
+            {
+              "name": "ledger",
+              "ok": false
+            },
+            {
+              "name": "notary log",
+              "ok": false
+            }
+          ],
+          "label": "VERIFIED",
+          "level": 1,
+          "not_checked": [
+            {
+              "label": "the policy signature",
+              "name": "policy.signature",
+              "reason": "nothing settled, so there is no policy signature to check"
+            },
+            {
+              "label": "enclave attestation",
+              "name": "signer.attestation",
+              "reason": "leaf 3 is null: this receipt proves it was produced by an unattested signer"
+            },
+            {
+              "label": "the settled fields",
+              "name": "intent.matches_settled_fields",
+              "reason": "nothing settled, so there are no settled fields to compare"
+            },
+            {
+              "label": "the rail anchor",
+              "name": "settlement.anchor_equals_left",
+              "reason": "nothing settled, so there is no anchor to compare"
+            },
+            {
+              "label": "the submitted transaction blob",
+              "name": "settlement.signed_blob",
+              "reason": "nothing settled, so there is no signed blob"
+            },
+            {
+              "label": "the settlement capture",
+              "name": "settlement.proof_matches_receipt",
+              "reason": "nothing settled, so there is no proof to read"
+            },
+            {
+              "label": "the ledger header",
+              "name": "settlement.ledger_header",
+              "reason": "nothing settled, so there is no ledger to check"
+            },
+            {
+              "label": "the validator quorum",
+              "name": "settlement.validator_quorum",
+              "reason": "nothing settled, so no validators signed anything"
+            },
+            {
+              "label": "ledger inclusion",
+              "name": "settlement.ledger_inclusion",
+              "reason": "unchecked: nothing settled, so there is no ledger inclusion to establish"
+            },
+            {
+              "label": "the session join",
+              "name": "session.log_join",
+              "reason": "no session bundle was supplied, so this is a level-1 verdict"
+            }
+          ]
+        },
+        "status": "AWAITING APPROVAL",
+        "status_mark": "…"
+      },
+      "name": "escalated-pending",
+      "receipt": "escalated-pending"
+    },
+    {
+      "card": {
+        "body": [
+          {
             "label": "Paid",
             "value": "120.00 RLUSD"
           },

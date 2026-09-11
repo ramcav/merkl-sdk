@@ -1755,6 +1755,548 @@
       }
     },
     {
+      "description": "The same escalation, still open. Nobody has answered, so leaves 3 and 4 are null and the result is 'pending' — waiting on a person, which is a different fact from 'expired' and must never be shown as one.",
+      "disclosure": {
+        "leaf_hashes": [
+          "4e1a732ee1676809ecc89c43a8044de6705ecb68c8cb97928f49c230f6c097a5",
+          "757e87a601f3ce71a4bcd1b7322b8fa44f0b60ed33ffaac1815609e046d58aea",
+          "193003b8a0e03c48e1f83c56aeb2272cc913f15b1ef4eb636983a178b1bfb667",
+          "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+          "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+          "1b2b5df056dd2d45c05a4ba5137b9d6e5cf8e5596fdecdfc7bbcd7d8d5bf1809",
+          "85e8414e30d6dd95f8e3d68fed39c55ba1d276dc732deddb90b9156f02440bd6",
+          "85e8414e30d6dd95f8e3d68fed39c55ba1d276dc732deddb90b9156f02440bd6"
+        ],
+        "leaves": [
+          {
+            "content": {
+              "escalation": {
+                "approvals": [],
+                "challenge": "3cc414f377f7d02a8ca9cd24cb4b66844543bb24467fa673138b7928479f18b9",
+                "expires_at": "2026-01-02T04:04:05Z",
+                "quorum": 2
+              },
+              "outcome": "escalate",
+              "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+              "rules": [
+                {
+                  "detail": "known supplier",
+                  "name": "destination_allowlist",
+                  "outcome": "pass"
+                },
+                {
+                  "detail": "7200.00 RLUSD is within the 10000 RLUSD cap",
+                  "name": "per_tx_cap",
+                  "outcome": "pass"
+                },
+                {
+                  "detail": "7200.00 is at or above the human-approval threshold 1000.00 RLUSD",
+                  "name": "tier_threshold",
+                  "outcome": "escalate"
+                }
+              ],
+              "tier": "human"
+            },
+            "index": 2,
+            "name": "policy_decision",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "siblings": [
+                "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+                "72eb61e1e6eef1964a346988bebcf9960d9300c869a8ca980bf8f5811c88a057",
+                "29d576cbb9c5c536295b8cc1be88177d755a808480c25116d2763f8381ab8fed"
+              ]
+            }
+          },
+          {
+            "content": {
+              "balance_deltas": [],
+              "detail": "Awaiting human approval; nothing was submitted.",
+              "outcome": "pending"
+            },
+            "index": 5,
+            "name": "result",
+            "proof": {
+              "directions": [
+                "left",
+                "right",
+                "left"
+              ],
+              "siblings": [
+                "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+                "351dbcd4eca8e335e2d968ad3eb42747ad12444f86ba721d5fac17de7c4a2f53",
+                "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b"
+              ]
+            }
+          }
+        ],
+        "left": "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b",
+        "receipt_id": "01936b2e-2222-7000-8000-000000000007",
+        "root": "890182c6d012599f13e3d20f733985e4dc86bfff45af83c43cb6293839be52a4",
+        "version": "merkl-receipt-v1"
+      },
+      "disclosure_verification": {
+        "checks": [
+          {
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "name": "disclosure.root",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "name": "proof.policy_decision",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "name": "proof.result",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.root",
+            "status": "pass"
+          }
+        ],
+        "complete": true,
+        "ok": true
+      },
+      "envelope": {
+        "agent_id": "agent-accounts-payable",
+        "leaf_hashes": [
+          "4e1a732ee1676809ecc89c43a8044de6705ecb68c8cb97928f49c230f6c097a5",
+          "757e87a601f3ce71a4bcd1b7322b8fa44f0b60ed33ffaac1815609e046d58aea",
+          "193003b8a0e03c48e1f83c56aeb2272cc913f15b1ef4eb636983a178b1bfb667",
+          "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+          "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+          "1b2b5df056dd2d45c05a4ba5137b9d6e5cf8e5596fdecdfc7bbcd7d8d5bf1809",
+          "85e8414e30d6dd95f8e3d68fed39c55ba1d276dc732deddb90b9156f02440bd6",
+          "85e8414e30d6dd95f8e3d68fed39c55ba1d276dc732deddb90b9156f02440bd6"
+        ],
+        "left": "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+        "rail": "xrpl",
+        "receipt_id": "01936b2e-2222-7000-8000-000000000007",
+        "root": "890182c6d012599f13e3d20f733985e4dc86bfff45af83c43cb6293839be52a4",
+        "signer_public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
+        "treasury": "rTREASURY0000000000000000000000000",
+        "version": "merkl-receipt-v1"
+      },
+      "envelope_hash": "075f786621d687fc68c0a022efe13333e660ca2a59d41b1362252ae3cc3d4bbe",
+      "half_proofs": {
+        "instruction": {
+          "directions": [
+            "right",
+            "right"
+          ],
+          "half": "left",
+          "index": 0,
+          "level": 2,
+          "siblings": [
+            "757e87a601f3ce71a4bcd1b7322b8fa44f0b60ed33ffaac1815609e046d58aea",
+            "3e8ccd715da7769ec8a5fbdfd4cb94b6f2ac282ddc8c9928a7925201e2cb5d76"
+          ],
+          "subtree_root": "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b"
+        },
+        "intent": {
+          "directions": [
+            "left",
+            "right"
+          ],
+          "half": "left",
+          "index": 1,
+          "level": 2,
+          "siblings": [
+            "4e1a732ee1676809ecc89c43a8044de6705ecb68c8cb97928f49c230f6c097a5",
+            "3e8ccd715da7769ec8a5fbdfd4cb94b6f2ac282ddc8c9928a7925201e2cb5d76"
+          ],
+          "subtree_root": "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b"
+        },
+        "policy_decision": {
+          "directions": [
+            "right",
+            "left"
+          ],
+          "half": "left",
+          "index": 2,
+          "level": 2,
+          "siblings": [
+            "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "72eb61e1e6eef1964a346988bebcf9960d9300c869a8ca980bf8f5811c88a057"
+          ],
+          "subtree_root": "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b"
+        },
+        "reasoning": {
+          "directions": [
+            "right",
+            "left"
+          ],
+          "half": "right",
+          "index": 6,
+          "level": 2,
+          "siblings": [
+            "85e8414e30d6dd95f8e3d68fed39c55ba1d276dc732deddb90b9156f02440bd6",
+            "7c081761f1bfa3e36016135cffa20292d540987fd83179057e9618c3f700db32"
+          ],
+          "subtree_root": "29d576cbb9c5c536295b8cc1be88177d755a808480c25116d2763f8381ab8fed"
+        },
+        "result": {
+          "directions": [
+            "left",
+            "right"
+          ],
+          "half": "right",
+          "index": 5,
+          "level": 2,
+          "siblings": [
+            "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+            "351dbcd4eca8e335e2d968ad3eb42747ad12444f86ba721d5fac17de7c4a2f53"
+          ],
+          "subtree_root": "29d576cbb9c5c536295b8cc1be88177d755a808480c25116d2763f8381ab8fed"
+        },
+        "settlement": {
+          "directions": [
+            "right",
+            "right"
+          ],
+          "half": "right",
+          "index": 4,
+          "level": 2,
+          "siblings": [
+            "1b2b5df056dd2d45c05a4ba5137b9d6e5cf8e5596fdecdfc7bbcd7d8d5bf1809",
+            "351dbcd4eca8e335e2d968ad3eb42747ad12444f86ba721d5fac17de7c4a2f53"
+          ],
+          "subtree_root": "29d576cbb9c5c536295b8cc1be88177d755a808480c25116d2763f8381ab8fed"
+        },
+        "signer_attestation": {
+          "directions": [
+            "left",
+            "left"
+          ],
+          "half": "left",
+          "index": 3,
+          "level": 2,
+          "siblings": [
+            "193003b8a0e03c48e1f83c56aeb2272cc913f15b1ef4eb636983a178b1bfb667",
+            "72eb61e1e6eef1964a346988bebcf9960d9300c869a8ca980bf8f5811c88a057"
+          ],
+          "subtree_root": "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b"
+        }
+      },
+      "leaf_hashes": [
+        "4e1a732ee1676809ecc89c43a8044de6705ecb68c8cb97928f49c230f6c097a5",
+        "757e87a601f3ce71a4bcd1b7322b8fa44f0b60ed33ffaac1815609e046d58aea",
+        "193003b8a0e03c48e1f83c56aeb2272cc913f15b1ef4eb636983a178b1bfb667",
+        "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+        "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+        "1b2b5df056dd2d45c05a4ba5137b9d6e5cf8e5596fdecdfc7bbcd7d8d5bf1809",
+        "85e8414e30d6dd95f8e3d68fed39c55ba1d276dc732deddb90b9156f02440bd6",
+        "85e8414e30d6dd95f8e3d68fed39c55ba1d276dc732deddb90b9156f02440bd6"
+      ],
+      "leaf_names": [
+        "instruction",
+        "intent",
+        "policy_decision",
+        "signer_attestation",
+        "settlement",
+        "result",
+        "reasoning"
+      ],
+      "leaves": [
+        {
+          "content_hash": "51a50e80b8b6eb215595eb7ca07fe440486a0479ab399611caddd472d9f971a3",
+          "ref": "01936b2e-3333-7000-8000-000000000004",
+          "source": "human_input"
+        },
+        {
+          "agent_public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+          "amount": {
+            "currency": {
+              "code": "RLUSD",
+              "issuer": "rISSUER000000000000000000000000000"
+            },
+            "value": "7200.00"
+          },
+          "destination": "rSUPPLIER0000000000000000000000000",
+          "expires_at": "2026-01-02T03:09:05Z",
+          "nonce": "00112233445566778899aabbccddeeff",
+          "policy_version": "2026.01.0",
+          "rail": "xrpl",
+          "reference": {
+            "hash": "3c920701494523cbe6af089129e4382b9d985a7c5fbccfd05ef104c8c9660b02",
+            "id": "AUD-2026-01",
+            "kind": "invoice"
+          },
+          "treasury": "rTREASURY0000000000000000000000000",
+          "type": "payment"
+        },
+        {
+          "escalation": {
+            "approvals": [],
+            "challenge": "3cc414f377f7d02a8ca9cd24cb4b66844543bb24467fa673138b7928479f18b9",
+            "expires_at": "2026-01-02T04:04:05Z",
+            "quorum": 2
+          },
+          "outcome": "escalate",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+          "rules": [
+            {
+              "detail": "known supplier",
+              "name": "destination_allowlist",
+              "outcome": "pass"
+            },
+            {
+              "detail": "7200.00 RLUSD is within the 10000 RLUSD cap",
+              "name": "per_tx_cap",
+              "outcome": "pass"
+            },
+            {
+              "detail": "7200.00 is at or above the human-approval threshold 1000.00 RLUSD",
+              "name": "tier_threshold",
+              "outcome": "escalate"
+            }
+          ],
+          "tier": "human"
+        },
+        null,
+        null,
+        {
+          "balance_deltas": [],
+          "detail": "Awaiting human approval; nothing was submitted.",
+          "outcome": "pending"
+        },
+        {
+          "content_hash": "f5a0722e8057c2ffe2e78387e1d9563c2abb0bce2badb1cfe44d7cd8ab8846cc",
+          "note": "Over the human threshold, so the signer escalated. Nobody has answered yet.",
+          "source": "claude-code",
+          "testimony": true
+        }
+      ],
+      "left": "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b",
+      "name": "escalated-pending",
+      "proofs": {
+        "instruction": {
+          "directions": [
+            "right",
+            "right",
+            "right"
+          ],
+          "index": 0,
+          "siblings": [
+            "757e87a601f3ce71a4bcd1b7322b8fa44f0b60ed33ffaac1815609e046d58aea",
+            "3e8ccd715da7769ec8a5fbdfd4cb94b6f2ac282ddc8c9928a7925201e2cb5d76",
+            "29d576cbb9c5c536295b8cc1be88177d755a808480c25116d2763f8381ab8fed"
+          ]
+        },
+        "intent": {
+          "directions": [
+            "left",
+            "right",
+            "right"
+          ],
+          "index": 1,
+          "siblings": [
+            "4e1a732ee1676809ecc89c43a8044de6705ecb68c8cb97928f49c230f6c097a5",
+            "3e8ccd715da7769ec8a5fbdfd4cb94b6f2ac282ddc8c9928a7925201e2cb5d76",
+            "29d576cbb9c5c536295b8cc1be88177d755a808480c25116d2763f8381ab8fed"
+          ]
+        },
+        "policy_decision": {
+          "directions": [
+            "right",
+            "left",
+            "right"
+          ],
+          "index": 2,
+          "siblings": [
+            "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "72eb61e1e6eef1964a346988bebcf9960d9300c869a8ca980bf8f5811c88a057",
+            "29d576cbb9c5c536295b8cc1be88177d755a808480c25116d2763f8381ab8fed"
+          ]
+        },
+        "reasoning": {
+          "directions": [
+            "right",
+            "left",
+            "left"
+          ],
+          "index": 6,
+          "siblings": [
+            "85e8414e30d6dd95f8e3d68fed39c55ba1d276dc732deddb90b9156f02440bd6",
+            "7c081761f1bfa3e36016135cffa20292d540987fd83179057e9618c3f700db32",
+            "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b"
+          ]
+        },
+        "result": {
+          "directions": [
+            "left",
+            "right",
+            "left"
+          ],
+          "index": 5,
+          "siblings": [
+            "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+            "351dbcd4eca8e335e2d968ad3eb42747ad12444f86ba721d5fac17de7c4a2f53",
+            "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b"
+          ]
+        },
+        "settlement": {
+          "directions": [
+            "right",
+            "right",
+            "left"
+          ],
+          "index": 4,
+          "siblings": [
+            "1b2b5df056dd2d45c05a4ba5137b9d6e5cf8e5596fdecdfc7bbcd7d8d5bf1809",
+            "351dbcd4eca8e335e2d968ad3eb42747ad12444f86ba721d5fac17de7c4a2f53",
+            "253b589e2bee53d147cfa72d2e2d2d8be1400b0e91f7c0cbad4fa759fbae451b"
+          ]
+        },
+        "signer_attestation": {
+          "directions": [
+            "left",
+            "left",
+            "right"
+          ],
+          "index": 3,
+          "siblings": [
+            "193003b8a0e03c48e1f83c56aeb2272cc913f15b1ef4eb636983a178b1bfb667",
+            "72eb61e1e6eef1964a346988bebcf9960d9300c869a8ca980bf8f5811c88a057",
+            "29d576cbb9c5c536295b8cc1be88177d755a808480c25116d2763f8381ab8fed"
+          ]
+        }
+      },
+      "right": "29d576cbb9c5c536295b8cc1be88177d755a808480c25116d2763f8381ab8fed",
+      "root": "890182c6d012599f13e3d20f733985e4dc86bfff45af83c43cb6293839be52a4",
+      "verification": {
+        "checks": [
+          {
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "name": "policy.signature",
+            "status": "not_implemented"
+          },
+          {
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "name": "intent.matches_settled_fields",
+            "status": "not_implemented"
+          },
+          {
+            "name": "settlement.anchor_equals_left",
+            "status": "not_implemented"
+          },
+          {
+            "name": "settlement.signed_blob",
+            "status": "not_implemented"
+          },
+          {
+            "name": "settlement.ledger_inclusion",
+            "status": "not_implemented"
+          },
+          {
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "name": "session.log_join",
+            "status": "not_implemented"
+          }
+        ],
+        "complete": false,
+        "ok": true
+      }
+    },
+    {
       "description": "The same allow on the fake rail, produced by an unattested dev signer: leaf 3 is null and the receipt commits to its absence. Its settlement capture carries a path to the ledger's transaction root, which is what lets ledger inclusion reach proven-offline.",
       "disclosure": {
         "leaf_hashes": [
