@@ -276,6 +276,41 @@ forward `{challenge, assertions}` to this method and store the returned decision
 beside the receipt; until it does, a rejection filed through the API leaves the
 escalation pending in the signer and the reservation held until it expires.
 
+#### Finishing an escalation somewhere else
+
+`approve` decides once: the signer drops its pending escalation the instant one
+caller's assertions complete the quorum, so whichever caller made that call is
+the only party that ever sees the resulting `allow`. When that caller is the
+notary relaying a person's approval — or a self-hosted signer's own follower
+(§7) — the agent picks the flow back up with `ReceiptBuilder.resume()`.
+
+That agent is usually **a different process from the one that proposed**, and it
+is always a *later* one. It must not prepare the transaction again. A rail
+autofills sequence, fee and last-ledger from the ledger as it is at the moment of
+preparing; minutes have passed, the ledger has closed, and the bytes that come
+back are not the bytes the policy key signed — so the payment is refused by the
+agent's own equality check with nothing actually wrong.
+
+Two agent-side rules follow, neither of which touches this contract:
+
+* **Keep the transaction, do not rebuild it.** The propose request's
+  `prepared_tx` is handed back on `ReceiptOutcome.prepared_tx` while a decision
+  is pending, and `resume(prepared_tx=…)` reproduces the anchored transaction
+  from it (`SettlementPort.anchored_from_content`) instead of preparing afresh.
+  It holds the anchor placeholder and no signature, so it authorizes nothing and
+  is not a secret; losing it costs a re-proposal, not a payment.
+* **Give it a window worth having.** The XRPL adapter sets `LastLedgerSequence`
+  from the intent's own `expires_at` — `ceil(seconds_remaining / 3.5) + 4`
+  ledgers, floored at twenty — rather than xrpl-py's default of twenty, which is
+  about seventy seconds. An escalation is a person reading an email. A
+  transaction that dies while they think about it turns their approval into
+  nothing.
+
+The signer is unchanged by both: it is handed bytes, it checks them against the
+intent, it signs them. The agent's comparison of the transaction it is about to
+submit against `signed_payload` is still the last word before anything reaches
+the ledger.
+
 ### `settle` / `release`
 
 ```json
@@ -436,3 +471,73 @@ design assumes may be compromised, is parsed into checked `Outflow` value object
 at the boundary, and goes only to `SignerEngine.reconcile`, which compares it to
 state the enclave wrote itself. Rule state is never supplied by the caller
 (plan D2), and nothing on that channel reaches the decision path.
+
+## 7. Following a notary (phase 17)
+
+Every method above is something a caller *pushes* at the signer. That works when
+somebody can reach it: an agent on the same host, a dashboard behind the Nitro
+parent's relay. It does not work at all for the case this product is actually
+sold into — a signer in a container on a customer's own laptop, behind their own
+NAT, which Merkl has no route to and wants none.
+
+So a self-hosted signer **pulls**. When `<home>/notary.json` exists (written by
+`merkl treasury init --enrol`, mode `0600`), `merkl signer serve` starts a
+follower — `merkl.adapters.notary.follower.NotaryFollower`, a daemon thread that
+speaks HTTP to merkl-api and applies what it finds through the same `RpcRouter`,
+under the same lock, that the socket goes through.
+
+| Route | Direction | When |
+|---|---|---|
+| `GET /v1/signer/policy` | pull | every 10 s until the first policy exists, every 30 s after |
+| `POST /v1/signer/heartbeat` | push | on every policy poll, carrying the hash **in force** |
+| `GET /v1/signer/escalations` | pull | every 5 s while the engine holds pending escalations, else every 30 s |
+| `POST /v1/signer/escalations/{challenge}/decision` | push | immediately after applying one |
+
+All four authenticate with the **signer token** (`sgn_…`, `Authorization: Bearer`),
+issued once by `POST /v1/signers/enrol` and kept in `notary.json`. It is not a
+fund-moving secret and not a relay token: it identifies this signer to the
+notary, and the notary uses it to decide which treasury's policy and escalations
+to hand over.
+
+**Nothing pulled is trusted.** A policy goes through `policy_update` (§4), which
+verifies it against the admin credential the signer *pinned* and refuses one
+naming a different treasury; with a `network` in `notary.json` it also refuses
+one governing the other chain, exactly as `--rail-endpoint` does at boot. An
+escalation's assertions go through `approve` or `reject` (§4), which verify each
+signature against the approvers the policy names and re-evaluate the intent
+before anything is signed. A notary that handed over a forged policy or a forged
+approval would be refused by the code that has always refused one; a notary that
+withheld a real approval would only mean the payment does not happen. That is
+the whole security argument for pulling, and it is why the direction of the
+connection is not a security property here.
+
+The follower applies through `RpcRouter.dispatch_local`, which takes the lock and
+skips the relay-bearer check of §3. In-process is not a relay: the follower is
+the same program holding the same key, and a credential check with no attacker on
+the other side of it would be ceremony. There must be exactly **one** router per
+engine — `merkl signer serve` builds it and hands it to both the HTTP server and
+the follower — because the lock is what stops a call arriving over the socket and
+a call applied in-process from reading the same spending window.
+
+Failures are backoffs, never exits: doubling from one second, capped at sixty,
+with one line on stderr. A refused policy is logged **once per hash**, not once
+per poll. An escalation this signer has never heard of — the pending set does not
+survive a restart — is reported once and then skipped, rather than retried every
+five seconds forever. The signer holds the key; the follower is an HTTP client,
+and only one of those two is allowed to be unavailable.
+
+Two other things follow from pulling. A policy adopted from the notary is
+persisted atomically to `<home>/policy.signed.json`, so a restart with the notary
+down still boots. And a signer that has *never* had a policy has no socket to
+forward to, which is why `merkl.signer.forward` answers `503 signer_unavailable`
+in this protocol's own error shape on a connect failure rather than dropping the
+connection: "waiting for the customer to press Publish" and "the container never
+started" are different facts, and a refused TCP connection cannot tell them
+apart. The forwarder still parses nothing — the response is a constant, written
+on connect failure, before a byte of the request is read.
+
+The follower lives under `merkl/adapters/` and not under `merkl/signer/`.
+That package depends on `merkl.core` and `merkl.shared` alone, writes to no
+stream, and knows no notary; the follower is handed a `log` callable by the CLI
+and an `RpcRouter` to dispatch through, and `tests/signer/test_signer_purity.py`
+still holds.

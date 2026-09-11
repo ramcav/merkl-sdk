@@ -51,7 +51,7 @@ from typing import Any, Final
 
 from merkl.core.canonical import JSONObject, format_instant, parse_decimal, shift_instant
 from merkl.core.checks import VerificationResult
-from merkl.core.intent import Intent
+from merkl.core.intent import Intent, currency_code
 from merkl.core.policy.approvals import ApprovalAssertion
 from merkl.core.rail import (
     ANCHOR_PLACEHOLDER_HEX,
@@ -115,6 +115,21 @@ class ReceiptOutcome:
     either. The local store still has the receipt and its proof; this says the
     notary does not yet, so a caller can retry rather than discover the gap at
     audit time."""
+
+    prepared_tx: JSONObject | None = None
+    """The transaction the signer was shown, kept for whoever finishes this.
+
+    Present whenever the outcome is still pending. An escalation is answered by a
+    person, and the process that submits may be a later one on another machine —
+    at which point preparing the transaction *again* asks the ledger for a fresh
+    sequence, fee and last-ledger, and produces bytes the policy key never signed.
+    The cure is to keep the bytes rather than rebuild them: hand this back to
+    :meth:`ReceiptBuilder.resume` as ``prepared_tx`` and the rail reproduces the
+    transaction from it (:meth:`~merkl.core.ports.SettlementPort.anchored_from_content`).
+
+    It is not a secret and it is not an authorization: it is an unsigned
+    transaction still holding the anchor placeholder, worth nothing without the
+    policy signature the signer has not yet given."""
 
     pending_escalation: JSONObject | None = None
     """``{challenge, expires_at, quorum}`` when this decision is still
@@ -206,7 +221,13 @@ class ReceiptBuilder:
 
         if response["outcome"] != PolicyOutcome.ALLOW.value:
             return await self._refused(
-                receipt_id, instruction, intent, response, reasoning, depends_on
+                receipt_id,
+                instruction,
+                intent,
+                response,
+                reasoning,
+                depends_on,
+                prepared_tx=unsigned.to_content(),
             )
         return await self._settle(receipt_id, instruction, intent, response, reasoning, depends_on)
 
@@ -219,6 +240,7 @@ class ReceiptBuilder:
         receipt_id: str | None = None,
         reasoning: Reasoning | None = None,
         depends_on: str | None = None,
+        prepared_tx: JSONObject | None = None,
     ) -> ReceiptOutcome:
         """Finish a payment whose decision was already reached out of band.
 
@@ -238,7 +260,15 @@ class ReceiptBuilder:
             return await self._refused(
                 receipt_id, instruction, intent, decision, reasoning, depends_on
             )
-        return await self._settle(receipt_id, instruction, intent, decision, reasoning, depends_on)
+        return await self._settle(
+            receipt_id,
+            instruction,
+            intent,
+            decision,
+            reasoning,
+            depends_on,
+            prepared_tx=prepared_tx,
+        )
 
     # -- steps ------------------------------------------------------------- #
 
@@ -291,6 +321,7 @@ class ReceiptBuilder:
         response: JSONObject,
         reasoning: Reasoning | None,
         depends_on: str | None,
+        prepared_tx: JSONObject | None = None,
     ) -> ReceiptOutcome:
         """A denial or an unresolved escalation. Both leave a receipt behind."""
         decision = PolicyDecision.from_content(response["decision"])
@@ -303,8 +334,13 @@ class ReceiptBuilder:
             signer_attestation=None,
             settlement=None,
             result=Result(
+                # `pending`, not `expired`: nobody has run out of time, somebody
+                # has been asked. Every list that reads leaf 5 — the notary's
+                # table, the Payments page, the public receipt page — takes this
+                # word at face value, and EXPIRED on a payment that is simply
+                # waiting is a false statement about it.
                 outcome=(
-                    ResultOutcome.EXPIRED.value if escalating else ResultOutcome.DENIED.value
+                    ResultOutcome.PENDING.value if escalating else ResultOutcome.DENIED.value
                 ),
                 detail=(
                     "Awaiting human approval; nothing was submitted."
@@ -317,7 +353,12 @@ class ReceiptBuilder:
         receipt = self._build(receipt_id, leaves, response)
         receipt, action_id = await self._join_session(receipt, response, depends_on)
         await self._store_receipt(receipt)
-        notary_error = await self._file_with_notary(receipt, None)
+        # Built before the filing, not after it. The notary opens its human queue
+        # entry from this member of `POST /v1/receipts`; a receipt filed without
+        # it leaves the Approvals page reading "nothing is waiting on a person"
+        # for a payment the signer escalated, and nothing in a leaf can be used
+        # to reconstruct it (the expiry and the quorum are committed nowhere
+        # until the escalation resolves).
         pending_escalation: JSONObject | None = (
             {
                 "challenge": str(response["challenge"]),
@@ -327,6 +368,9 @@ class ReceiptBuilder:
             if escalating
             else None
         )
+        notary_error = await self._file_with_notary(
+            receipt, None, pending_escalation=pending_escalation
+        )
         return ReceiptOutcome(
             receipt=receipt,
             decision=decision,
@@ -334,6 +378,9 @@ class ReceiptBuilder:
             reason=reason,
             notary_error=notary_error,
             pending_escalation=pending_escalation,
+            # Only while somebody is still deciding. A denied payment is over,
+            # and the transaction it would have been is not worth keeping.
+            prepared_tx=prepared_tx if escalating else None,
         )
 
     async def _settle(
@@ -344,6 +391,7 @@ class ReceiptBuilder:
         response: JSONObject,
         reasoning: Reasoning | None,
         depends_on: str | None,
+        prepared_tx: JSONObject | None = None,
     ) -> ReceiptOutcome:
         decision = PolicyDecision.from_content(response["decision"])
         left = str(response["left"])
@@ -360,13 +408,24 @@ class ReceiptBuilder:
                 "the signer's LEFT does not match the leaves it was given; refusing to submit"
             )
 
-        anchored = await self._rail.prepare(
-            intent,
-            left,
-            agent_id=self._agent_id,
-            session_id=str(getattr(get_current_session(), "session_id", "") or ""),
-            task_id=receipt_id,
-        )
+        # Rebuilt from what the caller kept, when the caller kept it. Preparing
+        # afresh asks the ledger for a sequence, a fee and a last-ledger *now*,
+        # and "now" for a resumed escalation is minutes after the policy key
+        # signed — in a process that may never have prepared this payment at all.
+        # Those are bytes nobody authorized, and the check below would refuse
+        # them with nothing actually wrong.
+        if prepared_tx is not None:
+            anchored = await self._rail.anchored_from_content(prepared_tx, left)
+        else:
+            anchored = await self._rail.prepare(
+                intent,
+                left,
+                agent_id=self._agent_id,
+                session_id=str(getattr(get_current_session(), "session_id", "") or ""),
+                task_id=receipt_id,
+            )
+        # Either way, this is the last word: the bytes about to be submitted are
+        # the bytes the policy key signed, or nothing is submitted.
         if anchored.signing_payload != response["signed_payload"]:
             await self._release(reservation_id)
             raise ReceiptBuildError(
@@ -411,7 +470,9 @@ class ReceiptBuilder:
             result=Result(
                 outcome=ResultOutcome.SETTLED.value,
                 engine_result=ref.engine_result,
-                balance_deltas=_deltas(intent),
+                balance_deltas=_deltas(intent, ref),
+                delivered=ref.delivered,
+                spent=ref.spent,
             ),
             reasoning=reasoning,
         )
@@ -498,20 +559,34 @@ class ReceiptBuilder:
             await put_proof(receipt.envelope.receipt_id, proof)
 
     async def _file_with_notary(
-        self, receipt: Receipt, proof: SettlementProof | None
+        self,
+        receipt: Receipt,
+        proof: SettlementProof | None,
+        *,
+        pending_escalation: JSONObject | None = None,
     ) -> str | None:
-        """File the receipt with the notary, proof included. Returns any error.
+        """File the receipt with the notary, proof or open challenge included.
 
-        Never raises. The payment has settled, the local store has the record,
-        and a witness that is unreachable is not permitted to turn a completed
-        payment into a failed call (plan D12). The failure is returned so it can
-        be reported rather than lost.
+        Returns any error. Never raises: the payment has settled, the local store
+        has the record, and a witness that is unreachable is not permitted to
+        turn a completed payment into a failed call (plan D12). The failure is
+        returned so it can be reported rather than lost.
+
+        ``pending_escalation`` is passed only when there is one, so a notary
+        implementation written against the older
+        :class:`~merkl.core.ports.NotaryPort` signature keeps working for every
+        settled and denied receipt — the same downgrade rule the settlement-proof
+        store follows. One handed an escalating receipt reports the ``TypeError``
+        as a filing failure rather than dropping the payment on the floor.
         """
         if self._notary is None:
             return None
+        extra: dict[str, Any] = (
+            {} if pending_escalation is None else {"pending_escalation": pending_escalation}
+        )
         try:
             await self._notary.file_receipt(
-                receipt.envelope, receipt.leaves, settlement_proof=proof
+                receipt.envelope, receipt.leaves, settlement_proof=proof, **extra
             )
         except Exception as exc:  # noqa: BLE001 - a witness may be down; a payer may not care
             return str(exc)
@@ -603,17 +678,43 @@ def _display_name(receipt: Receipt) -> str:
     intent = receipt.leaves.intent
     if intent is None:  # pragma: no cover - every receipt has leaf 1
         return "Payment"
-    return f"Pay {intent.amount.value} to {intent.destination[:12]}…"
+    if intent.is_swap:
+        buy, sell = intent.deliver_amount, intent.outflow
+        return f"Buy {buy.value} {currency_code(buy.currency)} for up to {sell.value}"
+    return f"Pay {intent.outflow.value} to {intent.destination[:12]}…"
 
 
-def _deltas(intent: Intent) -> tuple[BalanceDelta, ...]:
-    """The money that moved, as signed decimal strings. Never a float."""
-    amount: Decimal = parse_decimal(intent.amount.value, "amount")
+def _deltas(intent: Intent, settled: SettlementRef | None = None) -> tuple[BalanceDelta, ...]:
+    """The money that moved, as signed decimal strings. Never a float.
+
+    A trade's two sides land on the same account — the treasury sold one asset
+    and bought another — and both come from what the rail *reported*, never from
+    the intent's ceiling: the sell side is what was actually spent. When the rail
+    did not report them there are no deltas to state, and the leaf carries none
+    rather than a plausible number.
+    """
+    if intent.is_swap:
+        delivered = settled.delivered if settled else None
+        spent = settled.spent if settled else None
+        if delivered is None or spent is None:
+            return ()
+        return (
+            BalanceDelta(
+                account=intent.treasury,
+                currency=spent.currency,
+                value=f"-{parse_decimal(spent.value, 'spent')}",
+            ),
+            BalanceDelta(
+                account=intent.treasury,
+                currency=delivered.currency,
+                value=str(parse_decimal(delivered.value, "delivered")),
+            ),
+        )
+    amount: Decimal = parse_decimal(intent.outflow.value, "amount")
+    currency = intent.outflow.currency
     return (
-        BalanceDelta(account=intent.treasury, currency=intent.amount.currency, value=f"-{amount}"),
-        BalanceDelta(
-            account=intent.destination, currency=intent.amount.currency, value=str(amount)
-        ),
+        BalanceDelta(account=intent.treasury, currency=currency, value=f"-{amount}"),
+        BalanceDelta(account=intent.destination, currency=currency, value=str(amount)),
     )
 
 

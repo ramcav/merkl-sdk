@@ -9,6 +9,187 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-10
+
+### Added — phase 17, the five-minute setup
+
+- **`$MERKL_HOME`, and a home that holds everything.** Every command's `--home`
+  now defaults to `$MERKL_HOME`, else `~/.merkl/signer`. `treasury init` writes
+  the seed file, each agent's Ed25519 request key, the relay tokens, the notary
+  record and the policy under it — nothing outside it and the agent bundle. The
+  image sets it to the volume, so the printed `docker run` lines carry no
+  `--home` and `signer serve` needs no `--policy`.
+- **`merkl treasury init` is the whole setup, in the order the customer sees.**
+  It makes the treasury, its agents and one request key each; enrols with the
+  notary *before a single transaction*, so the page they left open can show them
+  an address to fund; on mainnet prints the minimum the network itself says the
+  account needs and polls until it is there; asks for the sentence; installs the
+  trust lines, the signer list and `asfDisableMaster`; reads the account back;
+  reports ready; and leaves an agent bundle. `--enrol TOKEN --notary URL`,
+  `--confirm SENTENCE`, `--agent-dir PATH`, `--bundle-to-notary` are new; the
+  operator's `--wallet-file` flow is unchanged and pinned by a test.
+- **Mainnet no longer needs an existing seed file.** With none, fresh keys are
+  generated locally and the address is printed to fund — an XRPL account exists
+  the moment somebody pays into it. An existing file is still read, never
+  written over.
+- **The agent bundle.** `trader.toml`, `agent-ed25519.pem`, `wallet.json`,
+  `relay-token.txt` and `notary-api-key.txt`, the last four at `0600`, written to
+  `--agent-dir` (default `/agent` in the image, else `<home>/agents/<id>/bundle`)
+  or sent to the notary for a signer Merkl runs. The config is
+  `examples/trader/config.example.toml` filled in line by line, comments intact;
+  every path in it is relative, so the folder can be moved or downloaded. The
+  treasury's own seed is never in one.
+- **`merkl signer serve` follows the notary.** With a `notary.json` in `<home>`
+  it waits for the first published policy (every 10 s), picks up changes (every
+  30 s), pulls the approvals people gave in the dashboard (every 5 s while it
+  holds pending escalations, else 30 s) and heartbeats with the hash actually in
+  force. Everything pulled is verified here — a policy against the pinned admin,
+  an approval against the policy's approvers — so the notary is a postbox and
+  never an authority. `docs/SIGNER-RPC.md` §7 is normative.
+- **`merkl signer bootstrap`** — `treasury init` non-interactively (mainnet
+  requires `--confirm`, exit 5) and then `serve`, in one process. What a managed
+  container runs.
+- **`merkl treasury enrol --enrol TOKEN --notary URL`** — re-sends both notary
+  calls from what is on disk. The one failure this setup can have that leaves
+  nothing to undo now has a one-line fix, and `init` exits 7 and prints it
+  rather than pretending the treasury is not there.
+- **`merkl signer token add <id> --env`** prints the two finished lines
+  (`MERKL_SIGNER_TOKEN=`, `SIGNER_RELAY_TOKENS=`) instead of the bare token.
+- **`api_key_file` in the trading agent's config**, beside `api_key_env`. Both
+  work; the file wins, because everything else in a bundle is already a file.
+
+### Fixed
+
+- **An approved escalation can be submitted by the process that resumes it.**
+  `ReceiptBuilder.resume()` prepared the transaction again, and a rail autofills
+  the sequence, fee and last-ledger from the ledger *now* — minutes after the
+  policy key signed, often in a process that never prepared this payment — so the
+  bytes no longer matched and the payment was refused with `the anchored
+  transaction differs from the bytes the policy key signed`. Inside one process
+  `execute` got away with it only because adapters memoise their autofill.
+  `ReceiptOutcome` now carries `prepared_tx` while a decision is pending, and
+  `resume(prepared_tx=…)` rebuilds the anchored transaction from it through the
+  new `SettlementPort.anchored_from_content` (XRPL and fake adapters) instead of
+  preparing afresh. The comparison against `signed_payload` is untouched and is
+  still the last word: a tampered record is refused, and so is one from another
+  payment. `examples/trader` persists `prepared_tx` in its pending record, so an
+  agent restarted mid-escalation can still finish it.
+- **A transaction lives as long as the intent it carries.** The XRPL adapter set
+  `LastLedgerSequence` from xrpl-py's default of twenty ledgers — about seventy
+  seconds — which is right for a payment submitted immediately and useless for
+  one waiting on a person. It is now derived from the intent's own `expires_at`:
+  `ceil(seconds_remaining / 3.5) + 4` ledgers, floored at twenty, in the pure
+  `merkl.adapters.xrpl.last_ledger_for`.
+- **A receipt waiting on a person no longer says it expired.** The escalating
+  branch filed leaf 5 as `expired`, so the notary's receipts table, the
+  dashboard's Payments page and the public receipt page all showed EXPIRED for a
+  payment that was simply waiting — the wrong word, in front of the reader the
+  public page exists for. `ResultOutcome.PENDING` (`"pending"`) is added and
+  written instead; the detail sentence is unchanged. Both verifiers read it as
+  *AWAITING APPROVAL* and say "Nothing has settled yet: this payment is waiting
+  for a person to approve it". `expired` keeps its own meaning — nobody answered
+  before the deadline — and every receipt already carrying it still verifies and
+  still reads as expired. New vector case `escalated-pending`.
+- **An escalated receipt now reaches the notary with its open challenge.**
+  `ReceiptBuilder` built the `pending_escalation` block *after* filing, so
+  `POST /v1/receipts` never carried it: the receipt landed, the escalation row
+  was never opened, and the dashboard's Approvals page said "nothing is waiting
+  on a person" for a payment the signer had escalated. The block is built first
+  and passed through to `HttpNotary`, which sends it as `docs/INTERFACES-P4.md`
+  sec 2 describes. Passed only when there is one, so a notary implementation
+  written against the older `NotaryPort` signature keeps filing settled and
+  denied receipts unchanged.
+
+### Changed
+
+- **The signer image**: `MERKL_HOME` and `MERKL_AGENT_DIR` set, `/agent` created
+  writable, `CMD` reduced to `["signer", "serve"]`. The entrypoint supervises the
+  forwarder for `signer bootstrap` as well as `signer serve`, and after any other
+  subcommand hands `/agent`'s contents back to whoever owns the directory — so a
+  bind-mounted `./merkl-agent` is readable on the host without sudo.
+- **`merkl.signer.forward` answers `503 signer_unavailable`** — a constant, in
+  this protocol's own error shape, written on connect failure before a byte of
+  the request is read — instead of dropping the connection. A signer waiting for
+  its first policy and a container that never started are different facts, and a
+  refused TCP connection cannot tell them apart.
+- **`RpcRouter.dispatch_local`**: in-process dispatch that takes the same lock
+  and skips the relay-bearer check. In-process is not a relay. `build_server` and
+  `serve` accept the router so there is exactly one per engine — two would let a
+  call over the socket and a call applied in-process read the same window.
+- **`merkl.adapters.notary` is a package** (`client`, `enrol`, `follower`).
+  `from merkl.adapters.notary import HttpNotary` is unchanged.
+- **`bootstrap_treasury` split** into `create_wallets` and `install_signer_list`,
+  because something now happens in between: the enrolment call, and on mainnet
+  the wait for money. The one-call form stays for callers with nothing to do
+  there.
+
+### Added — phase 14, the agent may trade
+
+- **Intent v1 gains `type: "swap"`.** A trade sells at most `sell.max_amount`
+  and buys exactly `buy.amount`, settling to the treasury itself. On XRPL that
+  is a cross-currency Payment to self — `Amount` is the buy side, `SendMax` the
+  sell ceiling, no `Paths`, no `DeliverMin`, no `tfPartialPayment` — so the
+  ledger delivers exactly what was asked for at most the ceiling or the
+  transaction fails, and the agent's limit price is enforced by the chain.
+  Additive: a payment intent is unchanged to the byte.
+- **The sold side is the outflow.** `per_tx_cap`, `windows` and
+  `tiers.human.thresholds` read `sell.max_amount`, both currencies must be on
+  the agent's `allowlist_assets`, and `allowlist_destinations` does not apply.
+  No new arithmetic — a trade is capped, windowed and escalated by exactly what
+  bounds a payment.
+- **`may_swap`**, a new agent-section member. False when absent and omitted from
+  the hashed content when false, so every `policy_hash` signed before this
+  release is unchanged. A trade by an agent without it is denied with
+  `may_swap: agent may not trade`. A `may_swap` agent must allowlist at least
+  two assets, or the grant is one of the rules a document may not carry.
+- **Leaf 5 gains `delivered` and `spent`** — what the rail's own metadata said
+  arrived and left, never the intent's numbers copied across. Check 9 holds a
+  trade to both: `delivered` must equal the buy side exactly, `spent` must stay
+  inside the ceiling. Either absent is reported by name as unchecked.
+- **The card reads a trade.** `Bought`, `Sold … (limit …)` and `Rate`, the rate
+  to six significant digits by integer arithmetic in both implementations. A
+  refused trade reads `Asked to buy X for up to Y`.
+- **`merkl treasury init --trust CODE.issuer`** sets trust lines before the
+  signer list is installed and the master key disabled, and `--xrpl-mainnet`
+  runs the bootstrap against mainnet: no faucet, wallets from the operator's own
+  0600 seed file, the network's own reserve arithmetic printed, a typed
+  confirmation, and `policy.network` recorded as `xrpl-mainnet`.
+- **`history()` reads a trade as a trade**: the outflow is what was spent, and
+  the delivered amount comes back on `Outflow.inflow_value`/`inflow_asset`.
+- **A sixth demo scenario**: the agent trades inside its cap, is capped when it
+  sizes up, and is refused in an asset it may not hold.
+
+## [0.2.1] - 2026-09-10
+
+### Fixed
+
+- **The signer image no longer crash-loops on first boot.** Its command asked
+  `merkl signer serve` for `--host 0.0.0.0`, which `merkl.signer.server` refuses
+  — "use a Unix socket, or bind loopback and put your own proxy in front of it"
+  — so `ghcr.io/ramcav/merkl-signer:0.2.0` died the moment it started. The guard
+  is right and is unchanged. The image now runs the proxy it names: the signer
+  binds a Unix socket, and `merkl.signer.forward` (new, stdlib asyncio, no new
+  dependency) listens on `$MERKL_SIGNER_LISTEN` — `0.0.0.0:8787` by default —
+  and relays to it byte for byte, parsing nothing and refusing nothing. What
+  faces the network holds no key; authentication stays in the signer, where it
+  is audited. `docker run -p 127.0.0.1:8787:8787` and a compose service reached
+  as `signer:8787` both work. The two processes are supervised as one pair: if
+  either exits, the container exits with that code, and every other subcommand
+  (`treasury init`, `signer token`, `policy show`) still passes straight through
+  the entrypoint. A `docker stop` exits `0` rather than reporting the signal.
+- **A refused relay token is no longer echoed back to the caller.** The
+  rejection took the bearer's id as everything before the first `:` — so a
+  bearer with no `:` in it, a bare secret, came back whole in the error message,
+  into the caller's terminal and its logs. A wrong-but-real credential pasted
+  into the wrong signer was leaked by the signer itself. The message now names a
+  token id only when this signer already holds one under that name, and says
+  nothing at all about the bytes presented otherwise.
+
+### Added
+
+- `@merkl-ai/verify` exports `./package.json`, so a consumer can read the
+  version of the verifier it has installed.
+
 ## [0.2.0] - 2026-09-07
 
 ### Added — phase 11

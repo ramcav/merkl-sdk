@@ -164,12 +164,15 @@ class TestReceiptVectors:
     def test_version(self) -> None:
         assert RECEIPTS["version"] == RECEIPT_VERSION
 
-    def test_the_four_shapes_are_present(self) -> None:
+    def test_every_shape_is_present(self) -> None:
         assert {c["name"] for c in RECEIPTS["cases"]} == {
             "allow-settled",
             "deny-not-submitted",
             "escalated-approved-settled",
+            "escalated-pending",
             "allow-settled-fake-rail",
+            "swap-settled",
+            "swap-denied-may-not-trade",
         }
 
     @pytest.mark.parametrize("case", RECEIPTS["cases"], ids=ids(RECEIPTS["cases"]))

@@ -35,7 +35,7 @@ Sold as an AI accountability product; the rail is a detail.
 Small decisions made in this plan (object if wrong):
 
 - Caps are expressed per asset in the policy (`max 10000 RLUSD/tx`, `max 5000 XRP/day`). No price oracle in the decision path. A `PricePort` for USD-notional limits is an extension, not a requirement.
-- Intent v1 supports one type, `payment`. Other types (trustline, escrow, card authorization) are additive.
+- Intent v1 supports two types, `payment` and `swap` (section T). Other types (trustline, escrow, card authorization) are additive on the same terms.
 - Dev signer RPC: JSON over HTTP on a Unix socket or localhost. Nitro: same JSON over vsock via the parent proxy. One contract.
 - Receipt ids are UUIDv7 (existing `merkl.shared.ids`).
 
@@ -176,3 +176,37 @@ Receipt view inside the Story; approvals queue with WebAuthn (app-level `navigat
 | 5 | all, `phase-5/scenarios-docs` | five scenarios (benign, injection drain, over-threshold + M-of-N approval, structuring, reference mismatch) on both rails; README with architecture, trust model, receipt spec, how to add a rail; landing rewrite (separate brief). |
 
 Each phase ends with a report: what shipped, what is stubbed, which vectors exist, any core/adapter boundary bent and why. verify.html must verify at the end of every phase.
+
+## T. Trading (`merkl-sdk` `phase-14/trading`)
+
+The agent may trade, and the policy it cannot see or change bounds every trade.
+The decisions are in `docs/RECEIPT-SPEC.md` §3.1 (`swap`) and §3 (leaf 5's
+`delivered`/`spent`); what follows is only what a reader of this plan needs.
+
+- **A trade is a cross-currency Payment to self.** `Destination == Account`,
+  `Amount` = the buy side (exact), `SendMax` = the sell ceiling, no `Paths`, no
+  `DeliverMin`, no `tfPartialPayment`. The ledger delivers exactly `Amount` for
+  at most `SendMax` or the transaction fails, so the agent's limit price is
+  enforced by the chain and the policy has only to bound size. Not
+  `OfferCreate`: a resting order has no settlement moment.
+- **The sold side is the outflow.** No new arithmetic. `per_tx_cap`, `windows`
+  and `tiers.human.thresholds` read `sell.max_amount`; both currencies must be
+  in `allowlist_assets`; `allowlist_destinations` does not apply, because the
+  destination is the treasury. Rule state reserves the ceiling and accounts the
+  settled trade by what actually left.
+- **`may_swap` is a separate grant.** A new agent-section boolean, false when
+  absent and omitted from the hashed content when false, so no `policy_hash`
+  signed before this phase changed. A trade by an agent without it is `DENY`
+  with `may_swap: agent may not trade`. A `may_swap` agent must allowlist at
+  least two assets or the grant is unenforceable (§ "rules a document may not
+  carry").
+- **Trust lines are set at init, not through the signer.** `merkl treasury init
+  --trust CODE.issuer` sets them before the SignerList is installed and the
+  master key disabled — afterwards a `TrustSet` would need the quorum the
+  bootstrap is only about to install. **The `trustline` intent type stays
+  deferred**: an agent cannot open a line, and the assets it may hold are
+  therefore an operator's decision made once, at setup, with the master key.
+- **Mainnet is possible and deliberately awkward.** `merkl treasury init
+  --xrpl-mainnet` has no faucet (wallets come from the operator's own 0600 seed
+  file), prints the network's own reserve arithmetic before submitting anything,
+  requires a typed confirmation, and records `policy.network` as `xrpl-mainnet`.

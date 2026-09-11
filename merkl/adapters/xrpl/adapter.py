@@ -25,13 +25,15 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import json
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
 from typing import Any, Final
 
 from xrpl.asyncio.clients import AsyncJsonRpcClient, AsyncWebsocketClient
+from xrpl.asyncio.ledger import get_latest_validated_ledger_sequence
 from xrpl.asyncio.transaction import autofill, sign, submit_and_wait
 from xrpl.core import keypairs
 from xrpl.core.binarycodec import encode, encode_for_multisigning
@@ -43,7 +45,14 @@ from xrpl.models.transactions import Memo, Payment, Signer
 from xrpl.utils import xrp_to_drops
 from xrpl.wallet import Wallet
 
-from merkl.core.canonical import JSONObject, JSONValue, format_instant, parse_decimal
+from merkl.core.canonical import (
+    JSONObject,
+    JSONValue,
+    format_decimal,
+    format_instant,
+    parse_decimal,
+    parse_instant,
+)
 from merkl.core.intent import Amount, Intent, IssuedCurrency
 from merkl.core.policy.document import asset_key
 from merkl.core.policy.state import Outflow
@@ -117,6 +126,54 @@ def to_xrpl_amount(amount: Amount) -> str | IssuedCurrencyAmount:
     if currency != NATIVE:
         raise XrplAdapterError(f"XRPL's native asset is XRP, not {currency!r}")
     return str(xrp_to_drops(Decimal(amount.value)))
+
+
+LEDGER_SECONDS: Final = Decimal("3.5")
+"""Roughly how long an XRPL ledger takes to close.
+
+An observed average, not a promise: the network has run between three and five
+seconds for years. It is used only to turn a deadline in seconds into a number
+of ledgers, and the margin below absorbs the error in either direction."""
+
+LEDGER_MARGIN: Final = 4
+"""Extra ledgers past the intent's expiry, so the two deadlines do not race.
+
+The intent expires at an instant and the transaction expires at a ledger; a
+transaction that died fourteen seconds before the intent it carries would be a
+payment refused for a reason nobody could see in the receipt."""
+
+MIN_LEDGER_WINDOW: Final = 20
+"""Never shorter than xrpl-py's own default, whatever the intent says.
+
+A near-expired intent is still refused by the signer, which checks ``expires_at``
+against its own clock. Handing the ledger a transaction that cannot be included
+before it dies would turn that clean denial into a submitted transaction that
+fails, which is a worse receipt and a spent fee."""
+
+
+def last_ledger_for(expires_at: str, *, now: str, current_ledger: int) -> int:
+    """The ``LastLedgerSequence`` for a transaction carrying an intent to ``expires_at``.
+
+    ``ceil(seconds_remaining / 3.5) + 4``, floored at twenty ledgers, added to the
+    ledger the network has validated now.
+
+    xrpl-py's default is ``current + 20`` — about seventy seconds — which is right
+    for a payment submitted immediately and wrong for every payment that
+    escalates. The whole point of an escalation is that minutes pass while a
+    person decides; the transaction the signer authorized is prepared *before*
+    they are asked, and if it expires while they are thinking, their approval
+    buys nothing and the agent has to propose the whole thing again. The intent
+    already carries the only deadline anybody agreed to, so the transaction is
+    made to live exactly that long.
+
+    A pure function of three values, so the arithmetic can be pinned without a
+    network: the adapter supplies ``now`` from its clock and ``current_ledger``
+    from the node.
+    """
+    remaining = parse_instant(expires_at, "intent.expires_at") - parse_instant(now, "now")
+    seconds = max(Decimal(0), Decimal(str(remaining.total_seconds())))
+    ledgers = int((seconds / LEDGER_SECONDS).to_integral_value(rounding=ROUND_CEILING))
+    return current_ledger + max(ledgers + LEDGER_MARGIN, MIN_LEDGER_WINDOW)
 
 
 def ripple_time(value: int) -> str:
@@ -194,6 +251,14 @@ class XrplSettlementAdapter:
         placeholder and preparing with the real commitment differ in exactly the
         32 anchor bytes — the fee, sequence and last-ledger fields must not move
         between the call the signer inspected and the call that gets submitted.
+
+        ``LastLedgerSequence`` is then overwritten with a window derived from the
+        *intent's own* expiry rather than left at xrpl-py's default of twenty
+        ledgers (~70 seconds). See :func:`last_ledger_for`: an intent that says it
+        is good for an hour must produce a transaction that is still submittable
+        in an hour, because an escalation is a person reading an email, and a
+        transaction that expired while they thought about it is a payment that
+        cannot be made from the approval they gave.
         """
         if intent.rail != RAIL_XRPL:
             raise XrplAdapterError(f"this adapter settles xrpl, not {intent.rail!r}")
@@ -205,14 +270,26 @@ class XrplSettlementAdapter:
                 "session_id": session_id,
                 "task_id": task_id,
                 "source_tag": tag,
+                "action": intent.type,
             },
         )
         base = self._prepared.get(intent.nonce)
         if base is None:
-            base = await autofill(
+            filled = await autofill(
                 self._payment(intent, ANCHOR_PLACEHOLDER_HEX, attr),
                 self._client,
                 signers_count=self._signers_count,
+            )
+            validated = await get_latest_validated_ledger_sequence(self._client)
+            base = Payment.from_xrpl(
+                {
+                    **filled.to_xrpl(),
+                    "LastLedgerSequence": last_ledger_for(
+                        intent.expires_at,
+                        now=format_instant(datetime.now(tz=UTC)),
+                        current_ledger=validated,
+                    ),
+                }
             )
             self._prepared[intent.nonce] = base
 
@@ -231,12 +308,54 @@ class XrplSettlementAdapter:
             handle=payment,
         )
 
+    async def anchored_from_content(self, content: JSONObject, commitment: str) -> UnsignedTx:
+        """Rebuild a transaction from what the caller kept, never from the ledger.
+
+        Two independent things happen here, and the second checks the first:
+
+        1. the signing payload is the recorded one with the commitment spliced
+           into its anchor — 32 bytes rewritten, nothing else touched, which is
+           exactly what the signer did before it signed;
+        2. the ``Payment`` handle is reconstructed from ``fields``, because
+           ``agent_sign`` and ``submit`` need a real xrpl-py object and the wire
+           form deliberately does not carry one.
+
+        The reconstruction is then re-encoded and held against the spliced
+        payload. If they differ, ``fields`` and ``signing_payload`` describe
+        different transactions and this refuses rather than signing the one and
+        submitting the other. No autofill, no ``ledger_index``, no clock: this is
+        called when the ledger has moved on and the point is that the transaction
+        has not.
+        """
+        recorded = UnsignedTx.from_content(content)
+        if recorded.rail != RAIL_XRPL:
+            raise XrplAdapterError(f"this adapter settles xrpl, not {recorded.rail!r}")
+        spliced = recorded.with_anchor(commitment)
+        fields = recorded.fields
+        attr = {
+            "agent_id": str(_memo_field(fields, "agent_id")),
+            "session_id": str(_memo_field(fields, "session_id")),
+            "task_id": str(_memo_field(fields, "task_id")),
+            "action": str(_memo_field(fields, "action") or "payment"),
+            "source_tag": int(str(fields.get("source_tag") or MERKL_SOURCE_TAG)),
+        }
+        payment = _with_memos(_payment_from_fields(fields, attr), commitment, attr)
+        rebuilt = encode_for_multisigning(payment.to_xrpl(), self._policy_address).lower()
+        if rebuilt != spliced.signing_payload:
+            raise XrplAdapterError(
+                "the prepared transaction's fields do not re-encode to its signing payload; "
+                "refusing to sign one transaction and submit another"
+            )
+        self._attribution.setdefault(str(fields.get("nonce") or commitment), attr)
+        return dataclasses.replace(spliced, handle=payment)
+
     def _payment(self, intent: Intent, commitment: str, attr: dict[str, Any]) -> Payment:
         memo_data = (
             agent_memo_json(
                 agent_id=str(attr.get("agent_id") or ""),
                 session_id=str(attr.get("session_id") or ""),
                 task_id=str(attr.get("task_id") or ""),
+                action=intent.type,
             )
             .encode()
             .hex()
@@ -245,7 +364,8 @@ class XrplSettlementAdapter:
         return Payment(
             account=intent.treasury,
             destination=intent.destination,
-            amount=to_xrpl_amount(intent.amount),
+            amount=to_xrpl_amount(intent.deliver_amount),
+            send_max=to_xrpl_amount(intent.outflow) if intent.is_swap else None,
             source_tag=int(attr.get("source_tag") or MERKL_SOURCE_TAG),
             memos=[
                 Memo(
@@ -262,16 +382,16 @@ class XrplSettlementAdapter:
 
     def _fields(self, intent: Intent, payment: Payment, attr: dict[str, Any]) -> JSONObject:
         raw = payment.to_xrpl()
-        return {
+        fields: JSONObject = {
             "account": intent.treasury,
             "destination": intent.destination,
-            "amount": intent.amount.to_content(),
+            "amount": intent.deliver_amount.to_content(),
             "memo_type": MEMO_TYPE,
             "source_tag": int(attr.get("source_tag") or MERKL_SOURCE_TAG),
             "agent_memo": {
                 "agent_id": str(attr.get("agent_id") or ""),
                 "session_id": str(attr.get("session_id") or ""),
-                "action": "payment",
+                "action": intent.type,
                 "task_id": str(attr.get("task_id") or ""),
             },
             "fee": str(raw.get("Fee", "")),
@@ -279,6 +399,9 @@ class XrplSettlementAdapter:
             "last_ledger_sequence": int(raw.get("LastLedgerSequence", 0)),
             "network_id": int(raw["NetworkID"]) if "NetworkID" in raw else 0,
         }
+        if intent.is_swap:
+            fields["send_max"] = intent.outflow.to_content()
+        return fields
 
     # -- sign and submit --------------------------------------------------- #
 
@@ -377,6 +500,8 @@ class XrplSettlementAdapter:
             signed_tx_blob=signed.blob,
             engine_result=str(engine_result),
             validated=bool(result.get("validated", False)),
+            delivered=delivered_amount(meta),
+            spent=spent_amount(meta, transaction.account, _fee_drops(result)),
         )
         if engine_result != "tesSUCCESS":
             raise XrplAdapterError(f"the ledger refused the transaction: {engine_result}")
@@ -636,6 +761,38 @@ def _handle(unsigned: UnsignedTx) -> Payment:
     return payment
 
 
+def _memo_field(fields: JSONObject, key: str) -> Any:
+    """One member of the agent memo recorded in ``UnsignedTx.fields``."""
+    memo = fields.get("agent_memo")
+    return memo.get(key, "") if isinstance(memo, dict) else ""
+
+
+def _payment_from_fields(fields: JSONObject, attr: dict[str, Any]) -> Payment:
+    """The ``Payment`` a recorded ``UnsignedTx`` describes, memos aside.
+
+    Every value comes from ``fields`` — the fee, the sequence and the
+    last-ledger included — so nothing here consults the network. The memos are
+    rewritten afterwards by :func:`_with_memos`, and the whole result is then
+    held against the recorded payload by the caller, which is what makes this
+    reconstruction checkable rather than trusted.
+    """
+    send_max = fields.get("send_max")
+    network_id = int(str(fields.get("network_id") or 0))
+    return Payment(
+        account=str(fields.get("account", "")),
+        destination=str(fields.get("destination", "")),
+        amount=to_xrpl_amount(Amount.from_content(fields.get("amount"))),
+        send_max=(to_xrpl_amount(Amount.from_content(send_max)) if send_max else None),
+        source_tag=int(str(attr.get("source_tag") or MERKL_SOURCE_TAG)),
+        fee=str(fields.get("fee", "")),
+        sequence=int(str(fields.get("sequence") or 0)),
+        last_ledger_sequence=int(str(fields.get("last_ledger_sequence") or 0)),
+        network_id=network_id or None,
+        memos=[],
+        signing_pub_key="",
+    )
+
+
 def _with_memos(payment: Payment, commitment: str, attr: dict[str, Any]) -> Payment:
     raw = payment.to_xrpl()
     memo_data = (
@@ -643,6 +800,7 @@ def _with_memos(payment: Payment, commitment: str, attr: dict[str, Any]) -> Paym
             agent_id=str(attr.get("agent_id") or ""),
             session_id=str(attr.get("session_id") or ""),
             task_id=str(attr.get("task_id") or ""),
+            action=str(attr.get("action") or "payment"),
         )
         .encode()
         .hex()
@@ -725,6 +883,136 @@ def _memo_anchor(memos: Sequence[Any]) -> str | None:
     return None
 
 
+def _fee_drops(result: dict[str, Any]) -> Decimal:
+    """The fee the ledger charged, in drops. Zero if the response does not say."""
+    tx = result.get("tx_json") or result
+    raw = tx.get("Fee")
+    try:
+        return Decimal(str(raw))
+    except Exception:
+        return Decimal(0)
+
+
+def amount_from_xrpl(amount: Any) -> Amount | None:
+    """One XRPL amount — drops or an issued object — as an :class:`Amount`.
+
+    ``None`` when the value is absent or not an amount at all, which is how every
+    caller in this module reports "the metadata did not say" rather than
+    inventing a number.
+    """
+    if isinstance(amount, str) and amount.isdigit():
+        return Amount(value=format_decimal(Decimal(amount) / Decimal(1_000_000)), currency=NATIVE)
+    if isinstance(amount, dict):
+        code = str(amount.get("currency", ""))
+        issuer = str(amount.get("issuer", ""))
+        value = str(amount.get("value", ""))
+        if not code or not issuer or not value:
+            return None
+        try:
+            return Amount(
+                value=format_decimal(Decimal(value)),
+                currency=IssuedCurrency(code=_decode_currency(code), issuer=issuer),
+            )
+        except Exception:
+            return None
+    return None
+
+
+def delivered_amount(meta: Any) -> Amount | None:
+    """What the ledger says actually arrived: ``meta.delivered_amount``.
+
+    Read from the metadata rather than from the transaction's own ``Amount``,
+    because the two are the same thing only when the transaction delivered in
+    full — and a receipt that copied the request into the settled facts would
+    prove nothing about the ledger.
+    """
+    if not isinstance(meta, dict):
+        return None
+    return amount_from_xrpl(meta.get("delivered_amount") or meta.get("DeliveredAmount"))
+
+
+def spent_amount(meta: Any, treasury: str, fee_drops: Decimal) -> Amount | None:
+    """What actually left the treasury, from its balance change in the metadata.
+
+    XRP comes off the AccountRoot: ``PreviousFields.Balance − FinalFields.Balance``
+    minus the fee, because a transaction fee is not part of the trade. An issued
+    asset comes off the RippleState line the treasury shares with the issuer,
+    sign-corrected for which side of the line the treasury is on — a line's
+    ``Balance`` is written from the low account's point of view, so the high
+    account's holding is its negation and a naive subtraction would report a
+    sale as a purchase.
+
+    ``None`` whenever the nodes needed are not in the metadata. A cost that
+    cannot be derived is left unstated, never estimated.
+    """
+    if not isinstance(meta, dict):
+        return None
+    nodes = meta.get("AffectedNodes")
+    if not isinstance(nodes, list):
+        return None
+    for node in nodes:
+        fields = _modified_fields(node, "AccountRoot")
+        if fields is None:
+            continue
+        final, previous = fields
+        if str(final.get("Account")) != treasury or "Balance" not in previous:
+            continue
+        try:
+            drops = Decimal(str(previous["Balance"])) - Decimal(str(final["Balance"])) - fee_drops
+        except Exception:
+            return None
+        if drops > 0:
+            return Amount(value=format_decimal(drops / Decimal(1_000_000)), currency=NATIVE)
+    return _issued_spent(nodes, treasury)
+
+
+def _issued_spent(nodes: Sequence[Any], treasury: str) -> Amount | None:
+    """The treasury's decrease on whichever trust line it actually paid from."""
+    for node in nodes:
+        fields = _modified_fields(node, "RippleState")
+        if fields is None:
+            continue
+        final, previous = fields
+        balance = final.get("Balance")
+        if not isinstance(balance, dict) or "Balance" not in previous:
+            continue
+        low = str((final.get("LowLimit") or {}).get("issuer", ""))
+        high = str((final.get("HighLimit") or {}).get("issuer", ""))
+        if treasury not in (low, high):
+            continue
+        issuer = high if treasury == low else low
+        try:
+            after = Decimal(str(balance.get("value", "0")))
+            before = Decimal(str((previous["Balance"] or {}).get("value", "0")))
+        except Exception:
+            continue
+        # A line's Balance is the low account's holding; the high account's is
+        # its negation.
+        delta = (before - after) if treasury == low else (after - before)
+        if delta > 0:
+            return Amount(
+                value=format_decimal(delta),
+                currency=IssuedCurrency(
+                    code=_decode_currency(str(balance.get("currency", ""))), issuer=issuer
+                ),
+            )
+    return None
+
+
+def _modified_fields(node: Any, entry_type: str) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """``(FinalFields, PreviousFields)`` of one ``ModifiedNode`` of this type."""
+    if not isinstance(node, dict):
+        return None
+    modified = node.get("ModifiedNode")
+    if not isinstance(modified, dict) or modified.get("LedgerEntryType") != entry_type:
+        return None
+    final = modified.get("FinalFields")
+    previous = modified.get("PreviousFields")
+    if not isinstance(final, dict) or not isinstance(previous, dict):
+        return None
+    return final, previous
+
+
 def _read_amount(amount: Any) -> tuple[str, str]:
     """An XRPL amount as (decimal string, asset key)."""
     if isinstance(amount, str):
@@ -789,6 +1077,21 @@ def _outflows_from_response(response: Response, treasury: str) -> list[Outflow]:
             continue
         amount = meta.get("delivered_amount") or tx.get("DeliverMax") or tx.get("Amount")
         value, asset = _read_amount(amount)
+        inflow_value: str | None = None
+        inflow_asset: str | None = None
+        if tx.get("Destination") == treasury and tx.get("SendMax") is not None:
+            # A cross-currency Payment to self is a trade: what left is the sell
+            # side, not the delivered amount, and the delivered amount is what
+            # came back. When the metadata does not yield the real cost the
+            # SendMax ceiling stands in for it — an upper bound never
+            # understates an outflow, and understating one is the failure that
+            # matters in a reconciliation.
+            inflow_value, inflow_asset = value, asset
+            spent = spent_amount(meta, treasury, _fee_drops(tx))
+            if spent is None:
+                spent = amount_from_xrpl(tx.get("SendMax"))
+            if spent is not None:
+                value, asset = spent.value, asset_key(spent.currency)
         close = entry.get("close_time_iso")
         date = tx.get("date") or entry.get("date")
         close_time = (
@@ -806,6 +1109,8 @@ def _outflows_from_response(response: Response, treasury: str) -> list[Outflow]:
                 ledger_index=int(entry.get("ledger_index", 0)),
                 close_time=close_time,
                 anchor=_memo_anchor(tx.get("Memos") or []),
+                inflow_value=inflow_value,
+                inflow_asset=inflow_asset,
             )
         )
     return outflows
