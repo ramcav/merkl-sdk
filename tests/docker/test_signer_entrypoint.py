@@ -45,9 +45,23 @@ def free_port() -> int:
 
 
 def children_of(pid: int) -> list[tuple[int, str]]:
-    """Every process whose parent is ``pid``, without a psutil dependency."""
+    """Every process whose parent is ``pid``, without a psutil dependency.
+
+    ``-ww`` and a wide ``COLUMNS`` are not decoration. ``ps`` truncates the
+    command column to the terminal width, and it takes that width from
+    ``$COLUMNS`` when one is exported — which GitHub's runners do and a laptop
+    shell does not. The halves are identified by markers that sit *after* a
+    long interpreter path (``signer serve``, ``merkl.signer.forward``), so at
+    80 columns both were being cut off and every child looked like neither.
+    Unlimited width on both procps and BSD is ``-ww``; pinning ``COLUMNS`` as
+    well costs nothing and removes the last thing the answer depends on.
+    """
     listing = subprocess.run(
-        ["ps", "-Ao", "pid=,ppid=,command="], capture_output=True, text=True, check=True
+        ["ps", "-ww", "-Ao", "pid=,ppid=,command="],
+        capture_output=True,
+        text=True,
+        check=True,
+        env={**os.environ, "COLUMNS": "100000"},
     ).stdout
     found: list[tuple[int, str]] = []
     for line in listing.splitlines():
@@ -80,8 +94,11 @@ class Pair:
 
     def half(self, marker: str) -> int:
         """The pid of one half, by what it is running."""
-        matches = [pid for pid, command in children_of(self.process.pid) if marker in command]
-        assert len(matches) == 1, f"expected one {marker}, found {matches}"
+        children = children_of(self.process.pid)
+        matches = [pid for pid, command in children if marker in command]
+        assert len(matches) == 1, (
+            f"expected one {marker}, found {matches}; children were {children}"
+        )
         return matches[0]
 
     def wait_until_answering(self) -> None:
