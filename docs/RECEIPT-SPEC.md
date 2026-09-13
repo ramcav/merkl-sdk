@@ -88,12 +88,21 @@ Order is part of the format. Index 0 is hashed first and no leaf ever moves.
 | 2 | `policy_decision` | `policy_hash` (digest), `rules[]` of `{name, outcome, detail}`, `outcome` (`allow` \| `deny` \| `escalate`), `tier`, `escalation`? |
 | 3 | `signer_attestation` | `{format, document, policy_public_key}` or `null` |
 | 4 | `settlement` | `rail`, `tx_hash`, `ledger_index` (integer), `close_time` (instant), `signed_tx_blob`?, `observed_anchor`?, `settlement_proof_ref`?, `policy_signature`? |
-| 5 | `result` | `outcome` (`settled` \| `denied` \| `failed` \| `expired`), `engine_result`?, `balance_deltas[]`, `outcome_hash`?, `detail` |
+| 5 | `result` | `outcome` (`settled` \| `denied` \| `failed` \| `pending` \| `expired`), `engine_result`?, `balance_deltas[]`, `outcome_hash`?, `detail`, `delivered`?, `spent`? |
 | 6 | `reasoning` | `testimony: true`, `content_hash` (digest), `source`?, `note` |
 
 Leaves 0, 1 and 2 are present in every receipt, including a denied one. Any leaf
 may be `null`; a denied payment has `null` at 3 and 4 because there was no
 enclave signature to record and nothing was submitted.
+
+`result.outcome` distinguishes two kinds of "did not settle" that look alike and
+are not. **`pending`** (added in 0.3.0) means the policy escalated and a person
+has been asked and has not answered: nothing is wrong, nothing has ended, and a
+reader shown *expired* there would be told something false about a payment that
+is still live. **`expired`** means the escalation's deadline passed with no
+answer — over, and the money is not moving. A receipt written before 0.3.0 says
+`expired` for both; that is why `expired` keeps its meaning and its place in the
+enum rather than being renamed, and why every verifier must keep reading it.
 
 `escalation` is `{challenge (digest), expires_at (instant), quorum (integer ≥ 1),
 approvals[]}`. `challenge` is `LEFT_pre` (section 3.2), which is what approvers
@@ -101,6 +110,20 @@ sign; each entry of `approvals` is an assertion in the shape of section 3.3.
 
 `balance_deltas` entries are `{account, currency, value}` where `value` is a
 *signed* decimal string and `currency` follows section 3.1.
+
+`delivered` and `spent` (added in 0.3.0) are amounts in the shape of section 3.1
+(`{value, currency}`), each omitted when absent. They are what the *rail's own
+metadata* said arrived and left — never the intent's numbers copied across.
+They matter most for a `swap`, where the intent names a ceiling rather than a
+price: `delivered` must equal the buy side exactly, `spent` is what the ledger
+actually charged, and the two together are the rate a reader sees. On XRPL
+`delivered` is `meta.delivered_amount` and `spent` is the treasury's balance
+change in the same metadata — for XRP the AccountRoot's `PreviousFields.Balance
+− FinalFields.Balance − Fee`, for an issued asset the RippleState line's change,
+sign-corrected for which side of the line the treasury holds. Either may be
+absent when the metadata does not yield it; check 9 then reports
+`not_implemented` naming which, because the absence of a settled amount is never
+agreement.
 
 `policy_signature` is `{algorithm, public_key (token), signature (token), payload
 (token)}`. `payload` is the hex of the **exact bytes the policy key signed** — on
@@ -131,11 +154,47 @@ before the outcome was known.
  "expires_at": "2026-01-02T03:09:05Z"}
 ```
 
-`type` is `payment`; it is the only type in v1, and other types are additive.
 `amount.value` is a positive decimal string. `amount.currency` is either a native
 asset code matching `[A-Z0-9]{1,20}` (`"XRP"`) or an object `{code, issuer}`.
 `reference` is optional and omitted when absent. Unknown members are rejected: a
 verifier must not accept an intent it does not fully understand.
+
+`type` is `payment` or `swap`. Further types are additive: a new value with its
+own required members, the rest of the format unchanged.
+
+**`swap`** (added in 0.3.0) — a trade on the rail's own book:
+
+```json
+{"type": "swap",
+ "rail": "xrpl",
+ "treasury": "rTREASURY...",
+ "destination": "rTREASURY...",
+ "sell": {"currency": {"code": "RLUSD", "issuer": "rISSUER..."}, "max_amount": "500.00"},
+ "buy": {"currency": "XRP", "amount": "1000"},
+ "policy_version": "2026.01.0",
+ "agent_public_key": "<token>",
+ "nonce": "<token>",
+ "expires_at": "2026-01-02T03:09:05Z"}
+```
+
+A `payment` carries `amount` and neither `sell` nor `buy`; a `swap` carries
+`sell` and `buy` and no `amount`. `sell.max_amount` and `buy.amount` are
+positive decimal strings and both currencies follow the rule above;
+`sell.currency` and `buy.currency` must differ, and `destination` must equal
+`treasury` — a trade converts inside the treasury and pays nobody.
+
+The two sides are not symmetrical, and the asymmetry is the whole design.
+`buy.amount` is **exact**: the rail is asked all-or-nothing and delivers that
+amount or the transaction fails. `sell.max_amount` is a **ceiling**: the most
+that may leave. So the limit price is enforced by the ledger, and the policy has
+only to bound the size of what can leave — every rule that bounds a payment's
+`amount` reads a swap's `sell.max_amount`, and nothing else changes.
+
+On XRPL a swap is a cross-currency Payment to self: `Destination == Account`,
+`Amount` is the buy side, `SendMax` the sell ceiling, and no `Paths`, no
+`DeliverMin` and no `tfPartialPayment`. Not an `OfferCreate`: a resting order has
+no settlement moment, and a fill-or-kill self-payment *is* a limit order that
+fills or fails — one transaction type, one codec, one settlement leaf.
 
 An asset's **key** — used to match policy rules and window state to an amount — is
 the native code itself, or `code.issuer` for an issued currency. A native code

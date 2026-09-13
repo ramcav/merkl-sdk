@@ -390,6 +390,14 @@ class Outflow:
     ledger_index: int
     close_time: str
     anchor: str | None = None
+    inflow_value: str | None = None
+    inflow_asset: str | None = None
+    """What came *back* in the same transaction, when it was a trade.
+
+    A trade settles to the treasury itself, so it is one transaction with two
+    sides: ``value``/``asset`` are what left, these are what arrived. Both
+    omitted for an ordinary payment, so every outflow written before trading
+    existed reads back byte-identically."""
 
     def __post_init__(self) -> None:
         token(self.tx_hash, "outflow.tx_hash", max_length=128)
@@ -400,6 +408,19 @@ class Outflow:
         instant(self.close_time, "outflow.close_time")
         if self.anchor is not None:
             token(self.anchor, "outflow.anchor", max_length=2048)
+        if (self.inflow_value is None) != (self.inflow_asset is None):
+            raise ContentError(
+                "outflow.inflow_value and inflow_asset are set together or not at all"
+            )
+        if self.inflow_value is not None:
+            decimal_string(self.inflow_value, "outflow.inflow_value", positive=False)
+        if self.inflow_asset is not None:
+            token(self.inflow_asset, "outflow.inflow_asset", max_length=256)
+
+    @property
+    def is_swap(self) -> bool:
+        """A trade: one transaction that both spent and received, to itself."""
+        return self.destination == self.treasury and self.inflow_value is not None
 
     def to_content(self) -> JSONObject:
         return drop_none(
@@ -412,6 +433,8 @@ class Outflow:
                 "ledger_index": self.ledger_index,
                 "close_time": self.close_time,
                 "anchor": self.anchor,
+                "inflow_value": self.inflow_value,
+                "inflow_asset": self.inflow_asset,
             }
         )
 
@@ -435,6 +458,8 @@ class Outflow:
             ledger_index=_ledger_index(obj),
             close_time=_required(obj, "close_time", "outflow"),
             anchor=obj.get("anchor"),
+            inflow_value=obj.get("inflow_value"),
+            inflow_asset=obj.get("inflow_asset"),
         )
 
 
@@ -527,6 +552,8 @@ def outflows_from_content(values: Sequence[Any]) -> tuple[Outflow, ...]:
                 ledger_index=_required(obj, "ledger_index", "outflow"),
                 close_time=_required(obj, "close_time", "outflow"),
                 anchor=obj.get("anchor"),
+                inflow_value=obj.get("inflow_value"),
+                inflow_asset=obj.get("inflow_asset"),
             )
         )
     return tuple(parsed)

@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, Protocol, runtime_checkable
 
-from merkl.core.canonical import JSONValue
+from merkl.core.canonical import JSONObject, JSONValue
 from merkl.core.intent import Intent
 from merkl.core.policy.approvals import ApprovalAssertion
 from merkl.core.policy.engine import Decision, RiskScore
@@ -55,6 +55,27 @@ class SettlementPort(Protocol):
         Extra keywords (``agent_id``, ``session_id``, ``task_id``, ``source_tag``)
         are how the XRPL adapter fills the agent-tracking memo and SourceTag.
         Adapters that do not use them ignore them.
+        """
+        ...
+
+    async def anchored_from_content(self, content: JSONObject, commitment: str) -> UnsignedTx:
+        """Rebuild a previously prepared transaction and write ``commitment`` in.
+
+        The same result :meth:`prepare` would give — *if* it were called in the
+        same process, in the same minute, against the same ledger. It often is
+        not: an escalation is answered by a person, minutes or hours later, and
+        the process that submits may not be the process that proposed. A fresh
+        ``prepare`` there re-autofills, and the sequence, fee or last-ledger it
+        picks up are not the ones the policy key signed, so the transaction is
+        refused by the caller's own equality check with nothing wrong.
+
+        So the caller keeps the ``UnsignedTx.to_content()`` it sent in the
+        propose request and hands it back. The adapter reproduces the signing
+        payload from that content rather than from the network, and rebuilds
+        whatever private handle it needs to sign and submit. It must refuse
+        content whose ``fields`` and ``signing_payload`` disagree; the caller's
+        comparison against the bytes the signer actually signed is still the last
+        word.
         """
         ...
 
@@ -153,6 +174,13 @@ class NotaryPort(Protocol):
     Filing them together is one round trip and the ordinary case; the second
     method is for a capture completed afterwards, such as validations collected
     late, which must still be able to reach the receipt it belongs to.
+
+    ``pending_escalation`` is ``{challenge, expires_at, quorum}`` for a receipt
+    whose decision is still ``escalate``. It is not in any leaf — nothing about a
+    challenge is committed until the escalation resolves — so a notary that opens
+    a human queue entry has no other way to learn one exists. Only ever passed
+    when there *is* one; a receipt that settled or was denied is filed with the
+    signature this port has always had.
     """
 
     async def file_receipt(
@@ -161,6 +189,7 @@ class NotaryPort(Protocol):
         leaves: ReceiptLeaves,
         *,
         settlement_proof: SettlementProof | None = None,
+        pending_escalation: JSONObject | None = None,
     ) -> None: ...
 
     async def file_settlement_proof(self, receipt_id: str, proof: SettlementProof) -> None: ...

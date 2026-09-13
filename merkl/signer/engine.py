@@ -447,8 +447,17 @@ class SignerEngine:
             problems.append(
                 f"destination {fields.get('destination')!r} is not the intent's destination"
             )
-        if fields.get("amount") != intent.amount.to_content():
+        if fields.get("amount") != intent.deliver_amount.to_content():
             problems.append(f"amount {fields.get('amount')!r} is not the intent's amount")
+        # A trade names a ceiling as well as a delivery. The ceiling is the only
+        # number the policy bounded, so a prepared transaction that quietly
+        # widened it must not reach the key.
+        send_max = fields.get("send_max")
+        if intent.is_swap:
+            if send_max != intent.outflow.to_content():
+                problems.append(f"send_max {send_max!r} is not the intent's sell ceiling")
+        elif send_max is not None:
+            problems.append("a payment carries no send_max; this transaction names one")
         if fields.get("memo_type") != MEMO_TYPE:
             problems.append(
                 f"anchor field is tagged {fields.get('memo_type')!r}, not {MEMO_TYPE!r}"
@@ -666,5 +675,9 @@ def _required(params: JSONObject, key: str) -> Any:
 
 
 def asset_of(intent: Intent) -> str:
-    """The asset key an intent's amount belongs to (re-exported for callers)."""
-    return asset_key(intent.amount.currency)
+    """The asset key an intent's outflow belongs to (re-exported for callers).
+
+    A payment's amount, a trade's ``sell.max_amount``: what the reservation and
+    the window are counted in is always the asset that can leave.
+    """
+    return asset_key(intent.outflow.currency)

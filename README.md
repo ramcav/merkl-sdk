@@ -198,6 +198,10 @@ settles. Every page is a self-contained `verify.html` that `merkl verify` and
 agreeing on the same bytes. `merkl/demo/scenarios.py` is the source; run
 `pytest tests/demo/ tests/scenarios/` to see the same claims as tests.
 
+`examples/trader/` is the same idea with real money on the other end: a trading
+agent that runs as a plain process, pays its own compute bill out of the
+treasury it trades, and learns what its policy permits from the refusals.
+
 ### Add a rail
 
 A rail is one adapter. Nothing in `merkl.core` or `merkl.signer` changes.
@@ -234,22 +238,61 @@ Two things a rail adapter must get right, because the signer depends on them:
 
 ### Deploy the signer
 
-**Dev**, as a container — no attestation, and every receipt says so. One
-volume holds the keystore, the sealed rule state, the relay tokens and the
-signed policy; the signer is the image plus that volume:
+**Dev**, as a container — no attestation, and every receipt says so. Two lines,
+which the dashboard prints for you with the enrolment token filled in:
 
 ```bash
-docker run --rm -it -v merkl-signer:/var/lib/merkl-signer ghcr.io/ramcav/merkl-signer:0.2.0 \
-  treasury init --xrpl-testnet --home /var/lib/merkl-signer   # keystore made where it is served
-docker run -d --name merkl-signer -v merkl-signer:/var/lib/merkl-signer \
-  -p 127.0.0.1:8787:8787 ghcr.io/ramcav/merkl-signer:0.2.0      # serves policy.signed.json from the volume
+mkdir -p merkl-agent && docker run -it --rm \
+  -v merkl-signer:/var/lib/merkl-signer -v "$PWD/merkl-agent:/agent" \
+  ghcr.io/ramcav/merkl-signer:0.3.0 treasury init --xrpl-mainnet \
+  --enrol enr_... --notary https://api.merkl.ai
+
+docker run -d --name merkl-signer --restart unless-stopped \
+  -v merkl-signer:/var/lib/merkl-signer -p 127.0.0.1:8787:8787 \
+  ghcr.io/ramcav/merkl-signer:0.3.0
 ```
+
+The first line is the whole setup, and every secret in it is born inside your
+container: the policy key, the treasury's seeds, each agent's request key. It
+prints the address to fund, waits for the money, asks you to type a sentence
+before it disables the master key, installs the signer list, tells the notary
+the public half, and leaves `./merkl-agent/` behind:
+
+```
+merkl-agent/
+  trader.toml           the agent's config, filled in
+  agent-ed25519.pem     0600 — the agent's request key
+  wallet.json           0600 — that agent's wallet, and no other
+  relay-token.txt       0600 — its bearer for the signer
+  notary-api-key.txt    0600 — its API key for the notary
+```
+
+The treasury's own seed is **not** in there. It stays in the volume, which is
+also where the keystore, the rule state, the relay tokens and the policy live —
+the signer is the image plus that volume, and nothing on your host.
+
+The second line serves it. `$MERKL_HOME` is the volume, so there is no `--home`
+and no `--policy`: with a notary on file the signer pulls its policy and its
+approvals from `api.merkl.ai` and heartbeats back, so the page can say when the
+policy is actually in force. Until the first policy exists every RPC is a clean
+`503`; nothing is signed and nothing is pretended.
+
+Merkl never gets a key out of this. Approvals arrive as signed assertions the
+signer verifies against the policy's own approvers, and a policy arrives signed
+by the admin credential the signer pinned — see `docs/SIGNER-RPC.md` §7.
+
+Inside the container the signer is on a Unix socket, and a forwarder
+(`merkl.signer.forward`, stdlib only) relays `$MERKL_SIGNER_LISTEN` —
+`0.0.0.0:8787` by default — to it byte for byte. That is the "proxy in front"
+`merkl.signer.server` demands before it will answer anything but loopback: the
+guard stays, and what faces the network holds no key and refuses nothing. Both
+processes are supervised as one; if either exits, the container does.
 
 Or from a checkout, without Docker:
 
 ```bash
-merkl treasury init --xrpl-testnet     # fund and lock down a testnet treasury
-merkl signer serve --policy policy.json --socket /tmp/merkl-signer.sock
+merkl treasury init --xrpl-testnet     # keys, ledger, agent bundle, in one run
+merkl signer serve --socket /tmp/merkl-signer.sock
 ```
 
 **Nitro**, for production — the key is generated inside an AWS Nitro Enclave in

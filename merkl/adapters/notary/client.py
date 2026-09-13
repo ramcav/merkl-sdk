@@ -69,8 +69,22 @@ class HttpNotary:
         leaves: ReceiptLeaves,
         *,
         settlement_proof: SettlementProof | None = None,
+        pending_escalation: JSONObject | None = None,
     ) -> None:
-        """File the receipt, with its capture in the same request when there is one."""
+        """File the receipt, with its capture — or its open challenge — in the same request.
+
+        ``pending_escalation`` is ``{challenge, expires_at, quorum}`` and is the
+        only way the notary can learn that this receipt is waiting on a person.
+        Nothing in a leaf says so: the decision leaf's outcome is ``escalate``
+        and LEFT happens to equal the challenge, but neither the expiry nor the
+        quorum is committed anywhere until the escalation resolves, and a notary
+        reconstructing a queue entry from a coincidence of hashes would be
+        guessing. Filed without it, the receipt lands and the Approvals page
+        stays empty for a payment the signer really did escalate.
+
+        Both extra members are optional and an absent one is **absent, never
+        null** (``docs/INTERFACES-P4.md`` sec 2).
+        """
         body: JSONObject = {
             "envelope": envelope.to_content(),
             "leaves": list(leaves.contents()),
@@ -80,6 +94,8 @@ class HttpNotary:
                 "rail": settlement_proof.rail,
                 "proof": settlement_proof.to_content(),
             }
+        if pending_escalation is not None:
+            body["pending_escalation"] = dict(pending_escalation)
         await self._post("/v1/receipts", body)
 
     async def file_settlement_proof(self, receipt_id: str, proof: SettlementProof) -> None:

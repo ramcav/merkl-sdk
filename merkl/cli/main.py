@@ -8,8 +8,10 @@ Usage:
     merkl reject <challenge>               # refuse one, signed, because refusals are evidence
     merkl reconcile --treasury <id>        # outflows against receipts, both directions
     merkl install --claude-code            # install hook in .claude/settings.json
-    merkl signer serve --policy p.json     # run the dev co-signer
-    merkl treasury init --xrpl-testnet     # fund and lock down a testnet treasury
+    merkl signer serve                     # run the dev co-signer
+    merkl signer bootstrap --xrpl-testnet  # set a treasury up, then serve it
+    merkl treasury init --xrpl-testnet     # keys, ledger, agent bundle, in one run
+    merkl treasury enrol --enrol T --notary U  # re-send an enrolment that failed
     merkl treasury verify <address>        # check the signer list and master key
     merkl xrpl pin-unl <url|file> -o u.json  # audit a validator list, pin its master keys
     merkl demo [--xrpl-testnet]            # run the five scenarios, write pages to open
@@ -28,6 +30,67 @@ import os
 import sys
 from pathlib import Path
 from typing import Any
+
+HOME_HELP = (
+    "Everything this signer owns: keystore, seeds, relay tokens, policy "
+    "(default: $MERKL_HOME, else ~/.merkl/signer)"
+)
+
+MAINNET_CONFIRMATION = "disable the master key on mainnet"
+"""Repeated here for the help text alone; ``merkl.cli.treasury`` is normative."""
+
+
+def _add_enrolment_flags(parser: argparse.ArgumentParser, *, required: bool = False) -> None:
+    """``--enrol``/``--notary``/``--agent-dir``/``--bundle-to-notary``, shared by two commands."""
+    parser.add_argument(
+        "--enrol",
+        default=None,
+        required=required,
+        metavar="TOKEN",
+        help="The one-shot enrolment token the dashboard printed (enr_…)",
+    )
+    parser.add_argument(
+        "--notary",
+        default=None,
+        required=required,
+        metavar="URL",
+        help="The notary to enrol with (https://api.merkl.ai)",
+    )
+    parser.add_argument(
+        "--agent-dir",
+        type=Path,
+        default=None,
+        help="Where to write the agent bundle (default: /agent if it exists, "
+        "else <home>/agents/<id>/bundle)",
+    )
+    parser.add_argument(
+        "--bundle-to-notary",
+        action="store_true",
+        help="Send the agent bundle to the notary instead of writing it, for a signer "
+        "Merkl runs. The dashboard hands it to the customer once.",
+    )
+
+
+def _add_serve_flags(parser: argparse.ArgumentParser) -> None:
+    """Where the signer binds and what it refuses, shared by ``serve`` and ``bootstrap``."""
+    parser.add_argument("--home", type=Path, default=None, help=HOME_HELP)
+    parser.add_argument(
+        "--socket", type=Path, default=None, help="Unix socket to bind (preferred)"
+    )
+    parser.add_argument("--host", default="127.0.0.1", help="Loopback address to bind instead")
+    parser.add_argument("--port", type=int, default=8787, help="Port for --host")
+    parser.add_argument(
+        "--blocklist", nargs="*", default=[], help="Destinations the risk scorer refuses"
+    )
+    parser.add_argument(
+        "--rail-endpoint",
+        default=None,
+        help=(
+            "The rail JSON-RPC URL this deployment settles through ($MERKL_RAIL_ENDPOINT). "
+            "The signer never calls it; it refuses to start if the URL names a different "
+            "chain than the policy's network."
+        ),
+    )
 
 
 def _ensure_hook(
@@ -324,28 +387,47 @@ def main() -> None:
     signer_sub = signer_p.add_subparsers(dest="signer_command", metavar="<subcommand>")
     serve_p = signer_sub.add_parser("serve", help="Serve the signer RPC")
     serve_p.add_argument(
-        "--policy", type=Path, required=True, help="Signed policy document (JSON)"
-    )
-    serve_p.add_argument(
-        "--home", type=Path, default=None, help="Keystore and state directory (~/.merkl/signer)"
-    )
-    serve_p.add_argument(
-        "--socket", type=Path, default=None, help="Unix socket to bind (preferred)"
-    )
-    serve_p.add_argument("--host", default="127.0.0.1", help="Loopback address to bind instead")
-    serve_p.add_argument("--port", type=int, default=8787, help="Port for --host")
-    serve_p.add_argument(
-        "--blocklist", nargs="*", default=[], help="Destinations the risk scorer refuses"
-    )
-    serve_p.add_argument(
-        "--rail-endpoint",
+        "--policy",
+        type=Path,
         default=None,
-        help=(
-            "The rail JSON-RPC URL this deployment settles through ($MERKL_RAIL_ENDPOINT). "
-            "The signer never calls it; it refuses to start if the URL names a different "
-            "chain than the policy's network."
-        ),
+        help="Signed policy document (default: <home>/policy.signed.json; with a "
+        "notary.json in <home>, the signer waits for the notary's first policy instead)",
     )
+    _add_serve_flags(serve_p)
+
+    bootstrap_p = signer_sub.add_parser(
+        "bootstrap",
+        help="Set the treasury up and then serve it, in one process. What a container runs.",
+    )
+    bootstrap_p.add_argument(
+        "--xrpl-testnet", action="store_true", help="Bootstrap on the XRPL testnet"
+    )
+    bootstrap_p.add_argument(
+        "--xrpl-mainnet",
+        action="store_true",
+        help="Bootstrap on XRPL mainnet. --confirm is required: there is nobody to prompt.",
+    )
+    bootstrap_p.add_argument(
+        "--agents", type=int, default=1, help="How many agent keys (default 1)"
+    )
+    bootstrap_p.add_argument(
+        "--wallet-file", type=Path, default=None, help="Where to write seeds (0600)"
+    )
+    bootstrap_p.add_argument(
+        "--trust",
+        action="append",
+        default=[],
+        metavar="CODE.issuer",
+        help="A trust line to set before the master key is disabled (repeatable)",
+    )
+    bootstrap_p.add_argument(
+        "--confirm",
+        default=None,
+        metavar="SENTENCE",
+        help=f"The mainnet sentence, exactly: {MAINNET_CONFIRMATION!r}",
+    )
+    _add_enrolment_flags(bootstrap_p)
+    _add_serve_flags(bootstrap_p)
 
     token_p = signer_sub.add_parser(
         "token", help='Manage relay bearer tokens (docs/SIGNER-RPC.md, "Who may call what")'
@@ -353,18 +435,19 @@ def main() -> None:
     token_sub = token_p.add_subparsers(dest="token_command", metavar="<subcommand>")
     token_add_p = token_sub.add_parser("add", help="Register a new relay token; prints it once")
     token_add_p.add_argument("id", help="A label for this token (e.g. 'dashboard', 'ci')")
+    token_add_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
     token_add_p.add_argument(
-        "--home", type=Path, default=None, help="Signer directory (~/.merkl/signer)"
+        "--env",
+        dest="as_env",
+        action="store_true",
+        help="Print the two finished environment lines a notary deployment pastes, "
+        "instead of the bare token",
     )
     token_revoke_p = token_sub.add_parser("revoke", help="Remove a relay token by id")
     token_revoke_p.add_argument("id", help="The token id to remove")
-    token_revoke_p.add_argument(
-        "--home", type=Path, default=None, help="Signer directory (~/.merkl/signer)"
-    )
+    token_revoke_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
     token_list_p = token_sub.add_parser("list", help="List relay token ids (never the tokens)")
-    token_list_p.add_argument(
-        "--home", type=Path, default=None, help="Signer directory (~/.merkl/signer)"
-    )
+    token_list_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
 
     # treasury
     treasury_p = sub.add_parser("treasury", help="Set up and check a co-signed treasury")
@@ -373,11 +456,40 @@ def main() -> None:
     init_p.add_argument(
         "--xrpl-testnet", action="store_true", help="Bootstrap on the XRPL testnet"
     )
+    init_p.add_argument(
+        "--xrpl-mainnet",
+        action="store_true",
+        help="Bootstrap on XRPL mainnet: no faucet, seeds read from --wallet-file, "
+        "reserves printed and a typed confirmation required",
+    )
     init_p.add_argument("--agents", type=int, default=1, help="How many agent keys (default 1)")
-    init_p.add_argument("--home", type=Path, default=None, help="Signer keystore directory")
+    init_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
     init_p.add_argument(
         "--wallet-file", type=Path, default=None, help="Where to write seeds (0600)"
     )
+    init_p.add_argument(
+        "--trust",
+        action="append",
+        default=[],
+        metavar="CODE.issuer",
+        help="A trust line to set before the master key is disabled (repeatable)",
+    )
+    _add_enrolment_flags(init_p)
+    init_p.add_argument(
+        "--confirm",
+        default=None,
+        metavar="SENTENCE",
+        help=f"Skip the mainnet prompt by typing it here: {MAINNET_CONFIRMATION!r}. "
+        "Anything else is not a confirmation.",
+    )
+
+    enrol_p = treasury_sub.add_parser(
+        "enrol",
+        help="Re-send enrol and ready to the notary from what is already on disk",
+    )
+    enrol_p.add_argument("--home", type=Path, default=None, help=HOME_HELP)
+    _add_enrolment_flags(enrol_p, required=True)
+
     verify_p = treasury_sub.add_parser("verify", help="Check a treasury's flags and signer list")
     verify_p.add_argument("address", help="Treasury account address")
 
@@ -517,6 +629,32 @@ def main() -> None:
                     rail_endpoint=args.rail_endpoint,
                 )
             )
+        if args.signer_command == "bootstrap":
+            from merkl.cli.signer import bootstrap_command
+            from merkl.core.rail import NETWORK_XRPL_MAINNET, NETWORK_XRPL_TESTNET
+
+            if args.xrpl_testnet == args.xrpl_mainnet:
+                print("choose exactly one of --xrpl-testnet and --xrpl-mainnet", file=sys.stderr)
+                raise SystemExit(2)
+            raise SystemExit(
+                bootstrap_command(
+                    home=args.home,
+                    network=(NETWORK_XRPL_MAINNET if args.xrpl_mainnet else NETWORK_XRPL_TESTNET),
+                    agents=args.agents,
+                    wallet_file=args.wallet_file,
+                    trust=tuple(args.trust),
+                    enrol=args.enrol,
+                    notary=args.notary,
+                    confirm=args.confirm,
+                    agent_dir=args.agent_dir,
+                    bundle_to_notary=args.bundle_to_notary,
+                    socket_path=args.socket,
+                    host=args.host,
+                    port=args.port,
+                    blocklist=tuple(args.blocklist),
+                    rail_endpoint=args.rail_endpoint,
+                )
+            )
         if args.signer_command == "token":
             from merkl.cli.signer import token_command
 
@@ -524,7 +662,12 @@ def main() -> None:
                 token_p.print_help()
                 return
             raise SystemExit(
-                token_command(args.token_command, getattr(args, "id", None), home=args.home)
+                token_command(
+                    args.token_command,
+                    getattr(args, "id", None),
+                    home=args.home,
+                    as_env=getattr(args, "as_env", False),
+                )
             )
         signer_p.print_help()
     elif args.command == "policy":
@@ -536,14 +679,37 @@ def main() -> None:
             raise SystemExit(show_command(args.document, as_json=args.as_json))
         policy_p.print_help()
     elif args.command == "treasury":
-        from merkl.cli.treasury import init_command, verify_command
+        from merkl.cli.treasury import enrol_command, init_command, verify_command
 
         if args.treasury_command == "init":
-            if not args.xrpl_testnet:
-                print("only --xrpl-testnet is supported today", file=sys.stderr)
+            from merkl.core.rail import NETWORK_XRPL_MAINNET, NETWORK_XRPL_TESTNET
+
+            if args.xrpl_testnet == args.xrpl_mainnet:
+                print("choose exactly one of --xrpl-testnet and --xrpl-mainnet", file=sys.stderr)
                 raise SystemExit(2)
             raise SystemExit(
-                init_command(home=args.home, agents=args.agents, wallet_file=args.wallet_file)
+                init_command(
+                    home=args.home,
+                    agents=args.agents,
+                    wallet_file=args.wallet_file,
+                    network=(NETWORK_XRPL_MAINNET if args.xrpl_mainnet else NETWORK_XRPL_TESTNET),
+                    trust=tuple(args.trust),
+                    enrol=args.enrol,
+                    notary=args.notary,
+                    confirm=args.confirm,
+                    agent_dir=args.agent_dir,
+                    bundle_to_notary=args.bundle_to_notary,
+                )
+            )
+        if args.treasury_command == "enrol":
+            raise SystemExit(
+                enrol_command(
+                    home=args.home,
+                    enrol=args.enrol,
+                    notary=args.notary,
+                    agent_dir=args.agent_dir,
+                    bundle_to_notary=args.bundle_to_notary,
+                )
             )
         if args.treasury_command == "verify":
             raise SystemExit(verify_command(args.address))

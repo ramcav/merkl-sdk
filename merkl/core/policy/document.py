@@ -154,6 +154,12 @@ def unenforceable_rules(content: Mapping[str, Any]) -> list[str]:
         agent_id = section.get("agent_id")
         allowed = {content_asset_key(a) for a in _rule_list(section, "allowlist_assets")}
         movable |= allowed
+        if section.get("may_swap") is True and len(allowed) < 2:
+            problems.append(
+                f"agent {agent_id!r} may_swap but names {len(allowed)} allowlist_assets; a "
+                "swap sells one asset and buys another, so no trade by this agent could "
+                "pass the asset_allowlist rule, and may_swap cannot be enforced"
+            )
         seen_caps: set[str] = set()
         for cap in _rule_list(section, "per_tx_cap"):
             key = content_asset_key(cap.get("asset"))
@@ -356,6 +362,16 @@ class AgentSection:
     and is omitted from the hashed content, so policies signed before this field
     existed keep their hash."""
 
+    may_swap: bool = False
+    """Whether this agent may trade on the rail's book at all (a ``swap`` intent).
+
+    False when absent, and **omitted from the hashed content when false**, so
+    every ``policy_hash`` signed before this field existed is unchanged to the
+    byte. Trading is a separate grant from paying because it is a separate
+    authority: an agent allowed to pay a named supplier has not thereby been
+    allowed to convert the treasury into another asset. A swap by an agent
+    without it is a denial with a receipt, never an exception."""
+
     def __post_init__(self) -> None:
         token(self.agent_id, "agent.agent_id", max_length=128)
         token(self.public_key, "agent.public_key", max_length=256)
@@ -368,6 +384,8 @@ class AgentSection:
                 raise PolicyError("agent.source_tag must be a uint32 integer")
             if self.source_tag < 0 or self.source_tag > 0xFFFFFFFF:
                 raise PolicyError(f"agent.source_tag must be a uint32, got {self.source_tag}")
+        if not isinstance(self.may_swap, bool):
+            raise PolicyError("agent.may_swap must be a boolean")
 
     def effective_source_tag(self) -> int:
         """The SourceTag this agent's payments carry on XRPL."""
@@ -400,6 +418,8 @@ class AgentSection:
         }
         if self.source_tag is not None:
             content["source_tag"] = self.source_tag
+        if self.may_swap:
+            content["may_swap"] = True
         return content
 
     @classmethod
@@ -415,6 +435,7 @@ class AgentSection:
                 "windows",
                 "reference_binding",
                 "source_tag",
+                "may_swap",
             },
             "agent",
         )
@@ -438,6 +459,7 @@ class AgentSection:
             windows=tuple(WindowRule.from_content(w) for w in windows),
             reference_binding=ReferenceBinding.from_content(obj.get("reference_binding", {})),
             source_tag=obj.get("source_tag"),
+            may_swap=bool(obj.get("may_swap", False)),
         )
 
 

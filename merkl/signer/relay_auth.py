@@ -22,13 +22,21 @@ plain label the operator chose (``"ci"``, ``"dashboard-relay"``) and is not
 secret; carrying it in the clear is what lets a failure name the id
 ("the 'ci' token did not verify") without ever naming the token itself.
 
+**A rejection never repeats what was presented.** Only an id the signer already
+holds is named back — never the caller's bytes. What arrives is a secret until
+proven otherwise: a bearer with no ``:`` in it is a whole credential, a bearer
+whose id half nobody configured is a credential in somebody else's format, and
+echoing either into an error message puts a live secret in the caller's terminal
+and log. Naming an id this signer configured itself tells the caller which
+credential failed and discloses nothing it did not already have.
+
 **The signer writes to no stream, this module included** (``tests/signer/test_signer_purity.py``
 enforces it across ``merkl/signer/``) — a process that holds a key does not log,
 because anywhere it could format a message is somewhere a secret could leak, and
 that holds whether or not this particular message would have been safe. So a
-failure here is *raised*, not logged: :class:`RelayAuthError`'s message names the
-token id, and it travels back to the caller as the RPC error response exactly
-like any other failure the signer reports — the same mechanism
+failure here is *raised*, not logged: :class:`RelayAuthError`'s message names at
+most a configured token id, and it travels back to the caller as the RPC error
+response exactly like any other failure the signer reports — the same mechanism
 ``docs/SIGNER-RPC.md`` already documents for ``signer_auth_error``. Whether
 *that* gets written to a log is a decision for whatever is on the other end of
 the socket, which is outside this boundary.
@@ -164,11 +172,28 @@ def require_relay_bearer(tokens: tuple[RelayToken, ...], bearer: str | None, met
     if bearer is None:
         raise RelayAuthError(f"{method!r} requires Authorization: Bearer <token>")
     if find_token_id(bearer, tokens) is None:
-        candidate_id = bearer.partition(":")[0] or "(malformed)"
-        raise RelayAuthError(
-            f"the {candidate_id!r} bearer token does not match a relay credential this "
-            "signer holds"
+        raise RelayAuthError(rejection_message(bearer, tokens))
+
+
+def rejection_message(bearer: str, tokens: tuple[RelayToken, ...]) -> str:
+    """Why a bearer was refused, said without repeating any of it back.
+
+    A presented token is treated as a secret in full. Its id half is a label
+    only when *this* signer already configured that label — then naming it is
+    the useful thing to say and discloses nothing new. Anything else (no ``:``
+    at all, or an id nobody here has heard of) is somebody's live credential in
+    a shape we do not recognise, and the message says nothing about its bytes:
+    an operator who pasted the wrong token into the wrong signer should not
+    then find it in this signer's answer, in their shell history and in
+    whatever collected the caller's logs.
+    """
+    candidate_id, sep, _secret = bearer.partition(":")
+    if sep and any(entry.id == candidate_id for entry in tokens):
+        return (
+            f"the {candidate_id!r} bearer token does not match the relay credential this "
+            "signer holds under that id"
         )
+    return "the bearer token presented does not match any relay credential this signer holds"
 
 
 def _write_private(path: Path, payload: bytes) -> None:

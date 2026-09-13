@@ -77,6 +77,37 @@ class TestFilingAReceipt:
 
         assert "settlement_proof" not in json.loads(seen[0].content)
 
+    async def test_an_open_challenge_rides_along_too(self) -> None:
+        """The only way the notary can learn this receipt is waiting on a person."""
+        notary, seen = _notary(lambda _: httpx.Response(201, json={}))
+        envelope, leaves = _receipt()
+
+        await notary.file_receipt(
+            envelope,
+            leaves,
+            pending_escalation={
+                "challenge": "ab" * 32,
+                "expires_at": "2026-09-10T12:00:00Z",
+                "quorum": 2,
+            },
+        )
+
+        body = json.loads(seen[0].content)
+        assert body["pending_escalation"] == {
+            "challenge": "ab" * 32,
+            "expires_at": "2026-09-10T12:00:00Z",
+            "quorum": 2,
+        }
+        assert "settlement_proof" not in body, "an escalated receipt has settled nothing"
+
+    async def test_a_receipt_with_no_escalation_sends_no_member_rather_than_a_null(self) -> None:
+        notary, seen = _notary(lambda _: httpx.Response(201, json={}))
+        envelope, leaves = _receipt()
+
+        await notary.file_receipt(envelope, leaves, settlement_proof=_proof())
+
+        assert "pending_escalation" not in json.loads(seen[0].content)
+
     async def test_the_api_key_goes_in_the_header_merkl_api_reads(self) -> None:
         notary, seen = _notary(lambda _: httpx.Response(201, json={}), api_key="mk_test")
         envelope, leaves = _receipt()

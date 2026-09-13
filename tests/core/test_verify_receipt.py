@@ -373,3 +373,58 @@ def test_a_signed_policy_with_a_dead_rule_is_a_finding(case: dict[str, Any]) -> 
     assert check.status is CheckStatus.FAIL
     assert check.detail == case["expected_findings"][0]
     assert policy is None
+
+
+class TestWaitingIsNotExpired:
+    """``pending`` and ``expired`` are different facts and must read differently.
+
+    Before 0.3.0 an escalated receipt was filed as ``expired``, so every list
+    that reads leaf 5 — the notary's table, the Payments page, the public receipt
+    page — showed EXPIRED for a payment nothing was wrong with. The word is what
+    those readers see, so the word is what is pinned here.
+    """
+
+    def test_a_pending_receipt_reads_as_waiting_rather_than_finished(self) -> None:
+        envelope, leaves = receipt_from_content(BY_NAME["escalated-pending"])
+        verdict = verify_receipt(envelope, leaves)
+
+        assert leaves[5]["outcome"] == "pending"
+        assert verdict.summary.settled is not None
+        assert "waiting for a person" in verdict.summary.settled
+        assert "expired" not in verdict.summary.settled.lower()
+
+    def test_its_card_says_awaiting_approval_and_is_not_marked_failed(self) -> None:
+        from merkl.core.verify.card import STATUS_AWAITING, receipt_card
+
+        envelope, leaves = receipt_from_content(BY_NAME["escalated-pending"])
+        card = receipt_card(verify_receipt(envelope, leaves), envelope, leaves)
+
+        assert card.status == STATUS_AWAITING
+        assert card.status_mark != "✗", "nothing has gone wrong with a payment somebody is reading"
+
+    def test_a_pending_receipt_still_verifies_structurally(self) -> None:
+        """Waiting is a fact a receipt may state; it is not an incomplete receipt."""
+        envelope, leaves = receipt_from_content(BY_NAME["escalated-pending"])
+        assert verify_receipt(envelope, leaves).ok
+
+    def test_an_older_receipt_that_says_expired_still_reads_and_verifies(self) -> None:
+        """0.3.0 added a word; it did not take one away."""
+        from merkl.core.verify.card import STATUS_EXPIRED, receipt_card
+
+        receipt = copy.deepcopy(BY_NAME["escalated-pending"])
+        receipt["leaves"][5]["outcome"] = "expired"
+        envelope, leaves = receipt_from_content(receipt)
+        verdict = verify_receipt(envelope, leaves)
+
+        assert leaves[5]["outcome"] == "expired"
+        assert "deadline passed" in (verdict.summary.settled or "")
+        assert receipt_card(verdict, envelope, leaves).status == STATUS_EXPIRED
+
+    def test_the_enum_carries_both_and_refuses_anything_else(self) -> None:
+        from merkl.core.receipt import Result, ResultOutcome
+
+        assert ResultOutcome.PENDING.value == "pending"
+        assert ResultOutcome.EXPIRED.value == "expired"
+        assert Result(outcome="pending").outcome == "pending"
+        with pytest.raises(Exception, match="result.outcome must be one of"):
+            Result(outcome="waiting")

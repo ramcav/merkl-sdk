@@ -149,7 +149,9 @@ class TestOverThresholdApproval:
         )
         assert outcome.outcome == PolicyOutcome.ESCALATE.value
         assert not outcome.settled
-        assert outcome.receipt.leaves.result.outcome == ResultOutcome.EXPIRED.value
+        assert outcome.receipt.leaves.result.outcome == ResultOutcome.PENDING.value, (
+            "waiting on a person is not the same fact as running out of time"
+        )
         assert rig.ledger.outflows == []
         assert_receipt_verifies(outcome, expect_settled=False)
 

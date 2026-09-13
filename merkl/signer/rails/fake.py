@@ -16,7 +16,7 @@ import json
 from typing import Any, Final
 
 from merkl.core.canonical import parse_decimal
-from merkl.core.intent import Intent
+from merkl.core.intent import Amount, Intent
 from merkl.core.rail import ANCHOR_BYTES, ANCHOR_PLACEHOLDER_HEX, MEMO_TYPE, RAIL_FAKE
 
 FAKE_TX_TAG: Final = b"merkl-fake-tx-v1"
@@ -24,6 +24,9 @@ FAKE_TX_TAG: Final = b"merkl-fake-tx-v1"
 ALLOWED_FIELDS: Final[frozenset[str]] = frozenset(
     {"account", "destination", "amount", "memo_type", "sequence", "fee"}
 )
+
+SWAP_FIELDS: Final[frozenset[str]] = ALLOWED_FIELDS | {"send_max"}
+"""A trade adds exactly one field, the sell ceiling — the fake rail's ``SendMax``."""
 
 
 class FakePayloadCodec:
@@ -51,7 +54,7 @@ class FakePayloadCodec:
             return [f"the payload does not decode as a fake-rail transaction: {exc}"]
 
         found: list[str] = []
-        unknown = sorted(set(fields) - ALLOWED_FIELDS)
+        unknown = sorted(set(fields) - (SWAP_FIELDS if intent.is_swap else ALLOWED_FIELDS))
         if unknown:
             found.append(f"the transaction carries unexpected fields: {unknown}")
         if fields.get("account") != intent.treasury:
@@ -63,26 +66,11 @@ class FakePayloadCodec:
                 f"destination is {fields.get('destination')!r}, the intent pays "
                 f"{intent.destination!r}"
             )
-        amount = fields.get("amount")
-        if not isinstance(amount, dict):
-            found.append("the transaction carries no amount object")
-        else:
-            wanted = intent.amount.to_content()
-            if amount.get("currency") != wanted["currency"]:
-                found.append(
-                    f"amount currency is {amount.get('currency')!r}, the intent is "
-                    f"{wanted['currency']!r}"
-                )
-            else:
-                try:
-                    delivered = parse_decimal(str(amount.get("value", "")), "amount.value")
-                except Exception:
-                    found.append(f"amount value {amount.get('value')!r} is not a decimal")
-                else:
-                    if delivered != intent.amount.decimal:
-                        found.append(
-                            f"amount is {delivered}, the intent is {intent.amount.decimal}"
-                        )
+        found.extend(_amount_problems(fields.get("amount"), intent.deliver_amount, "amount"))
+        if intent.is_swap:
+            found.extend(_amount_problems(fields.get("send_max"), intent.outflow, "send_max"))
+        elif fields.get("send_max") is not None:
+            found.append("a payment carries no send_max; this transaction names one")
         if fields.get("memo_type") != MEMO_TYPE:
             found.append(f"anchor field is tagged {fields.get('memo_type')!r}, not {MEMO_TYPE!r}")
 
@@ -93,3 +81,22 @@ class FakePayloadCodec:
                 f"is {expected}"
             )
         return found
+
+
+def _amount_problems(observed: Any, expected: Amount, field: str) -> list[str]:
+    """One amount object against one amount the intent names."""
+    if not isinstance(observed, dict):
+        return [f"the transaction carries no {field} object"]
+    wanted = expected.to_content()
+    if observed.get("currency") != wanted["currency"]:
+        return [
+            f"{field} currency is {observed.get('currency')!r}, the intent is "
+            f"{wanted['currency']!r}"
+        ]
+    try:
+        value = parse_decimal(str(observed.get("value", "")), f"{field}.value")
+    except Exception:
+        return [f"{field} value {observed.get('value')!r} is not a decimal"]
+    if value != expected.decimal:
+        return [f"{field} is {value}, the intent is {expected.decimal}"]
+    return []

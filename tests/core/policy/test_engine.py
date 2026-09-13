@@ -7,7 +7,7 @@ from decimal import Decimal
 import pytest
 
 from merkl.core.canonical import shift_instant
-from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference
+from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference, SwapBuy, SwapSell
 from merkl.core.policy.document import (
     AgentSection,
     ApproverCredential,
@@ -24,6 +24,7 @@ from merkl.core.policy.engine import (
     RULE_ASSET,
     RULE_DESTINATION,
     RULE_INTENT_EXPIRY,
+    RULE_MAY_SWAP,
     RULE_ORDER,
     RULE_PER_TX_CAP,
     RULE_POLICY_VERSION,
@@ -281,3 +282,162 @@ class TestEscalation:
         decision = decide(policy=policy(tiers=Tiers(human=HumanTier())))
         assert decision.allowed
         assert decision.tier == "instant"
+
+
+# --------------------------------------------------------------------------- #
+# Trading (phase 14)
+# --------------------------------------------------------------------------- #
+
+XRP = "XRP"
+
+
+def trading_section(**overrides) -> AgentSection:
+    fields = {
+        "agent_id": "agent-ap",
+        "public_key": AGENT_KEY,
+        "allowlist_destinations": (SUPPLIER,),
+        "allowlist_assets": (RLUSD, XRP),
+        "per_tx_cap": (AssetLimit(asset=RLUSD, amount="1000.00"),),
+        "windows": (WindowRule(asset=RLUSD, amount="2500.00", seconds=86400),),
+        "may_swap": True,
+    }
+    fields.update(overrides)
+    return AgentSection(**fields)
+
+
+def swap_intent(**overrides) -> Intent:
+    fields = {
+        "type": "swap",
+        "rail": "xrpl",
+        "treasury": TREASURY,
+        "destination": TREASURY,
+        "sell": SwapSell(currency=RLUSD, max_amount="250.00"),
+        "buy": SwapBuy(currency=XRP, amount="500"),
+        "policy_version": "2026.01.0",
+        "agent_public_key": AGENT_KEY,
+        "nonce": "0123456789abcdef",
+        "expires_at": shift_instant(NOW, 600),
+    }
+    fields.update(overrides)
+    return Intent(**fields)
+
+
+def rule(decision, name: str):
+    return next(r for r in decision.rules if r.name == name)
+
+
+class TestMaySwap:
+    def test_a_trade_by_an_agent_without_the_grant_is_denied(self) -> None:
+        document = policy(section=trading_section(may_swap=False))
+        decision = evaluate(swap_intent(), document, view(), RiskScore(), NOW)
+        assert decision.denied
+        assert rule(decision, RULE_MAY_SWAP).outcome == "fail"
+        assert rule(decision, RULE_MAY_SWAP).detail == "agent may not trade"
+
+    def test_the_grant_lets_the_same_trade_through(self) -> None:
+        decision = evaluate(
+            swap_intent(), policy(section=trading_section()), view(), RiskScore(), NOW
+        )
+        assert decision.allowed
+        assert rule(decision, RULE_MAY_SWAP).outcome == "pass"
+
+    def test_a_payment_skips_the_rule_entirely(self) -> None:
+        decision = evaluate(intent(), policy(section=trading_section()), view(), RiskScore(), NOW)
+        assert rule(decision, RULE_MAY_SWAP).outcome == "skip"
+        assert rule(decision, RULE_MAY_SWAP).detail == "not a trade"
+
+    def test_the_rule_runs_in_its_documented_position(self) -> None:
+        decision = evaluate(
+            swap_intent(), policy(section=trading_section()), view(), RiskScore(), NOW
+        )
+        names = [r.name for r in decision.rules]
+        assert names.index(RULE_MAY_SWAP) < names.index(RULE_DESTINATION)
+        assert set(names) <= set(RULE_ORDER)
+
+
+class TestTradeRulesReadTheSellSide:
+    def test_the_destination_allowlist_does_not_apply_to_a_trade(self) -> None:
+        decision = evaluate(
+            swap_intent(), policy(section=trading_section()), view(), RiskScore(), NOW
+        )
+        assert rule(decision, RULE_DESTINATION).outcome == "skip"
+
+    def test_both_sides_of_a_trade_must_be_allowlisted(self) -> None:
+        document = policy(section=trading_section())
+        forbidden = swap_intent(
+            buy=SwapBuy(currency=IssuedCurrency(code="EURC", issuer=TREASURY), amount="1")
+        )
+        decision = evaluate(forbidden, document, view(), RiskScore(), NOW)
+        assert decision.denied
+        assert rule(decision, RULE_ASSET).outcome == "fail"
+        assert "EURC" in rule(decision, RULE_ASSET).detail
+
+    def test_selling_an_asset_the_agent_may_not_hold_is_denied(self) -> None:
+        section = trading_section(
+            allowlist_assets=(XRP, IssuedCurrency(code="EURC", issuer=TREASURY)),
+            per_tx_cap=(AssetLimit(asset=XRP, amount="1000.00"),),
+            windows=(),
+        )
+        document = policy(section=section, tiers=Tiers(human=HumanTier(thresholds=())))
+        decision = evaluate(swap_intent(), document, view(), RiskScore(), NOW)
+        assert decision.denied
+        assert rule(decision, RULE_ASSET).outcome == "fail"
+
+    def test_the_cap_is_read_against_the_sell_ceiling(self) -> None:
+        document = policy(section=trading_section())
+        over = swap_intent(sell=SwapSell(currency=RLUSD, max_amount="1000.01"))
+        decision = evaluate(over, document, view(), RiskScore(), NOW)
+        assert decision.denied
+        assert rule(decision, RULE_PER_TX_CAP).outcome == "fail"
+        assert "1000.01 exceeds" in rule(decision, RULE_PER_TX_CAP).detail
+
+    def test_a_big_buy_for_a_small_sell_is_not_capped(self) -> None:
+        """The bought side is not an outflow. A cheap asset is not a large payment."""
+        document = policy(section=trading_section())
+        decision = evaluate(
+            swap_intent(buy=SwapBuy(currency=XRP, amount="9999999")),
+            document,
+            view(),
+            RiskScore(),
+            NOW,
+        )
+        assert decision.allowed
+
+    def test_the_window_counts_the_sell_ceiling(self) -> None:
+        document = policy(section=trading_section())
+        spent = SpendEntry(
+            reservation_id="r-1",
+            agent_id="agent-ap",
+            asset=asset_key(RLUSD),
+            value="2400.00",
+            at=NOW,
+        )
+        decision = evaluate(swap_intent(), document, view(spent), RiskScore(), NOW)
+        assert decision.denied
+        assert rule(decision, RULE_WINDOW).outcome == "fail"
+
+    def test_the_tier_threshold_escalates_on_the_sell_ceiling(self) -> None:
+        document = policy(section=trading_section())
+        decision = evaluate(
+            swap_intent(sell=SwapSell(currency=RLUSD, max_amount="600.00")),
+            document,
+            view(),
+            RiskScore(),
+            NOW,
+        )
+        assert decision.escalated
+        assert rule(decision, RULE_TIER).outcome == "escalate"
+
+    def test_a_reservation_is_taken_in_the_sold_asset(self) -> None:
+        decision = evaluate(
+            swap_intent(), policy(section=trading_section()), view(), RiskScore(), NOW
+        )
+        assert decision.reservation is not None
+        assert decision.reservation.asset == asset_key(RLUSD)
+        assert decision.reservation.value == "250.00"
+
+    def test_the_same_inputs_reach_the_same_decision(self) -> None:
+        document = policy(section=trading_section())
+        first = evaluate(swap_intent(), document, view(), RiskScore(), NOW)
+        second = evaluate(swap_intent(), document, view(), RiskScore(), NOW)
+        assert first.to_content() == second.to_content()

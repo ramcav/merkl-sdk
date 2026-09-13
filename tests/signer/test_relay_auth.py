@@ -92,6 +92,44 @@ class TestRequireRelayBearer:
         else:
             pytest.fail("expected RelayAuthError")
 
+    @pytest.mark.parametrize(
+        "presented",
+        [
+            # The production leak: a bare secret with no id half at all. The
+            # whole token was the "id", so the whole token came back.
+            "7a378d65f0b14c2e9d3a6f5b8c1e4d7a0b2c3d4e5f60718293a4b5c6d7e8f9012",
+            # A live token from a *different* signer, whose id half this one
+            # never configured — still somebody's credential.
+            "prod-relay:0f1e2d3c4b5a69788796a5b4c3d2e1f00112233445566778899aabbccddeeff0",
+            # A token whose shape we do not recognise at all.
+            "Bearer-looking nonsense with a : in the middle",
+            "",
+        ],
+    )
+    def test_a_rejection_never_repeats_the_presented_bearer(self, presented: str) -> None:
+        """Whatever arrived is a secret until proven otherwise, so none of it comes back."""
+        configured = generate_token("ci")
+        tokens = (RelayToken(id="ci", token_sha256=hash_token(configured)),)
+        try:
+            require_relay_bearer(tokens, presented, "approve")
+        except RelayAuthError as exc:
+            message = str(exc)
+            if presented:
+                assert presented not in message
+            # Nor any run of it long enough to narrow the search for the rest.
+            for start in range(len(presented) - 7):
+                assert presented[start : start + 8] not in message
+        else:
+            pytest.fail("expected RelayAuthError")
+
+    def test_an_unconfigured_id_is_not_named_back_either(self) -> None:
+        """The id half of an unrecognised token may itself be the secret."""
+        tokens = (RelayToken(id="ci", token_sha256=hash_token(generate_token("ci"))),)
+        with pytest.raises(RelayAuthError) as caught:
+            require_relay_bearer(tokens, "dashboard:whatever", "approve")
+        assert "dashboard" not in str(caught.value)
+        assert "does not match any relay credential" in str(caught.value)
+
     def test_a_correct_bearer_is_accepted(self) -> None:
         bearer = generate_token("ci")
         tokens = (RelayToken(id="ci", token_sha256=hash_token(bearer)),)

@@ -10,6 +10,9 @@ small enough to put inside an enclave in phase 3.
 * :mod:`~merkl.signer.engine` — the authoritative flow (plan section 6).
 * :mod:`~merkl.signer.server` — JSON over HTTP on a Unix socket; the same
   contract phase 3 speaks over vsock (``docs/SIGNER-RPC.md``).
+* :mod:`~merkl.signer.forward` — the byte-for-byte forwarder the signer image
+  puts on ``0.0.0.0`` so ``server.build_server``'s bind guard can stay strict.
+  Imported by nothing here: it is a process, not a dependency.
 """
 
 from merkl.signer.auth import AuthError, SignedRequest, sign_request, verify_request

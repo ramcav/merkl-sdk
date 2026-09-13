@@ -91,6 +91,27 @@ renders that object (or calls `receiptCard` itself). Do not invent a third
 layout. Destination labels are a UI overlay (`labels` / `options.labels`); they
 are not in the signed policy.
 
+**A settled trade (added in 0.3.0).** A `swap` intent gives the card a different
+body. The labels are exact and both implementations produce them byte for byte:
+
+| status | body lines |
+|---|---|
+| `SETTLED` | `Bought <buy.amount> <code>` · `Sold <spent> <code> (limit <sell.max_amount> <code>)` · `Rate <spent/buy> <sell>/<buy>` · `From` · `By` · `On` · `Ref` |
+| anything else | `Asked to buy <buy.amount> <code> for up to <sell.max_amount> <code>` · `From` · `By` (· `On` when there is one) |
+
+There is no `To` line on a trade: the destination is the treasury, so it would
+repeat `From`. When leaf 5 carries no `spent` the `Sold` line reads
+`not stated (limit …)` and the `Rate` line is omitted entirely — a price nobody
+can compute is not printed as if it could be.
+
+`Rate` is `spent / buy.amount` to at most **six significant digits**, rounded
+half to even, trailing fractional zeros stripped, never in scientific notation.
+Both implementations compute it by integer arithmetic over the two decimal
+strings (`rate_string` in Python, `rateString` in `@merkl-ai/verify`) so no float
+and no decimal library is involved; `merkl/core/vectors/cards.json` carries a
+`rate_cases` table of ties and repeating decimals that both suites assert
+against.
+
 The page `verify.html` already renders the card for a receipt-only bundle.
 
 ---
@@ -234,6 +255,7 @@ faithfully. `PolicyDocument` now refuses five shapes:
 | two `tiers.human.thresholds` for one asset | only the first is read |
 | a cap or window for an asset outside that agent's `allowlist_assets` | the asset rule denies first |
 | a threshold for an asset no agent may move | nothing can reach it |
+| `may_swap` on an agent with fewer than two `allowlist_assets` (0.3.0) | a trade needs two assets on the allowlist, so no trade could pass the asset rule |
 
 Two windows over the *same asset and different lengths* are fine — an hourly and
 a daily limit both apply.
@@ -621,6 +643,20 @@ else:
 Absent on an older SDK, the notary falls back to whatever it already had
 (uploaded outflows) rather than failing — the same "extend, never replace in
 place" rule that governs every other production-facing change in this repo.
+
+**A trade reads back as one transaction with two sides (added in 0.3.0).** A
+cross-currency Payment whose `Destination` is the treasury and which carries a
+`SendMax` is a trade, not a transfer. `Outflow.value`/`asset` are then what was
+actually *spent* — derived from the treasury's balance change in the same
+metadata — and two new optional members, `inflow_value` and `inflow_asset`,
+carry what arrived. Both are omitted for an ordinary payment, so every outflow
+written before trading existed reads back byte-identically, and
+`Outflow.is_swap` is the one-line test. When the metadata will not yield the
+cost, the transaction's own `SendMax` stands in: an upper bound never
+understates an outflow, and understating one is the failure that matters in a
+reconciliation. Matching is unchanged — by tx hash, then by anchor — so a trade
+the signer never saw is reported as an unmatched outflow exactly as a stray
+payment is.
 
 **This reads public ledger data only.** `account_tx` against a `json_rpc_url`
 is a public JSON-RPC call any XRPL client can make; nothing about the

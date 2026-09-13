@@ -29,7 +29,7 @@ from typing import Any, cast
 
 from merkl.core.canonical import JSONObject, JSONValue
 from merkl.core.crypto import tagged
-from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference
+from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference, SwapBuy, SwapSell
 from merkl.core.leaf import action_leaf, receipt_leaf
 from merkl.core.merkle import MerkleProof, MerkleTree
 from merkl.core.policy.approvals import (
@@ -80,7 +80,7 @@ from merkl.core.receipt import (
     verify_receipt_structure,
 )
 from merkl.core.vectors import VECTORS_DIR, fixtures
-from merkl.core.verify.card import receipt_card
+from merkl.core.verify.card import rate_string, receipt_card
 from merkl.core.verify.receipt import verify_receipt
 from merkl.core.verify.settlement import (
     ValidatorTrust,
@@ -682,6 +682,17 @@ def _rule_check_cases() -> list[JSONValue]:
     duplicate_threshold = with_threshold({"asset": asset, "amount": "10.00"})
     foreign_threshold = with_threshold({"asset": "XRP", "amount": "10.00"})
 
+    def trading_agent(assets: list[Any]) -> JSONObject:
+        """The base document with may_swap set and this allowlist_assets."""
+        content: JSONObject = copy.deepcopy(base)
+        agent = cast(dict[str, Any], cast(list[Any], content["agents"])[0])
+        agent["may_swap"] = True
+        agent["allowlist_assets"] = assets
+        return content
+
+    lone_asset_swapper = trading_agent([asset])
+    two_asset_swapper = trading_agent([asset, "XRP"])
+
     return [
         _document_case(
             "enforceable-document",
@@ -758,6 +769,28 @@ def _rule_check_cases() -> list[JSONValue]:
                 f"RLUSD.{fixtures.ADMIN_VECTOR_ISSUER}; the engine enforces the first, so "
                 "the rest cannot be enforced"
             ],
+        ),
+        _document_case(
+            "may-swap-with-one-allowlisted-asset",
+            "An agent granted may_swap that may hold exactly one asset. A swap "
+            "sells one asset and buys another, and both sides have to be on the "
+            "allowlist, so every trade this agent could ever propose is denied by "
+            "the asset rule — the grant is signed into policy_hash and reads as "
+            "authority to trade, and is one.",
+            lone_asset_swapper,
+            expected_findings=[
+                f"agent {agent_id!r} may_swap but names 1 allowlist_assets; a swap sells "
+                "one asset and buys another, so no trade by this agent could pass the "
+                "asset_allowlist rule, and may_swap cannot be enforced"
+            ],
+        ),
+        _document_case(
+            "may-swap-with-two-allowlisted-assets",
+            "The same grant with a second asset to trade into. Enforceable, and "
+            "here so the may_swap check cannot pass by refusing every trading "
+            "policy.",
+            two_asset_swapper,
+            expected_findings=[],
         ),
         _document_case(
             "human-threshold-for-an-asset-nobody-may-move",
@@ -1150,6 +1183,136 @@ def _allow_receipt(rng: random.Random) -> Receipt:
     )
 
 
+def _swap_receipt(rng: random.Random) -> Receipt:
+    """A trade the policy allowed and the ledger filled inside the ceiling.
+
+    The point of the fixture is the two settled amounts: ``delivered`` is exactly
+    the buy side, because the rail was asked all-or-nothing, and ``spent`` is
+    below the sell ceiling, because a book usually costs less than the limit. A
+    verifier that read the ceiling as the cost, or the request as the delivery,
+    fails on this case.
+    """
+    instruction = Instruction(
+        source="mandate",
+        content_hash=digest("standing mandate: keep 30% of the treasury in XRP"),
+        ref="01936b2e-3333-7000-8000-000000000005",
+    )
+    intent = _intent(
+        type="swap",
+        destination=TREASURY,
+        amount=None,
+        reference=None,
+        nonce="5c6d7e8f90a1b2c3d4e5f60718293a4b",
+        sell=SwapSell(currency=RLUSD, max_amount="500.00"),
+        buy=SwapBuy(currency="XRP", amount="1000"),
+    )
+    decision = PolicyDecision(
+        policy_hash=POLICY_HASH,
+        rules=(
+            PolicyRule("may_swap", "pass", "agent-accounts-payable may trade"),
+            PolicyRule(
+                "destination_allowlist",
+                "skip",
+                "a trade settles to the treasury itself, so no destination is allowlisted",
+            ),
+            PolicyRule(
+                "asset_allowlist",
+                "pass",
+                f"RLUSD.{ISSUER} and XRP are both allowed assets",
+            ),
+            PolicyRule("per_tx_cap", "pass", "500.00 is within the per-transaction cap 1000.00"),
+        ),
+        outcome="allow",
+        tier="instant",
+    )
+    left = authorization_commitment(_authorization(instruction, intent, decision, None))
+    leaves = ReceiptLeaves(
+        instruction=instruction,
+        intent=intent,
+        policy_decision=decision,
+        signer_attestation=None,
+        settlement=_settlement(
+            rng,
+            left,
+            ledger_index=94_211_402,
+            close_time="2026-01-02T03:21:12Z",
+            proof_ref="settlement-proof-0005",
+        ),
+        result=Result(
+            outcome="settled",
+            engine_result="tesSUCCESS",
+            balance_deltas=(
+                BalanceDelta(TREASURY, RLUSD, "-492.50"),
+                BalanceDelta(TREASURY, "XRP", "1000"),
+            ),
+            delivered=Amount(value="1000", currency="XRP"),
+            spent=Amount(value="492.50", currency=RLUSD),
+        ),
+        reasoning=Reasoning(
+            content_hash=digest("model trace for the XRP rotation"),
+            source="claude-code",
+            note="The book was inside the mandate's limit price, so the trade was taken.",
+        ),
+    )
+    return Receipt.build(
+        receipt_id="01936b2e-2222-7000-8000-000000000005",
+        leaves=leaves,
+        agent_id="agent-accounts-payable",
+        signer_public_key=SIGNER_KEY,
+    )
+
+
+def _swap_denied_receipt(rng: random.Random) -> Receipt:
+    """A trade by an agent whose policy section does not say may_swap.
+
+    Refused before any question about assets or size: whether an agent may trade
+    at all is a separate grant from what it may trade and how much.
+    """
+    del rng
+    intent = _intent(
+        type="swap",
+        destination=TREASURY,
+        amount=None,
+        reference=None,
+        nonce="6d7e8f90a1b2c3d4e5f60718293a4b5c",
+        sell=SwapSell(currency=RLUSD, max_amount="100.00"),
+        buy=SwapBuy(currency="XRP", amount="200"),
+    )
+    leaves = ReceiptLeaves(
+        instruction=Instruction(
+            source="system",
+            content_hash=digest("rebalance job: rotate into XRP"),
+        ),
+        intent=intent,
+        policy_decision=PolicyDecision(
+            policy_hash=POLICY_HASH,
+            rules=(
+                PolicyRule("agent_known", "pass", "key belongs to agent-accounts-payable"),
+                PolicyRule("may_swap", "fail", "agent may not trade"),
+            ),
+            outcome="deny",
+            tier="instant",
+        ),
+        signer_attestation=None,
+        settlement=None,
+        result=Result(
+            outcome="denied",
+            detail="Denied by policy; nothing was submitted. may_swap: agent may not trade",
+        ),
+        reasoning=Reasoning(
+            content_hash=digest("model trace for the refused trade"),
+            source="claude-code",
+            note="The rebalance job asked for a trade this agent has never been granted.",
+        ),
+    )
+    return Receipt.build(
+        receipt_id="01936b2e-2222-7000-8000-000000000006",
+        leaves=leaves,
+        agent_id="agent-accounts-payable",
+        signer_public_key=SIGNER_KEY,
+    )
+
+
 def _deny_receipt(rng: random.Random) -> Receipt:
     leaves = ReceiptLeaves(
         instruction=Instruction(
@@ -1187,6 +1350,77 @@ def _deny_receipt(rng: random.Random) -> Receipt:
     )
     return Receipt.build(
         receipt_id="01936b2e-2222-7000-8000-000000000002",
+        leaves=leaves,
+        agent_id="agent-accounts-payable",
+        signer_public_key=SIGNER_KEY,
+    )
+
+
+def _pending_receipt(rng: random.Random) -> Receipt:
+    """An escalation still open: a person has been asked and has not answered.
+
+    The half of the escalation flow the vectors never had. It is filed the moment
+    the signer escalates, before anybody signs anything, so leaves 3 and 4 are
+    null and leaf 5 says ``pending`` — not ``settled``, because nothing did, and
+    not ``expired``, because nothing ran out of time. Every verifier has to read
+    that word and say *waiting*; a reader shown EXPIRED here would be told
+    something false about a payment that is still live.
+
+    Leaf 2 carries the escalation member without approvals, which is what makes
+    the challenge recomputable while it is still worth approving.
+    """
+    instruction = Instruction(
+        source="human_input",
+        content_hash=digest("pay the annual audit fee"),
+        ref="01936b2e-3333-7000-8000-000000000004",
+    )
+    intent = _intent(
+        amount=Amount(value="7200.00", currency=RLUSD),
+        nonce="00112233445566778899aabbccddeeff",
+        reference=Reference(kind="invoice", id="AUD-2026-01", hash=digest("audit invoice pdf")),
+    )
+    decision = PolicyDecision(
+        policy_hash=POLICY_HASH,
+        rules=(
+            PolicyRule("destination_allowlist", "pass", "known supplier"),
+            PolicyRule("per_tx_cap", "pass", "7200.00 RLUSD is within the 10000 RLUSD cap"),
+            PolicyRule(
+                "tier_threshold",
+                "escalate",
+                "7200.00 is at or above the human-approval threshold 1000.00 RLUSD",
+            ),
+        ),
+        outcome="escalate",
+        tier="human",
+    )
+    challenge = escalation_challenge(_authorization(instruction, intent, decision, None))
+    waiting = dataclasses.replace(
+        decision,
+        escalation=Escalation(
+            challenge=challenge.hex(),
+            expires_at="2026-01-02T04:04:05Z",
+            quorum=2,
+            approvals=(),
+        ),
+    )
+    leaves = ReceiptLeaves(
+        instruction=instruction,
+        intent=intent,
+        policy_decision=waiting,
+        signer_attestation=None,
+        settlement=None,
+        result=Result(
+            outcome="pending",
+            detail="Awaiting human approval; nothing was submitted.",
+        ),
+        reasoning=Reasoning(
+            content_hash=digest("model trace for the audit fee"),
+            source="claude-code",
+            note="Over the human threshold, so the signer escalated. Nobody has answered yet.",
+        ),
+    )
+    return Receipt.build(
+        receipt_id="01936b2e-2222-7000-8000-000000000007",
         leaves=leaves,
         agent_id="agent-accounts-payable",
         signer_public_key=SIGNER_KEY,
@@ -1452,7 +1686,10 @@ def receipts(rng: random.Random) -> dict[str, Receipt]:
         "allow-settled": _allow_receipt(rng),
         "deny-not-submitted": _deny_receipt(rng),
         "escalated-approved-settled": _escalated_receipt(rng),
+        "escalated-pending": _pending_receipt(rng),
         "allow-settled-fake-rail": _fake_receipt(rng),
+        "swap-settled": _swap_receipt(rng),
+        "swap-denied-may-not-trade": _swap_denied_receipt(rng),
     }
 
 
@@ -1470,18 +1707,37 @@ def receipt_vectors(built: dict[str, Receipt]) -> JSONObject:
             "A payment over the per-transaction cap: the signer escalated, two "
             "approvers signed the challenge, and the payment then settled."
         ),
+        "escalated-pending": (
+            "The same escalation, still open. Nobody has answered, so leaves 3 and "
+            "4 are null and the result is 'pending' — waiting on a person, which is "
+            "a different fact from 'expired' and must never be shown as one."
+        ),
         "allow-settled-fake-rail": (
             "The same allow on the fake rail, produced by an unattested dev signer: "
             "leaf 3 is null and the receipt commits to its absence. Its settlement "
             "capture carries a path to the ledger's transaction root, which is what "
             "lets ledger inclusion reach proven-offline."
         ),
+        "swap-settled": (
+            "A trade: a cross-currency payment to the treasury itself. Leaf 1 "
+            "carries sell and buy instead of amount, and leaf 5 carries what the "
+            "ledger actually delivered and what it actually cost — delivered is "
+            "exactly the buy side, spent is below the sell ceiling."
+        ),
+        "swap-denied-may-not-trade": (
+            "A trade by an agent whose policy section does not grant may_swap. "
+            "Refused before any question about assets or size, because whether an "
+            "agent may trade at all is a separate authority from what it may trade."
+        ),
     }
     reveal = {
         "allow-settled": ["intent", "settlement"],
         "deny-not-submitted": ["policy_decision"],
         "escalated-approved-settled": ["intent", "policy_decision", "result"],
+        "escalated-pending": ["policy_decision", "result"],
         "allow-settled-fake-rail": ["instruction", "settlement"],
+        "swap-settled": ["intent", "result"],
+        "swap-denied-may-not-trade": ["intent", "policy_decision"],
     }
     return {
         "description": (
@@ -1695,6 +1951,36 @@ def verdict_vectors(built: dict[str, Receipt]) -> JSONObject:
     }
 
 
+def _rate_cases() -> list[JSONValue]:
+    """The rate a trade's card prints, for both implementations to agree on.
+
+    Six significant digits, half to even, no scientific notation and no trailing
+    zeros — computed from two decimal strings by integer arithmetic. The cases
+    are the ones where a float or a naive rounding would disagree: a repeating
+    decimal, a tie, a number smaller than the precision, and one that rounds up
+    into an extra digit.
+    """
+    pairs = [
+        ("98.5000", "200"),
+        ("492.50", "1000"),
+        ("250.00", "100"),
+        ("1", "3"),
+        ("1", "7"),
+        ("2", "3"),
+        ("0.000123456789", "1"),
+        ("123456789", "1"),
+        ("999999.5", "1"),
+        ("1000000", "3"),
+        ("1.0000005", "1"),
+        ("1.0000015", "1"),
+        ("7", "1000000"),
+    ]
+    return [
+        {"spent": spent, "bought": bought, "rate": rate_string(spent, bought)}
+        for spent, bought in pairs
+    ]
+
+
 def card_vectors(built: dict[str, Receipt]) -> JSONObject:
     """The ReceiptCard JSON for each committed receipt. Both implementations must match."""
     cases: list[JSONValue] = []
@@ -1730,6 +2016,7 @@ def card_vectors(built: dict[str, Receipt]) -> JSONObject:
             "byte for byte."
         ),
         "spec": SPEC,
+        "rate_cases": _rate_cases(),
         "cases": cases,
     }
 

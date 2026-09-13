@@ -14,13 +14,14 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from merkl.core.canonical import shift_instant
-from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference
+from merkl.core.intent import Amount, Intent, IssuedCurrency, Reference, SwapBuy, SwapSell
 from merkl.core.rail import (
     ANCHOR_BYTES,
     ANCHOR_PLACEHOLDER_HEX,
@@ -202,16 +203,16 @@ def xrpl_payload(intent: Intent, anchor: str = ANCHOR_PLACEHOLDER_HEX, **overrid
 
     from merkl.adapters.xrpl import currency_code
 
-    currency = intent.amount.currency
-    amount: Any
-    if isinstance(currency, IssuedCurrency):
-        amount = IssuedCurrencyAmount(
-            currency=currency_code(currency.code),
-            issuer=currency.issuer,
-            value=intent.amount.value,
-        )
-    else:
-        amount = str(int(float(intent.amount.value) * 1_000_000))
+    def encode(value: Amount) -> Any:
+        if isinstance(value.currency, IssuedCurrency):
+            return IssuedCurrencyAmount(
+                currency=currency_code(value.currency.code),
+                issuer=value.currency.issuer,
+                value=value.value,
+            )
+        return str(int(Decimal(value.value) * 1_000_000))
+
+    amount: Any = encode(intent.deliver_amount)
 
     memos = overrides.pop(
         "memos",
@@ -223,6 +224,7 @@ def xrpl_payload(intent: Intent, anchor: str = ANCHOR_PLACEHOLDER_HEX, **overrid
                     agent_id="codec-agent",
                     session_id="sess",
                     task_id="task",
+                    action=intent.type,
                 )
                 .encode()
                 .hex()
@@ -241,6 +243,9 @@ def xrpl_payload(intent: Intent, anchor: str = ANCHOR_PLACEHOLDER_HEX, **overrid
         "signing_pub_key": "",
         "source_tag": MERKL_SOURCE_TAG,
     }
+    if intent.is_swap:
+        fields["send_max"] = encode(intent.outflow)
+    raw_overrides: dict[str, Any] = overrides.pop("raw", {})
     if "source_tag" in overrides:
         tag = overrides.pop("source_tag")
         if tag is None:
@@ -248,7 +253,16 @@ def xrpl_payload(intent: Intent, anchor: str = ANCHOR_PLACEHOLDER_HEX, **overrid
         else:
             fields["source_tag"] = tag
     fields.update(overrides)
-    return bytes.fromhex(encode_for_multisigning(Payment(**fields).to_xrpl(), SIGNER))
+    raw = Payment(**fields).to_xrpl()
+    # xrpl-py refuses to *construct* several of the transactions a hostile
+    # adapter would send. The signer still has to read them, so those cases go
+    # around the model and mutate the encoded transaction directly.
+    for key, value in raw_overrides.items():
+        if value is None:
+            raw.pop(key, None)
+        else:
+            raw[key] = value
+    return bytes.fromhex(encode_for_multisigning(raw, SIGNER))
 
 
 class TestXrplCodec:
@@ -466,3 +480,136 @@ class TestEndpointNetwork:
 
     async def test_another_rail_has_no_endpoint_opinion(self) -> None:
         assert network_of_endpoint("fake", "https://s.altnet.rippletest.net:51234") is None
+
+
+# --------------------------------------------------------------------------- #
+# Trading (phase 14)
+# --------------------------------------------------------------------------- #
+
+RLUSD_TRADE = RLUSD
+
+
+def swap_intent(**overrides: Any) -> Intent:
+    fields: dict[str, Any] = {
+        "type": "swap",
+        "rail": "xrpl",
+        "treasury": TREASURY,
+        "destination": TREASURY,
+        "sell": SwapSell(currency=RLUSD_TRADE, max_amount="500.00"),
+        "buy": SwapBuy(currency="XRP", amount="1000"),
+        "policy_version": "2026.01.0",
+        "agent_public_key": AGENT.public_key,
+        "nonce": "codec-swap-nonce",
+        "expires_at": shift_instant("2026-01-02T03:00:00Z", 600),
+    }
+    fields.update(overrides)
+    return Intent(**fields)
+
+
+class TestXrplCodecReadsATrade:
+    """One more shape, the same posture: an allowlist, and every field compared."""
+
+    def codec(self) -> Any:
+        return codec_for("xrpl")
+
+    async def test_an_honest_trade_has_no_problems(self) -> None:
+        intent = swap_intent()
+        assert self.codec().problems(xrpl_payload(intent), intent, None) == []
+
+    async def test_a_payment_that_carries_send_max_is_still_a_finding(self) -> None:
+        """SendMax reaches the allowlist only through the swap branch."""
+        intent = xrpl_intent()
+        payload = xrpl_payload(intent, raw={"SendMax": "99000000"})
+        problems = self.codec().problems(payload, intent, None)
+        assert any("cannot account for" in p and "SendMax" in p for p in problems)
+
+    async def test_a_trade_without_send_max_is_a_finding(self) -> None:
+        intent = swap_intent()
+        payload = xrpl_payload(intent, raw={"SendMax": None})
+        problems = self.codec().problems(payload, intent, None)
+        assert any("SendMax is missing" in p for p in problems)
+
+    async def test_a_wider_send_max_than_the_intent_authorized_is_a_finding(self) -> None:
+        """The ceiling is the only number the policy bounded. Widening it is the attack."""
+        from xrpl.models.amounts import IssuedCurrencyAmount
+
+        from merkl.adapters.xrpl import currency_code
+
+        intent = swap_intent()
+        payload = xrpl_payload(
+            intent,
+            send_max=IssuedCurrencyAmount(
+                currency=currency_code("RLUSD"),
+                issuer=ISSUER,
+                value="9000.00",
+            ),
+        )
+        problems = self.codec().problems(payload, intent, None)
+        # XRPL normalises an issued mantissa, so 9000.00 reads back as 9000.
+        assert any("SendMax is 9000 RLUSD" in p for p in problems)
+
+    async def test_a_send_max_in_another_asset_is_a_finding(self) -> None:
+        intent = swap_intent()
+        payload = xrpl_payload(intent, raw={"SendMax": "500000000"})
+        problems = self.codec().problems(payload, intent, None)
+        assert any("SendMax is drops" in p for p in problems)
+
+    async def test_the_amount_still_has_to_be_the_buy_side(self) -> None:
+        intent = swap_intent()
+        payload = xrpl_payload(intent, amount="999000000")
+        problems = self.codec().problems(payload, intent, None)
+        assert any("Amount is 999000000 drops" in p for p in problems)
+
+    async def test_a_trade_must_settle_to_the_treasury(self) -> None:
+        """Destination == Account is what makes it a conversion and not a transfer."""
+        intent = swap_intent()
+        payload = xrpl_payload(intent, destination=DESTINATION)
+        problems = self.codec().problems(payload, intent, None)
+        assert any("the intent pays" in p for p in problems)
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("DeliverMin", "1"),
+            ("DestinationTag", 4242),
+            ("Paths", [[{"currency": "XRP"}]]),
+        ],
+    )
+    async def test_fields_a_trade_still_cannot_carry(self, field: str, value: Any) -> None:
+        intent = swap_intent()
+        payload = xrpl_payload(intent, raw={field: value})
+        problems = self.codec().problems(payload, intent, None)
+        assert any("cannot account for" in p and field in p for p in problems)
+
+    async def test_partial_payment_is_still_a_finding(self) -> None:
+        """All-or-nothing is the whole guarantee: a partial fill is a different trade."""
+        intent = swap_intent()
+        payload = xrpl_payload(intent, flags=0x00020000)
+        problems = self.codec().problems(payload, intent, None)
+        assert any("tfPartialPayment" in p for p in problems)
+
+    async def test_the_agent_memo_says_swap(self) -> None:
+        intent = swap_intent()
+        assert (
+            self.codec().problems(xrpl_payload(intent), intent, None, agent_id="codec-agent") == []
+        )
+        wrong = xrpl_payload(
+            intent,
+            memos=[
+                _memo(MEMO_TYPE, ANCHOR_PLACEHOLDER_HEX),
+                _memo(
+                    MEMO_AGENT_TYPE,
+                    agent_memo_json(agent_id="codec-agent", session_id="sess", task_id="task")
+                    .encode()
+                    .hex(),
+                ),
+            ],
+        )
+        problems = self.codec().problems(wrong, intent, None)
+        assert any("action is 'payment', not 'swap'" in p for p in problems)
+
+
+def _memo(memo_type: str, data: str) -> Any:
+    from xrpl.models.transactions import Memo
+
+    return Memo(memo_type=memo_type.encode().hex().upper(), memo_data=data.upper())

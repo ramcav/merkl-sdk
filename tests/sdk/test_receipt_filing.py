@@ -22,7 +22,7 @@ from merkl.core.rail import SettlementProof
 from merkl.core.receipt import Envelope, ReceiptLeaves
 from merkl.core.verify.receipt import receipt_from_content, verify_receipt
 from merkl.sdk.receipt_store import LocalReceiptStore, receipt_store_dir
-from tests.scenarios.harness import build_rig
+from tests.scenarios.harness import approvals_for, build_rig
 
 pytestmark = pytest.mark.asyncio
 
@@ -41,6 +41,7 @@ class RecordingNotary:
         leaves: ReceiptLeaves,
         *,
         settlement_proof: SettlementProof | None = None,
+        pending_escalation: dict[str, Any] | None = None,
     ) -> None:
         if self._fail:
             raise RuntimeError(self._fail)
@@ -50,6 +51,7 @@ class RecordingNotary:
                 "envelope": envelope.to_content(),
                 "leaves": list(leaves.contents()),
                 "settlement_proof": settlement_proof,
+                "pending_escalation": pending_escalation,
             }
         )
 
@@ -57,6 +59,24 @@ class RecordingNotary:
         if self._fail:
             raise RuntimeError(self._fail)
         self.late_proofs.append((receipt_id, proof))
+
+
+class OlderNotary(RecordingNotary):
+    """A notary written before ``pending_escalation`` existed. It must keep working."""
+
+    async def file_receipt(  # type: ignore[override]
+        self,
+        envelope: Envelope,
+        leaves: ReceiptLeaves,
+        *,
+        settlement_proof: SettlementProof | None = None,
+    ) -> None:
+        self.receipts.append(
+            {
+                "receipt_id": envelope.receipt_id,
+                "settlement_proof": settlement_proof,
+            }
+        )
 
 
 class OldReceiptStore:
@@ -129,6 +149,124 @@ class TestTheBuilderFilesTheProof:
         rig = build_rig(tmp_path)
         outcome = await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
         assert outcome.settled and outcome.notary_error is None
+
+
+class TestTheBuilderFilesAnOpenEscalation:
+    """The bug: a receipt the signer escalated, filed as if nobody were waiting.
+
+    Nothing in a leaf says an escalation is open. The decision leaf's outcome is
+    ``escalate`` and LEFT happens to equal the challenge, but the expiry and the
+    quorum are committed nowhere until it resolves — so a notary handed only the
+    receipt cannot open a queue entry without guessing, and the Approvals page
+    read "nothing is waiting on a person" for a payment that was.
+    """
+
+    async def test_an_escalating_receipt_is_filed_with_its_challenge(self, tmp_path: Path) -> None:
+        notary = RecordingNotary()
+        rig = build_rig(tmp_path, notary=notary)
+
+        outcome = await rig.builder.execute(
+            instruction=rig.instruction(), intent=rig.intent(value="900.00")
+        )
+
+        assert outcome.outcome == "escalate"
+        assert len(notary.receipts) == 1
+        filed = notary.receipts[0]["pending_escalation"]
+        assert filed is not None, "the notary was told nothing about the open challenge"
+        assert sorted(filed) == ["challenge", "expires_at", "quorum"]
+        assert filed["quorum"] == 2
+        assert isinstance(filed["expires_at"], str) and filed["expires_at"].endswith("Z")
+
+    async def test_the_filed_challenge_is_the_receipt_s_own_left(self, tmp_path: Path) -> None:
+        """Approving against a challenge from another payment would authorize that one."""
+        notary = RecordingNotary()
+        rig = build_rig(tmp_path, notary=notary)
+
+        outcome = await rig.builder.execute(
+            instruction=rig.instruction(), intent=rig.intent(value="900.00")
+        )
+
+        filed = notary.receipts[0]["pending_escalation"]
+        assert filed["challenge"] == outcome.receipt.envelope.left.hex()
+        assert filed == outcome.pending_escalation, "the caller is told exactly what was filed"
+
+    async def test_a_denial_carries_no_pending_escalation(self, tmp_path: Path) -> None:
+        """Nobody is waiting on a payment the policy refused outright."""
+        notary = RecordingNotary()
+        rig = build_rig(tmp_path, notary=notary)
+
+        outcome = await rig.builder.execute(
+            instruction=rig.instruction(), intent=rig.intent(destination="rSTRANGER")
+        )
+
+        assert outcome.outcome == "deny"
+        assert notary.receipts[0]["pending_escalation"] is None
+        assert outcome.pending_escalation is None
+
+    async def test_a_settled_receipt_carries_none_either(self, tmp_path: Path) -> None:
+        notary = RecordingNotary()
+        rig = build_rig(tmp_path, notary=notary)
+
+        outcome = await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
+
+        assert outcome.settled
+        assert notary.receipts[0]["pending_escalation"] is None
+        assert notary.receipts[0]["settlement_proof"] is outcome.proof
+
+    async def test_resume_files_the_resolved_decision_with_no_open_challenge(
+        self, tmp_path: Path
+    ) -> None:
+        """``resume`` picks up a decision somebody else already resolved.
+
+        Whatever it files, nothing is waiting on a person any more — the
+        signer dropped the pending escalation when the quorum completed.
+        """
+        notary = RecordingNotary()
+        rig = build_rig(tmp_path, notary=notary)
+        intent = rig.intent(value="900.00")
+        escalated = await rig.builder.execute(instruction=rig.instruction(), intent=intent)
+        challenge = escalated.pending_escalation["challenge"]
+        notary.receipts.clear()
+
+        rejected = rig.engine.reject(
+            challenge, [a.to_content() for a in approvals_for(challenge, at=rig.clock.now())]
+        )
+        outcome = await rig.builder.resume(
+            instruction=rig.instruction(), intent=intent, decision=rejected
+        )
+
+        assert outcome.outcome == "deny"
+        assert notary.receipts[0]["pending_escalation"] is None
+        assert outcome.pending_escalation is None
+
+    async def test_a_notary_that_predates_the_member_still_files_settled_receipts(
+        self, tmp_path: Path
+    ) -> None:
+        """The kwarg is passed only when there is an escalation, so this is untouched."""
+        notary = OlderNotary()
+        rig = build_rig(tmp_path, notary=notary)
+
+        outcome = await rig.builder.execute(instruction=rig.instruction(), intent=rig.intent())
+
+        assert outcome.settled and outcome.notary_error is None
+        assert notary.receipts[0]["settlement_proof"] is outcome.proof
+
+    async def test_and_reports_the_escalating_one_as_a_filing_failure_not_a_crash(
+        self, tmp_path: Path
+    ) -> None:
+        """It cannot record the challenge. Say so; do not lose the receipt over it."""
+        notary = OlderNotary()
+        store = LocalReceiptStore(tmp_path / "receipts")
+        rig = build_rig(tmp_path, notary=notary, receipt_store=store)
+
+        outcome = await rig.builder.execute(
+            instruction=rig.instruction(), intent=rig.intent(value="900.00")
+        )
+
+        assert outcome.outcome == "escalate"
+        assert outcome.notary_error is not None
+        assert outcome.pending_escalation is not None
+        assert store.path_for(outcome.receipt.envelope.receipt_id).exists()
 
 
 class TestTheLateProof:

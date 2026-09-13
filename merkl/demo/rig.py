@@ -28,7 +28,15 @@ from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 from merkl.adapters.fake import FakeLedger, FakeSettlementAdapter
 from merkl.adapters.signer_dev import LocalSignerClient
 from merkl.core.canonical import shift_instant
-from merkl.core.intent import Amount, CurrencyRef, Intent, IssuedCurrency, Reference
+from merkl.core.intent import (
+    Amount,
+    CurrencyRef,
+    Intent,
+    IssuedCurrency,
+    Reference,
+    SwapBuy,
+    SwapSell,
+)
 from merkl.core.policy.approvals import ApprovalAssertion
 from merkl.core.policy.document import (
     CREDENTIAL_ED25519,
@@ -62,6 +70,9 @@ SUPPLIER: Final = "rSUPPLIER0000000000000000000000000"
 ATTACKER: Final = "rATTACKER0000000000000000000000000"
 ISSUER: Final = "rISSUER000000000000000000000000000"
 RLUSD: Final = IssuedCurrency(code="RLUSD", issuer=ISSUER)
+XRP: Final = "XRP"
+"""The other side of the trading scenario's book. Native, so a swap in the demo
+crosses the same currency shapes a real one does: an issued asset for a native."""
 
 INVOICE_HASH: Final = SHA256Hash.from_bytes(b"invoice INV-2026-0042.pdf").hex()
 ORIGIN: Final = "https://app.merkl.ai"
@@ -156,9 +167,18 @@ def build_policy(
     risk_threshold: str = "0.75",
     asset: CurrencyRef = RLUSD,
     rail: str = "fake",
+    may_swap: bool = False,
+    other_asset: CurrencyRef | None = None,
 ) -> PolicyDocument:
-    """The scenario policy. Every knob a scenario needs to turn is a parameter."""
+    """The scenario policy. Every knob a scenario needs to turn is a parameter.
+
+    ``may_swap`` grants the agent the right to trade at all, and ``other_asset``
+    is the second asset it may then hold — a trading policy needs both, because
+    an agent that may trade but may hold one asset has been granted a rule that
+    can never fire.
+    """
     windows = (WindowRule(asset=asset, amount=window[0], seconds=window[1]),) if window else ()
+    assets = (asset,) if other_asset is None else (asset, other_asset)
     return PolicyDocument(
         version=POLICY_VERSION,
         treasury=treasury,
@@ -168,7 +188,8 @@ def build_policy(
                 agent_id=AGENT_ID,
                 public_key=AGENT.public_key,
                 allowlist_destinations=destinations,
-                allowlist_assets=(asset,),
+                allowlist_assets=assets,
+                may_swap=may_swap,
                 per_tx_cap=(AssetLimit(asset=asset, amount=per_tx_cap),),
                 windows=windows,
                 reference_binding=ReferenceBinding(
@@ -258,6 +279,32 @@ class Rig:
             or Reference(kind="invoice", id="INV-2026-0042", hash=INVOICE_HASH),
         )
 
+    def swap_intent(
+        self,
+        *,
+        sell: str,
+        buy: str,
+        sell_asset: CurrencyRef = RLUSD,
+        buy_asset: CurrencyRef = XRP,
+        nonce: str | None = None,
+        treasury: str | None = None,
+        policy_version: str = POLICY_VERSION,
+    ) -> Intent:
+        """A trade: sell at most ``sell``, buy exactly ``buy``, settle to self."""
+        account = treasury or self.policy.treasury
+        return Intent(
+            type="swap",
+            rail=self.rail_name,
+            treasury=account,
+            destination=account,
+            sell=SwapSell(currency=sell_asset, max_amount=sell),
+            buy=SwapBuy(currency=buy_asset, amount=buy),
+            policy_version=policy_version,
+            agent_public_key=AGENT.public_key,
+            nonce=nonce or digest(f"swap-{sell}-{buy}-{self.clock.now()}")[:32],
+            expires_at=shift_instant(self.clock.now(), 600, "now"),
+        )
+
     @property
     def rail_name(self) -> str:
         return self.policy.rail
@@ -276,6 +323,7 @@ def build_rig(
     blocklist: tuple[str, ...] = (),
     starting_balance: str = "100000.00",
     clock: FrozenClock | None = None,
+    rates: dict[tuple[str, str], Decimal] | None = None,
 ) -> Rig:
     """A signer, a keystore, sealed state and the in-memory rail, all real."""
     document = policy or build_policy()
@@ -290,7 +338,9 @@ def build_rig(
         clock=clock,
         risk=StaticRiskScorer.of(blocklist),
     )
-    ledger = FakeLedger(signers=frozenset({AGENT.public_key, keystore.public_key()}))
+    ledger = FakeLedger(
+        signers=frozenset({AGENT.public_key, keystore.public_key()}), rates=rates or {}
+    )
     ledger.balances[(document.treasury, "RLUSD." + ISSUER)] = Decimal(starting_balance)
     rail = FakeSettlementAdapter(
         ledger, agent_key=AGENT.raw(), agent_public_key=AGENT.public_key, clock=clock

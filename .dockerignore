@@ -13,6 +13,10 @@ tests
 nitro
 docs
 examples
+# …except the trading agent's example config, which is also the template
+# `merkl treasury init` fills in for the agent bundle. pyproject.toml
+# force-includes it into the wheel, so the build needs it in the context.
+!examples/trader/config.example.toml
 merkl-demo
 disclosure-*
 package.json

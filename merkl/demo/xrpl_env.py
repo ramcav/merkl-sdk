@@ -83,6 +83,22 @@ class XrplEnvironment:
         overrides.setdefault("human_threshold", self.amounts.human_threshold)
         return build_policy(**overrides)
 
+    @property
+    def has_book(self) -> bool:
+        """No. The public testnet has no dependable liquidity in any pair.
+
+        A demo that minted its own issuer and placed its own offers would be
+        demonstrating the demo. The trading scenario is skipped here by name, and
+        the live proof that a trade settles on a real chain is made by hand
+        against a counterparty built for it (see docs/COSIGNER-PLAN.md, T).
+        """
+        return False
+
+    def trading_rig(self, name: str) -> Rig:
+        raise NotImplementedError(
+            "the public XRPL testnet has no dependable book; this environment runs no trades"
+        )
+
     def rig(self, name: str, policy: PolicyDocument | None = None) -> Rig:
         """A fresh signer state under this run's temp home; the treasury key is shared."""
         from merkl.adapters.signer_dev import LocalSignerClient

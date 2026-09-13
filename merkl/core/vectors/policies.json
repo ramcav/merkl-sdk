@@ -1231,6 +1231,165 @@
       }
     },
     {
+      "description": "An agent granted may_swap that may hold exactly one asset. A swap sells one asset and buys another, and both sides have to be on the allowlist, so every trade this agent could ever propose is denied by the asset rule — the grant is signed into policy_hash and reads as authority to trade, and is one.",
+      "expected_findings": [
+        "agent 'agent-admin-vector' may_swap but names 1 allowlist_assets; a swap sells one asset and buys another, so no trade by this agent could pass the asset_allowlist rule, and may_swap cannot be enforced"
+      ],
+      "name": "may-swap-with-one-allowlisted-asset",
+      "policy_hash": "b90f7fa8a045e9ad5d6582b2529a0e3f1f7b7f014dfb0df2e3a25aa1a8ccd625",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                }
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "may_swap": true,
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": [
+                {
+                  "amount": "2000.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                }
+              ]
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": [
+                {
+                  "amount": "250.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ]
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.03.0"
+        },
+        "signature": "7f98af5c4de350210dd9eb16d643ed64940c76fb47083d104e3e2ac229f7d19f27920647c7cd09aabe8bb996d73636e1fcabf6dfbab1dca326096919c9547d0b",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
+      "description": "The same grant with a second asset to trade into. Enforceable, and here so the may_swap check cannot pass by refusing every trading policy.",
+      "expected_findings": [],
+      "name": "may-swap-with-two-allowlisted-assets",
+      "policy_hash": "d65e331bab5a8a0a90d39338f8faf0990bf242aa96b5ef2c59430e3e7be87297",
+      "signed_policy": {
+        "document": {
+          "admin_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580",
+          "agents": [
+            {
+              "agent_id": "agent-admin-vector",
+              "allowlist_assets": [
+                {
+                  "code": "RLUSD",
+                  "issuer": "rADMINVECTORISSUER000000000000000000"
+                },
+                "XRP"
+              ],
+              "allowlist_destinations": [
+                "rADMINVECTORDEST00000000000000000000"
+              ],
+              "may_swap": true,
+              "per_tx_cap": [
+                {
+                  "amount": "500.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ],
+              "public_key": "58b62fb2217bb0d5925b58432120ef65562caec9da1d90e0cf559c98a6d884a2",
+              "reference_binding": {
+                "allowed_kinds": [],
+                "allowlist": [],
+                "hashes": [],
+                "required": false
+              },
+              "windows": [
+                {
+                  "amount": "2000.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  },
+                  "seconds": 86400
+                }
+              ]
+            }
+          ],
+          "approvers": [],
+          "format": "merkl-policy-v1",
+          "rail": "xrpl",
+          "risk": {
+            "threshold": "1"
+          },
+          "tiers": {
+            "human": {
+              "expires_seconds": 3600,
+              "quorum": 1,
+              "thresholds": [
+                {
+                  "amount": "250.00",
+                  "asset": {
+                    "code": "RLUSD",
+                    "issuer": "rADMINVECTORISSUER000000000000000000"
+                  }
+                }
+              ]
+            },
+            "instant": {}
+          },
+          "treasury": "rADMINVECTORTREASURY0000000000000000",
+          "version": "2026.03.0"
+        },
+        "signature": "bd6c49e578a7a50e8d69fa6e8993b04e2521e19e057ffecc69aebeae074514303fe7058cc1d73144d3c699738d68274c4589ceef701673d80243f9feb18c6c09",
+        "signer_public_key": "52d53c84b9812810b5480f8f4c09d863a352419025be948ebbd9b3a71e928580"
+      }
+    },
+    {
       "description": "An escalation threshold for an asset no agent in the document is allowed to move at all. Nothing can ever reach it.",
       "expected_findings": [
         "tiers.human.thresholds has a threshold for XRP, which no agent in this policy may move, so that threshold cannot be enforced"
