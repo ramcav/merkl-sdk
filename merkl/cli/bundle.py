@@ -29,10 +29,13 @@ Two rules about the contents:
   ``merkl treasury init`` is not in the business of copying one into a folder it
   tells people to bind-mount.
 
-``trader.toml`` is ``examples/trader/config.example.toml`` with values
-substituted line by line, deliberately rather than regenerated: that file's
-comments are half of what it teaches, and a generated config would drop them the
-first time somebody read one.
+``trader.toml`` is ``merkl/cli/trader.example.toml`` with values substituted
+line by line, deliberately rather than regenerated: that file's comments are
+half of what it teaches, and a generated config would drop them the first time
+somebody read one. The reference agent that reads a filled-in copy of it lives
+in its own repository, ``merkl-trader``, built on this SDK; this template is
+the one artifact the two repositories share, so it lives here rather than
+there.
 """
 
 from __future__ import annotations
@@ -70,24 +73,19 @@ class BundleError(Exception):
 
 
 def template_path() -> Path:
-    """``examples/trader/config.example.toml``, wherever this install put it.
+    """``merkl/cli/trader.example.toml``, wherever this install put it.
 
-    The wheel force-includes it beside this module (``pyproject.toml``), so a
-    ``pip install merkl-sdk`` has it and so does the signer image. A checkout
-    running from source falls back to the file itself, which is the *same* file
-    — there is one copy in the repository and the build moves it, so the example
-    a customer reads and the template ``init`` fills in cannot drift.
+    It lives inside the package rather than being force-included from
+    elsewhere, so a source checkout, an editable install and a wheel all have
+    the exact same file at the exact same relative path — one copy, nothing to
+    keep in sync.
     """
-    packaged = Path(__file__).with_name("trader.example.toml")
-    if packaged.exists():
-        return packaged
-    checkout = Path(__file__).resolve().parents[2] / "examples" / "trader" / "config.example.toml"
-    if checkout.exists():
-        return checkout
-    raise BundleError(  # pragma: no cover - a broken install, not a supported state
-        "the trader config template is missing from this install; expected it at "
-        f"{packaged} or {checkout}"
-    )
+    path = Path(__file__).with_name("trader.example.toml")
+    if not path.exists():  # pragma: no cover - a broken install, not a supported state
+        raise BundleError(
+            f"the trader config template is missing from this install; expected it at {path}"
+        )
+    return path
 
 
 def fill_template(template: str, values: dict[tuple[str, str], str]) -> str:

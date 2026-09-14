@@ -198,9 +198,11 @@ settles. Every page is a self-contained `verify.html` that `merkl verify` and
 agreeing on the same bytes. `merkl/demo/scenarios.py` is the source; run
 `pytest tests/demo/ tests/scenarios/` to see the same claims as tests.
 
-`examples/trader/` is the same idea with real money on the other end: a trading
-agent that runs as a plain process, pays its own compute bill out of the
-treasury it trades, and learns what its policy permits from the refusals.
+The reference trading agent — the same idea with real money on the other end,
+trading a treasury's XRP against RLUSD, paying its own compute bill, and
+learning what its policy permits from the refusals — lives in its own
+repository, [`merkl-trader`](https://github.com/ramcav/merkl-trader), built on
+this SDK.
 
 ### Add a rail
 

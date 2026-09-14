@@ -275,10 +275,11 @@ merkl/demo/
   policy and `notary.json`; the image sets it to the volume, which is why the
   printed `docker run` lines carry no `--home`
 - `merkl/cli/bundle.py` — the agent bundle: `trader.toml` (the shipped
-  `examples/trader/config.example.toml` filled in line by line, comments and
-  all), the agent's Ed25519 request key, its wallet alone, its relay token and
-  its notary API key. Secrets 0600, paths relative, one builder for both
-  destinations (a directory, or `ready.agent_bundle`)
+  `merkl/cli/trader.example.toml` filled in line by line, comments and all —
+  the one file this repository shares with `merkl-trader`, the reference
+  agent's own repository), the agent's Ed25519 request key, its wallet alone,
+  its relay token and its notary API key. Secrets 0600, paths relative, one
+  builder for both destinations (a directory, or `ready.agent_bundle`)
 - `merkl/cli/treasury.py` — `treasury init`: keys, enrol, wait for funding, the
   sentence, the ledger work, ready, the bundle — in that order, because the
   customer is watching a page while it runs. `treasury enrol` re-sends both
@@ -380,9 +381,10 @@ docker run -d --name merkl-signer -v merkl-signer:/var/lib/merkl-signer \
   it. They are supervised as one pair: if either exits, the container does, with
   that code. Every other subcommand runs straight through and starts no
   forwarder.
-- `.dockerignore` excludes `examples/` **except** `config.example.toml`, which
-  `pyproject.toml` force-includes into the wheel as the agent bundle's template.
-  Removing that exception breaks the build, not just the bundle.
+- `.dockerignore` excludes `examples/`, `tests/`, `docs/`, `nitro/` — only the
+  package and what pip needs to build it go into the image. The agent bundle's
+  config template (`merkl/cli/trader.example.toml`) lives inside the package
+  itself, not under `examples/`, so it needs no exception.
 - `tests/docker/test_signer_entrypoint.py` runs the real script against the real
   CLI — no container, because what is being checked is the supervision, the argv
   handling and the `/agent` hand-back, all of which are the script's.
