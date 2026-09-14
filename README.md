@@ -271,6 +271,16 @@ The treasury's own seed is **not** in there. It stays in the volume, which is
 also where the keystore, the rule state, the relay tokens and the policy live —
 the signer is the image plus that volume, and nothing on your host.
 
+**Managed** ("Let Merkl run it") is the same container, run by Merkl, with
+`--bundle-to-notary`: the bundle above is never written to this volume at
+all — it goes straight into the `ready` call instead — and once the notary
+acknowledges it, the container deletes the agent's request key and rewrites
+`wallets.json` with the agent's address alone, seed gone. (The treasury's own
+seed is untouched either way; its master key is already off.) If `ready`
+fails, nothing is deleted, so the re-run has what it needs. One line on
+`docker logs` says so: `agent secrets handed to the notary and removed from
+this signer`. Merkl never holds the agent's key or wallet at rest.
+
 The second line serves it. `$MERKL_HOME` is the volume, so there is no `--home`
 and no `--policy`: with a notary on file the signer pulls its policy and its
 approvals from `api.merkl.ai` and heartbeats back, so the page can say when the
