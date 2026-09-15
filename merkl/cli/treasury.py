@@ -26,6 +26,14 @@ The order matters and it is not the obvious one:
 Testnet is the same path with the faucet instead of steps 3 and 4.
 
 Seeds are written to one ``0600`` file. Nothing here prints one.
+
+Phase 20's correction: with ``--bundle-to-notary`` (a managed signer), the
+bundle built in step 6 goes into the ``ready`` call and is never written to
+this volume, and once the notary acknowledges it, the agent's own request key
+and wallet seed are removed from this volume too — the treasury's own seed is
+untouched. Merkl runs this container for a managed customer, so anything it
+kept of the agent's after handing an identical copy to the notary would make
+"Merkl holds nothing of the agent's" false the moment somebody looked.
 """
 
 from __future__ import annotations
@@ -33,6 +41,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -43,6 +52,7 @@ from merkl.adapters.notary.enrol import (
     Enrolment,
     NotaryEnrolError,
     NotaryRecord,
+    write_private,
 )
 from merkl.cli.bundle import (
     LOCAL_SIGNER_URL,
@@ -479,6 +489,11 @@ def _finish(
     signer_url = LOCAL_SIGNER_URL
     if bundle_to_notary and enrolment is not None:
         signer_url = _public_url(notary, enrolment.signer_id)
+    if enrolment is not None and enrolment.signer_public_url:
+        signer_url = enrolment.signer_public_url
+    notary_url = notary or "https://api.merkl.ai"
+    if enrolment is not None and enrolment.notary_public_url:
+        notary_url = enrolment.notary_public_url
 
     bundles: list[tuple[AgentBundle, Path]] = []
     for agent in record.agents:
@@ -495,13 +510,19 @@ def _finish(
             json_rpc_url=record.json_rpc_url,
             websocket_url=websocket,
             signer_url=signer_url,
-            notary_url=notary or "https://api.merkl.ai",
+            notary_url=notary_url,
             relay_token=_fresh_token(store, agent.id),
             notary_api_key=enrolment.notary_api_key if enrolment else None,
         )
         bundles.append((bundle, _bundle_dir(home, agent.id, agent_dir, len(record.agents))))
 
-    written = [bundle.write(where) for bundle, where in bundles]
+    # A managed signer's bundle goes to the notary and nowhere else: writing a
+    # copy to this volume too would be exactly the secret this phase exists to
+    # stop holding. A self-hosted signer still gets its bundle on disk, because
+    # there is nobody else to send it to.
+    written: list[Path] = []
+    if not bundle_to_notary:
+        written = [bundle.write(where) for bundle, where in bundles]
 
     relay_token = _fresh_token(store, NOTARY_RELAY_TOKEN_ID) if bundle_to_notary else None
     code = 0
@@ -516,6 +537,9 @@ def _finish(
                 agent_bundle=bundles[0][0].files if bundle_to_notary else None,
             )
             print("  ready           reported to the notary")
+            if bundle_to_notary:
+                _scrub_agent_secrets(home, record.agents, keys_wallet_file)
+                print("  agent secrets handed to the notary and removed from this signer")
         except (NotaryEnrolError, MerklError) as exc:
             print(f"  NOT READY       {exc}", file=sys.stderr)
             _explain_rerun(enrol_token, notary, str(exc))
@@ -569,6 +593,48 @@ def _fresh_token(store: RelayTokenStore, token_id: str) -> str:
 def _public_url(notary: str | None, signer_id: str) -> str:
     base = (notary or "https://api.merkl.ai").rstrip("/")
     return f"{base}/signers/{signer_id}"
+
+
+def _scrub_agent_secrets(home: Path, agents: tuple[AgentRecord, ...], wallet_file: Path) -> None:
+    """Once the notary has the bundle, this signer keeps none of it.
+
+    The agent's request key and its wallet seed exist on this volume only
+    because building the bundle needed to read them; the signer itself never
+    calls either again. Holding onto them after handing an identical copy to
+    the notary is exactly the thing "Merkl holds nothing of the agent's" rules
+    out. The treasury's own seed is untouched — its master key is already off,
+    and what happens to it next is a follow-up, not this one.
+
+    Called only after ``ready`` is acknowledged: a failed ``ready`` leaves
+    everything in place, because the re-run needs it.
+    """
+    if wallet_file.exists():
+        document = json.loads(wallet_file.read_text())
+        wallets = document.get("wallets", {})
+        for agent in agents:
+            entry = wallets.get(agent.id)
+            if isinstance(entry, dict):
+                wallets[agent.id] = {"address": entry.get("address", agent.address)}
+        write_private(wallet_file, json.dumps(document, indent=2).encode() + b"\n")
+    for agent in agents:
+        _shred(agent_key_path(home, agent.id))
+
+
+def _shred(path: Path) -> None:
+    """Overwrite a secret's bytes in place, then unlink it.
+
+    A plain ``unlink`` leaves the key's bytes on disk until the block is
+    reused; overwriting first is cheap and this file is never large enough for
+    it to matter.
+    """
+    if not path.exists():
+        return
+    size = path.stat().st_size
+    with path.open("r+b") as handle:
+        handle.write(b"\0" * size)
+        handle.flush()
+        os.fsync(handle.fileno())
+    path.unlink()
 
 
 def _line_content(line: Any) -> dict[str, Any]:

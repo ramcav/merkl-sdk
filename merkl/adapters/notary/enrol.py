@@ -86,6 +86,17 @@ class Enrolment:
     treasury_url: str
     signer_token: str
     notary_api_key: str
+    notary_public_url: str | None = None
+    """Where an agent that is not this container should reach the notary.
+
+    Absent on an older notary, in which case the URL the operator passed to
+    ``--notary`` is what the bundle carries, exactly as before."""
+
+    signer_public_url: str | None = None
+    """Where an agent should reach this signer, for a managed signer only.
+
+    ``null`` for a self-hosted one — there is nothing public to hand out, and
+    the bundle keeps building the signer's URL the way it always has."""
 
     @classmethod
     def from_content(cls, data: Mapping[str, Any]) -> Enrolment:
@@ -102,6 +113,12 @@ class Enrolment:
             treasury_url=str(data["treasury_url"]),
             signer_token=str(data["signer_token"]),
             notary_api_key=str(data.get("notary_api_key") or ""),
+            notary_public_url=(
+                str(data["notary_public_url"]) if data.get("notary_public_url") else None
+            ),
+            signer_public_url=(
+                str(data["signer_public_url"]) if data.get("signer_public_url") else None
+            ),
         )
 
 

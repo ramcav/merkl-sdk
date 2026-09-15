@@ -28,8 +28,15 @@ from merkl.adapters.notary.enrol import EnrolClient as RealEnrolClient
 from merkl.adapters.xrpl import bootstrap as xrpl_bootstrap
 from merkl.adapters.xrpl.bootstrap import Reserves, TreasuryKeys, TreasurySetup, TrustLine
 from merkl.cli import treasury as treasury_cli
-from merkl.cli.bundle import AGENT_KEY, AGENT_WALLET, NOTARY_API_KEY, RELAY_TOKEN, TRADER_CONFIG
-from merkl.cli.home import notary_path, treasury_path, wallets_path
+from merkl.cli.bundle import (
+    AGENT_KEY,
+    AGENT_WALLET,
+    LOCAL_SIGNER_URL,
+    NOTARY_API_KEY,
+    RELAY_TOKEN,
+    TRADER_CONFIG,
+)
+from merkl.cli.home import agent_key_path, notary_path, treasury_path, wallets_path
 from merkl.cli.treasury import EXIT_NOT_ENROLLED, MAINNET_CONFIRMATION, TreasuryRecord
 from merkl.core.rail import NETWORK_XRPL_MAINNET, NETWORK_XRPL_TESTNET
 
@@ -129,9 +136,18 @@ class FakeRail:
 class FakeNotary:
     """``enrol`` and ``ready``, and a switch to make either of them fail."""
 
-    def __init__(self, *, enrol_status: int = 200, ready_status: int = 200) -> None:
+    def __init__(
+        self,
+        *,
+        enrol_status: int = 200,
+        ready_status: int = 200,
+        notary_public_url: str | None = None,
+        signer_public_url: str | None = None,
+    ) -> None:
         self.enrol_status = enrol_status
         self.ready_status = ready_status
+        self.notary_public_url = notary_public_url
+        self.signer_public_url = signer_public_url
         self.enrolments: list[dict[str, Any]] = []
         self.readies: list[dict[str, Any]] = []
 
@@ -155,16 +171,18 @@ class FakeNotary:
             self.enrolments.append(body)
             if self.enrol_status != 200:
                 return httpx.Response(self.enrol_status, json={"detail": "already spent"})
-            return httpx.Response(
-                200,
-                json={
-                    "signer_id": "sig_01",
-                    "org_slug": "acme",
-                    "treasury_url": "https://app.merkl.ai/acme/treasuries/" + body["treasury"],
-                    "signer_token": SIGNER_TOKEN,
-                    "notary_api_key": API_KEY,
-                },
-            )
+            answer: dict[str, Any] = {
+                "signer_id": "sig_01",
+                "org_slug": "acme",
+                "treasury_url": "https://app.merkl.ai/acme/treasuries/" + body["treasury"],
+                "signer_token": SIGNER_TOKEN,
+                "notary_api_key": API_KEY,
+            }
+            if self.notary_public_url:
+                answer["notary_public_url"] = self.notary_public_url
+            if self.signer_public_url:
+                answer["signer_public_url"] = self.signer_public_url
+            return httpx.Response(200, json=answer)
         self.readies.append(body)
         if self.ready_status != 200:
             return httpx.Response(self.ready_status, json={"detail": "the notary is down"})
@@ -500,6 +518,85 @@ class TestEnrolment:
         assert body["relay_token"].startswith("notary:")
         assert set(body["agent_bundle"]["files"]) >= {TRADER_CONFIG, AGENT_KEY, AGENT_WALLET}
         assert "signers/sig_01" in body["agent_bundle"]["files"][TRADER_CONFIG]
+
+    def test_the_bundle_uses_the_enrol_answers_public_urls_when_it_has_them(
+        self, rail: FakeRail, sealed_home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        notary = FakeNotary(
+            notary_public_url="https://api.merkl.ai",
+            signer_public_url="https://signer.acme.merkl.ai",
+        )
+        notary.install(monkeypatch)
+        treasury_cli.init_command(
+            home=sealed_home,
+            enrol=ENROLMENT_TOKEN,
+            notary="http://merkl-api:8000",
+            bundle_to_notary=True,
+        )
+        config = notary.readies[0]["agent_bundle"]["files"][TRADER_CONFIG]
+        assert 'url = "https://api.merkl.ai"' in config
+        assert 'url = "https://signer.acme.merkl.ai"' in config
+        assert "merkl-api:8000" not in config, "the internal address must not leak into the bundle"
+
+    def test_a_self_hosted_bundle_keeps_todays_values_without_public_urls(
+        self, rail: FakeRail, sealed_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # signer_public_url is null: this is the self-hosted enrol answer.
+        notary = FakeNotary(notary_public_url="https://api.merkl.ai")
+        notary.install(monkeypatch)
+        agent_dir = tmp_path / "merkl-agent"
+        treasury_cli.init_command(
+            home=sealed_home, enrol=ENROLMENT_TOKEN, notary="http://n", agent_dir=agent_dir
+        )
+        config = (agent_dir / TRADER_CONFIG).read_text()
+        assert 'url = "https://api.merkl.ai"' in config, "the notary's own url still comes through"
+        assert f'url = "{LOCAL_SIGNER_URL}"' in config, "no signer_public_url: today's default"
+
+    def test_a_managed_signer_writes_no_bundle_to_this_volume(
+        self, rail: FakeRail, sealed_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The notary got the bundle in the ``ready`` body; this signer keeps none of it."""
+        FakeNotary().install(monkeypatch)
+        agent_dir = tmp_path / "would-be-bundle"
+        treasury_cli.init_command(
+            home=sealed_home,
+            enrol=ENROLMENT_TOKEN,
+            notary="http://n",
+            bundle_to_notary=True,
+            agent_dir=agent_dir,
+        )
+        assert not (sealed_home / "agents" / "agent-0" / "bundle").exists()
+        assert not agent_dir.exists(), "no bundle directory of any kind is created"
+
+    def test_a_successful_managed_bootstrap_leaves_no_agent_secrets(
+        self, rail: FakeRail, sealed_home: Path, monkeypatch: pytest.MonkeyPatch, capsys: Any
+    ) -> None:
+        FakeNotary().install(monkeypatch)
+        treasury_cli.init_command(
+            home=sealed_home, enrol=ENROLMENT_TOKEN, notary="http://n", bundle_to_notary=True
+        )
+        out = capsys.readouterr().out
+        assert "agent secrets handed to the notary and removed from this signer" in out
+        assert not agent_key_path(sealed_home, "agent-0").exists(), "the PEM must be gone"
+
+        wallets = json.loads(wallets_path(sealed_home).read_text())["wallets"]
+        assert "seed" not in wallets["agent-0"], "the agent's seed must be gone"
+        assert "address" in wallets["agent-0"]
+        assert "seed" in wallets["treasury"], "the treasury's own seed is untouched"
+
+    def test_a_failed_ready_keeps_the_agent_secrets_for_a_managed_signer(
+        self, rail: FakeRail, sealed_home: Path, monkeypatch: pytest.MonkeyPatch, capsys: Any
+    ) -> None:
+        FakeNotary(ready_status=502).install(monkeypatch)
+        treasury_cli.init_command(
+            home=sealed_home, enrol=ENROLMENT_TOKEN, notary="http://n", bundle_to_notary=True
+        )
+        out = capsys.readouterr().out
+        assert "agent secrets handed to the notary" not in out
+
+        assert agent_key_path(sealed_home, "agent-0").exists(), "the re-run needs the PEM"
+        wallets = json.loads(wallets_path(sealed_home).read_text())["wallets"]
+        assert "seed" in wallets["agent-0"], "the re-run needs the seed"
 
     def test_the_continue_line_points_at_the_treasury_page(
         self, rail: FakeRail, sealed_home: Path, monkeypatch: pytest.MonkeyPatch, capsys: Any

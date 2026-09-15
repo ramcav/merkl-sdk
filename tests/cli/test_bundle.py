@@ -1,10 +1,11 @@
 """The agent bundle — five files, four of them ``0600``, one of them runnable.
 
-The strongest thing that can be said about a generated config is that the
-program it configures reads it, so that is what is checked here: the filled-in
-``trader.toml`` goes through the trader's own ``config.parse`` and comes back
-with the values ``init`` put in it. Everything else about a bundle is about
-modes and about what is *not* in it — the treasury's seed, above all.
+The reference agent that reads a filled-in ``trader.toml`` lives in its own
+repository (``merkl-trader``) and exercises the real ``config.parse`` there;
+this SDK never imports it back. What is checked here is what this repository
+can promise on its own: the filled-in file is valid TOML and carries the exact
+values ``init`` put in it. Everything else about a bundle is about modes and
+about what is *not* in it — the treasury's seed, above all.
 """
 
 from __future__ import annotations
@@ -16,7 +17,6 @@ from pathlib import Path
 
 import pytest
 
-from examples.trader import config as trader_config
 from merkl.cli.bundle import (
     AGENT_KEY,
     AGENT_WALLET,
@@ -77,57 +77,59 @@ class TestTheTemplate:
             fill_template('[agent]\nurl = "a"\n', {("signer", "url"): 'url = "b"'})
 
 
-class TestTheFilledConfig:
-    def test_the_trader_reads_its_own_generated_config(self) -> None:
-        bundle = a_bundle()
-        settings = trader_config.parse(tomllib.loads(bundle.files[TRADER_CONFIG]))  # type: ignore[attr-defined]
+def _raw(bundle: object) -> dict[str, object]:
+    """The filled-in config, parsed as plain TOML — no dependence on the agent
+    that actually reads it, which lives in its own repository now."""
+    return tomllib.loads(bundle.files[TRADER_CONFIG])  # type: ignore[attr-defined]
 
-        assert settings.agent.agent_id == "agent-0"
-        assert settings.treasury.address == TREASURY
-        assert settings.treasury.wallet_name == "agent-0"
-        assert settings.rail.json_rpc_url == "https://s.altnet.rippletest.net:51234"
-        assert settings.signer.url == "http://127.0.0.1:8787"
-        assert settings.notary.url == NOTARY
+
+class TestTheFilledConfig:
+    def test_the_values_init_put_in_it_are_there(self) -> None:
+        raw = _raw(a_bundle())
+
+        assert raw["agent"]["agent_id"] == "agent-0"
+        assert raw["treasury"]["address"] == TREASURY
+        assert raw["treasury"]["wallet_name"] == "agent-0"
+        assert raw["rail"]["json_rpc_url"] == "https://s.altnet.rippletest.net:51234"
+        assert raw["signer"]["url"] == "http://127.0.0.1:8787"
+        assert raw["notary"]["url"] == NOTARY
 
     def test_the_policy_version_says_it_is_not_set_yet(self) -> None:
         """The signer refuses an intent naming the wrong version; a guess is worse."""
-        bundle = a_bundle()
-        settings = trader_config.parse(tomllib.loads(bundle.files[TRADER_CONFIG]))  # type: ignore[attr-defined]
-        assert settings.treasury.policy_version == POLICY_VERSION_PLACEHOLDER
+        raw = _raw(a_bundle())
+        assert raw["treasury"]["policy_version"] == POLICY_VERSION_PLACEHOLDER
 
     def test_every_path_in_it_is_relative_to_the_bundle(self) -> None:
-        bundle = a_bundle()
-        settings = trader_config.parse(tomllib.loads(bundle.files[TRADER_CONFIG]))  # type: ignore[attr-defined]
-        assert settings.agent.key_file == Path(AGENT_KEY)
-        assert settings.treasury.wallet_file == Path(AGENT_WALLET)
-        assert settings.signer.token_file == Path(RELAY_TOKEN)
-        assert settings.notary.api_key_file == Path(NOTARY_API_KEY)
+        raw = _raw(a_bundle())
+        assert raw["agent"]["key_file"] == AGENT_KEY
+        assert raw["treasury"]["wallet_file"] == AGENT_WALLET
+        assert raw["signer"]["token_file"] == RELAY_TOKEN
+        assert raw["notary"]["api_key_file"] == NOTARY_API_KEY
 
     def test_an_enrolled_bundle_names_a_key_file_rather_than_an_environment_variable(
         self,
     ) -> None:
         bundle = a_bundle()
         assert 'api_key_file = "notary-api-key.txt"' in bundle.files[TRADER_CONFIG]  # type: ignore[attr-defined]
-        settings = trader_config.parse(tomllib.loads(bundle.files[TRADER_CONFIG]))  # type: ignore[attr-defined]
-        assert settings.notary.api_key_env is None, "the model's own key is untouched"
-        assert settings.model.api_key_env == "ANTHROPIC_API_KEY"
+        raw = _raw(bundle)
+        assert "api_key_env" not in raw["notary"], "the model's own key is untouched"
+        assert raw["model"]["api_key_env"] == "ANTHROPIC_API_KEY"
 
     def test_without_a_notary_key_the_environment_variable_stays(self) -> None:
         bundle = a_bundle(notary_api_key=None)
-        settings = trader_config.parse(tomllib.loads(bundle.files[TRADER_CONFIG]))  # type: ignore[attr-defined]
-        assert settings.notary.api_key_file is None
-        assert settings.notary.api_key_env == "MERKL_API_KEY"
+        raw = _raw(bundle)
+        assert "api_key_file" not in raw["notary"]
+        assert raw["notary"]["api_key_env"] == "MERKL_API_KEY"
         assert NOTARY_API_KEY not in bundle.files  # type: ignore[operator]
 
     def test_a_managed_signer_gets_its_public_url_instead_of_loopback(self) -> None:
-        bundle = a_bundle(signer_url="https://api.merkl.ai/signers/sig_01")
-        settings = trader_config.parse(tomllib.loads(bundle.files[TRADER_CONFIG]))  # type: ignore[attr-defined]
-        assert settings.signer.url == "https://api.merkl.ai/signers/sig_01"
+        raw = _raw(a_bundle(signer_url="https://api.merkl.ai/signers/sig_01"))
+        assert raw["signer"]["url"] == "https://api.merkl.ai/signers/sig_01"
 
     def test_without_a_relay_token_the_token_file_is_commented_out(self) -> None:
         bundle = a_bundle(relay_token=None)
-        settings = trader_config.parse(tomllib.loads(bundle.files[TRADER_CONFIG]))  # type: ignore[attr-defined]
-        assert settings.signer.token_file is None
+        raw = _raw(bundle)
+        assert "token_file" not in raw["signer"]
         assert RELAY_TOKEN not in bundle.files  # type: ignore[operator]
 
 

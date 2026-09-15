@@ -257,7 +257,12 @@ merkl/demo/
 - `merkl/adapters/notary/enrol.py` — `EnrolClient`: `POST /v1/signers/enrol`
   (before a single transaction, so the page can show an address to fund) and
   `POST /v1/signers/ready` (after the read-back). `NotaryRecord` is
-  `<home>/notary.json`, 0600, holding the signer's own bearer
+  `<home>/notary.json`, 0600, holding the signer's own bearer. `Enrolment`
+  carries two optional `..._public_url` fields (null on an older notary or a
+  self-hosted signer); when present, `merkl/cli/treasury.py`'s `_finish` puts
+  them in `trader.toml`'s `[notary].url` / `[signer].url` instead of the
+  address the container itself was given — the fix for a bundle that once
+  carried a notary's *internal* address (`http://merkl-api:8000/...`)
 - `merkl/adapters/notary/follower.py` — `NotaryFollower`: the daemon thread that
   pulls the policy and the escalations, applies them through the *same*
   `RpcRouter` the socket goes through, and heartbeats. Verifies everything it is
@@ -275,10 +280,11 @@ merkl/demo/
   policy and `notary.json`; the image sets it to the volume, which is why the
   printed `docker run` lines carry no `--home`
 - `merkl/cli/bundle.py` — the agent bundle: `trader.toml` (the shipped
-  `examples/trader/config.example.toml` filled in line by line, comments and
-  all), the agent's Ed25519 request key, its wallet alone, its relay token and
-  its notary API key. Secrets 0600, paths relative, one builder for both
-  destinations (a directory, or `ready.agent_bundle`)
+  `merkl/cli/trader.example.toml` filled in line by line, comments and all —
+  the one file this repository shares with `merkl-trader`, the reference
+  agent's own repository), the agent's Ed25519 request key, its wallet alone,
+  its relay token and its notary API key. Secrets 0600, paths relative, one
+  builder for both destinations (a directory, or `ready.agent_bundle`)
 - `merkl/cli/treasury.py` — `treasury init`: keys, enrol, wait for funding, the
   sentence, the ledger work, ready, the bundle — in that order, because the
   customer is watching a page while it runs. `treasury enrol` re-sends both
@@ -380,25 +386,36 @@ docker run -d --name merkl-signer -v merkl-signer:/var/lib/merkl-signer \
   it. They are supervised as one pair: if either exits, the container does, with
   that code. Every other subcommand runs straight through and starts no
   forwarder.
-- `.dockerignore` excludes `examples/` **except** `config.example.toml`, which
-  `pyproject.toml` force-includes into the wheel as the agent bundle's template.
-  Removing that exception breaks the build, not just the bundle.
+- `.dockerignore` excludes `examples/`, `tests/`, `docs/`, `nitro/` — only the
+  package and what pip needs to build it go into the image. The agent bundle's
+  config template (`merkl/cli/trader.example.toml`) lives inside the package
+  itself, not under `examples/`, so it needs no exception.
 - `tests/docker/test_signer_entrypoint.py` runs the real script against the real
   CLI — no container, because what is being checked is the supervision, the argv
   handling and the `/agent` hand-back, all of which are the script's.
+- **`treasury init --bundle-to-notary` keeps nothing of the agent's.** After
+  the notary acknowledges `ready`, `merkl/cli/treasury.py`'s `_finish` never
+  writes the bundle to this volume at all (it goes into the `ready` body
+  instead), deletes `<home>/agents/<id>/agent-ed25519.pem`, and rewrites
+  `wallets.json` so that agent's entry is an address with no seed — the
+  treasury's own seed and its own entry are untouched. One line says so:
+  `agent secrets handed to the notary and removed from this signer`. A failed
+  `ready` leaves everything in place, because the re-run (`merkl treasury
+  enrol`, exit `7`) needs it. `tests/cli/test_treasury_init.py`'s
+  `TestEnrolment` pins both directions.
 
 ## Releasing
 
 ```bash
 # bump the version in BOTH pyproject.toml and merkl/core/verify/js/package.json,
 # add a CHANGELOG.md section, commit, then:
-git tag v0.3.0 && git push origin v0.3.0
+git tag v0.3.1 && git push origin v0.3.1
 ```
 
-Both files and `CHANGELOG.md` are at `0.3.0` (the five-minute setup: `$MERKL_HOME`,
-`treasury init` making every key where it is served from, the agent bundle, the
-notary follower, `signer bootstrap`). Drafting the notes is not cutting the
-release: the tag is.
+Both files and `CHANGELOG.md` are at `0.3.1` (phase 20: a managed signer keeps
+nothing of the agent's after handing its bundle to the notary, and public urls
+in the bundle instead of the notary's internal one). Drafting the notes is not
+cutting the release: the tag is.
 
 The tag is the release decision: `.github/workflows/release.yml` refuses a tag that disagrees with `pyproject.toml` **or** with `@merkl-ai/verify`'s `package.json`, runs both suites and all three vector checks, builds, publishes to PyPI via Trusted Publishing (OIDC, gated by the `pypi` environment) and `@merkl-ai/verify` to npm with provenance (gated by the `npm` environment), and creates a GitHub Release from the matching CHANGELOG section. The two packages are versioned in lockstep because they are two implementations of one spec (plan D19): a reader holding one has to be able to assume the other agrees with it. `examples/` holds runnable demo agents against a local notary; `docs/adr/` records the shared-kernel design decisions.
 

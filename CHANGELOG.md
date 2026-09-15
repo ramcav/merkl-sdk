@@ -9,6 +9,31 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-14
+
+### Fixed — phase 20, what the first real customer run showed
+
+- **A managed signer now keeps nothing of the agent's.** With
+  `--bundle-to-notary`, `treasury init` / `signer bootstrap` no longer write
+  the agent bundle to this volume at all — it goes into the `ready` call and
+  nowhere else — and once the notary acknowledges it, the container deletes
+  `<home>/agents/<id>/agent-ed25519.pem` and rewrites `wallets.json` down to
+  that agent's address, seed gone. The treasury's own seed is untouched. A
+  failed `ready` leaves everything in place, as it always has, because the
+  re-run needs it.
+- **Public addresses in the bundle.** `EnrolClient`'s `Enrolment` now carries
+  `notary_public_url` and `signer_public_url` when the notary's enrol answer
+  has them; `trader.toml`'s `[notary].url` and `[signer].url` come from those
+  instead of the address the container itself was given, fixing a bundle that
+  could carry a notary's internal address.
+
+### Changed
+
+- The agent bundle's config template moved from `examples/trader/` to
+  `merkl/cli/trader.example.toml` — it ships inside the package now, with no
+  build-time copy. The reference trading agent that reads a filled-in copy of
+  it moved out of this repository entirely, to its own (`merkl-trader`).
+
 ## [0.3.0] - 2026-09-10
 
 ### Added — phase 17, the five-minute setup

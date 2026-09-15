@@ -1,5 +1,10 @@
 # The trading agent, configured. Copy to trader.toml and edit.
 #
+# This is the config for the reference trading agent, which lives in its own
+# repository (`merkl-trader`, built on this SDK) — see its README for what
+# reads each of these tables. `merkl treasury init` fills a copy of this same
+# file in for you, comments and all, as part of the agent bundle it writes.
+#
 # Two rules about this file:
 #
 #   * no secret is written in it. A key is a path to a file you chmod 0600; a
