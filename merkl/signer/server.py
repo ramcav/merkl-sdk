@@ -79,13 +79,15 @@ class RpcRouter:
         other side of it. The lock is the part that matters, and this takes it.
         """
         engine = self._engine
-        if method == "health":
-            return engine.health()
         if method == "public_key":
             return engine.public_key()
         if method == "attestation":
             return {"attestation": engine.attestation()}
         with self._lock:
+            if method == "health":
+                return engine.health()
+            if method == "sweep_expired":
+                return {"swept": engine.sweep_expired()}
             if method == "propose":
                 return engine.propose(params.get("request", params))
             if method == "approve":

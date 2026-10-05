@@ -418,3 +418,20 @@ class TestTheSchedule:
 
         following.run_forever(stop=counting_stop)
         assert notary.calls > 0
+
+
+class TestExpiredEscalations:
+    @pytest.mark.asyncio
+    async def test_a_poll_sweeps_what_expired_on_a_quiet_signer(self, tmp_path: Path) -> None:
+        """Nobody called the signer; the follower's own poll gives the reservation back."""
+        rig = build_rig(tmp_path / "signer")
+        await pending_challenge(rig)
+        notary = FakeNotary(rig.signed_policy)
+        following = follower(notary, tmp_path)
+        following.attach(RpcRouter(rig.engine))
+        assert len(rig.engine._pending) == 1
+
+        rig.clock.advance(3601)
+        following.poll_escalations()
+
+        assert len(rig.engine._pending) == 0

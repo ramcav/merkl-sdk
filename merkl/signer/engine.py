@@ -26,6 +26,7 @@ takes on trust is that the adapter's *fields* describe the payload — see
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import secrets
 from collections.abc import Callable, Sequence
@@ -48,7 +49,13 @@ from merkl.core.policy.document import (
     asset_key,
 )
 from merkl.core.policy.engine import Decision, RiskScore, RuleOutcome, evaluate
-from merkl.core.policy.state import NonceEntry, Outflow, Reconciliation, SpendEntry
+from merkl.core.policy.state import (
+    NonceEntry,
+    Outflow,
+    Reconciliation,
+    SpendEntry,
+    StateError,
+)
 from merkl.core.rail import (
     ANCHOR_BYTES,
     ANCHOR_PLACEHOLDER,
@@ -84,6 +91,10 @@ class SignerError(MerklError):
     """
 
     error_code = "signer_error"
+
+
+MAX_REMEMBERED_EXPIRED = 1000
+"""How many swept escalations are kept so a late approval is told "expired"."""
 
 
 class Clock:
@@ -149,6 +160,7 @@ class SignerEngine:
         self._clock = clock or Clock()
         self._risk = risk or (lambda _destination: RiskScore())
         self._pending: dict[str, PendingEscalation] = {}
+        self._expired: dict[str, PendingEscalation] = {}
         self._changes: list[PolicyChange] = []
 
     # -- read-only methods ------------------------------------------------- #
@@ -174,6 +186,7 @@ class SignerEngine:
         return self._keystore.attestation()
 
     def health(self) -> JSONObject:
+        self.sweep_expired()
         attested = self._keystore.attestation() is not None
         return {
             "status": "ok",
@@ -196,6 +209,7 @@ class SignerEngine:
         """Evaluate an intent and, on ALLOW, sign the transaction that carries it."""
         request = SignedRequest.from_content(raw_request)
         now = self._clock.now()
+        self.sweep_expired(now)
         section = verify_request(
             request,
             self.document,
@@ -249,11 +263,15 @@ class SignerEngine:
         and the window may have filled in the meantime. Approval is permission to
         proceed, not a decision that stands on its own.
         """
+        now = self._clock.now()
+        self.sweep_expired(now)
+        parsed = tuple(ApprovalAssertion.from_content(a) for a in assertions)
+        gone = self._expired.get(challenge)
+        if gone is not None:
+            return self._expired_denial(gone, parsed)
         pending = self._pending.get(challenge)
         if pending is None:
             raise SignerError(f"no escalation is pending for challenge {challenge[:16]}…")
-        now = self._clock.now()
-        parsed = tuple(ApprovalAssertion.from_content(a) for a in assertions)
 
         if parse_instant(now, "now") > parse_instant(pending.expires_at, "escalation.expires_at"):
             return self._reject_escalation(
@@ -322,9 +340,15 @@ class SignerEngine:
         money is not going to move and a window that stays full is a denial of
         service the approver did not intend.
         """
+        self.sweep_expired()
         pending = self._pending.get(challenge)
         if pending is None:
-            raise SignerError(f"no escalation is pending for challenge {challenge[:16]}…")
+            gone = self._expired.get(challenge)
+            if gone is None:
+                raise SignerError(f"no escalation is pending for challenge {challenge[:16]}…")
+            return self._expired_denial(
+                gone, tuple(ApprovalAssertion.from_content(a) for a in assertions)
+            )
         parsed = tuple(ApprovalAssertion.from_content(a) for a in assertions)
         if not parsed:
             raise SignerError("a rejection is signed: send at least one assertion")
@@ -348,6 +372,47 @@ class SignerEngine:
             parsed,
             quorum,
             f"rejected by {', '.join(sorted(set(signers)))}",
+        )
+
+    # -- expiry ------------------------------------------------------------ #
+
+    def sweep_expired(self, now: str | None = None) -> int:
+        """Drop escalations nobody answered in time, and release what they reserved.
+
+        An escalation reserves its amount against the window the moment it is
+        raised. Only ``approve`` and ``reject`` used to give that back, so one
+        that simply expired kept counting forever and every later proposal
+        failed its window cap. Called at the start of every ``propose``,
+        ``approve``, ``reject`` and ``health``, and by the notary follower on
+        each poll, so a quiet signer clears them too. Returns how many it dropped.
+
+        The swept ones are remembered (bounded), so an ``approve`` that arrives
+        afterwards is still refused as *expired* rather than as unknown.
+        """
+        moment = parse_instant(now if now is not None else self._clock.now(), "now")
+        stale = [
+            p
+            for p in self._pending.values()
+            if moment > parse_instant(p.expires_at, "escalation.expires_at")
+        ]
+        for pending in stale:
+            del self._pending[pending.challenge]
+            self._expired[pending.challenge] = pending
+            with contextlib.suppress(StateError):  # already settled or released elsewhere
+                self._state.release(pending.reservation_id)
+        while len(self._expired) > MAX_REMEMBERED_EXPIRED:
+            del self._expired[next(iter(self._expired))]
+        return len(stale)
+
+    def _expired_denial(
+        self, pending: PendingEscalation, assertions: Sequence[ApprovalAssertion]
+    ) -> JSONObject:
+        return self._reject_escalation(
+            pending,
+            assertions,
+            None,
+            f"the escalation expired at {pending.expires_at}",
+            release=False,
         )
 
     # -- settlement bookkeeping -------------------------------------------- #
@@ -556,10 +621,13 @@ class SignerEngine:
         assertions: Sequence[ApprovalAssertion],
         quorum: QuorumResult | None,
         reason: str,
+        *,
+        release: bool = True,
     ) -> JSONObject:
         """An escalation that did not resolve is a denial with a receipt, not silence."""
         self._pending.pop(pending.challenge, None)
-        self._state.release(pending.reservation_id)
+        if release:
+            self._state.release(pending.reservation_id)
         decision = dataclasses.replace(pending.decision, outcome=PolicyOutcome.DENY.value)
         return self._envelope(
             decision,

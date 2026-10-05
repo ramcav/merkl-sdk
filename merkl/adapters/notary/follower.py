@@ -232,6 +232,9 @@ class NotaryFollower:
         router = self._router
         if router is None:  # pragma: no cover - attach() happens before start()
             return 0
+        # Before anything else: a signer nobody has called for a while still has
+        # to give back what an unanswered escalation reserved when it expired.
+        router.dispatch_local("sweep_expired", {})
         answer = self._request("GET", ESCALATIONS_PATH)
         raw = answer.get("escalations")
         entries = raw if isinstance(raw, list) else []
