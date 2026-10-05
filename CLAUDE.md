@@ -409,10 +409,11 @@ docker run -d --name merkl-signer -v merkl-signer:/var/lib/merkl-signer \
 ```bash
 # bump the version in BOTH pyproject.toml and merkl/core/verify/js/package.json,
 # add a CHANGELOG.md section, commit, then:
-git tag v0.3.1 && git push origin v0.3.1
+git tag v0.3.2 && git push origin v0.3.2
 ```
 
-Both files and `CHANGELOG.md` are at `0.3.1` (phase 20: a managed signer keeps
+Both files and `CHANGELOG.md` are at `0.3.2` (an unanswered escalation now
+gives its reservation back when it expires; before that, 0.3.1 — phase 20: a managed signer keeps
 nothing of the agent's after handing its bundle to the notary, and public urls
 in the bundle instead of the notary's internal one). Drafting the notes is not
 cutting the release: the tag is.
