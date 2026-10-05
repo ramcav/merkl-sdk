@@ -9,6 +9,22 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-05
+
+### Fixed
+
+- **An escalation nobody answers no longer holds its reservation forever.**
+  `SignerEngine` reserves the amount against the window when a decision
+  escalates, and only `approve`/`reject` released it, so an escalation that
+  simply expired kept counting ("already authorized, including in-flight")
+  and every later proposal failed `window_cap`. The engine now sweeps pending
+  escalations whose `expires_at` has passed at the start of every `propose`,
+  `approve`, `reject` and `health`, releasing their reservations and
+  persisting the state; `sweep_expired(now)` does it on demand, and the
+  notary follower calls it on each escalation poll so a quiet signer clears
+  them too. `approve`/`reject` on an expired escalation still answer
+  "the escalation expired".
+
 ## [0.3.1] - 2026-09-14
 
 ### Fixed — phase 20, what the first real customer run showed

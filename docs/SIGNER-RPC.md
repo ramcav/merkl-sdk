@@ -148,6 +148,13 @@ bounds who may push, not what pushing can accomplish.
  "warning": "UNATTESTED SIGNER — no enclave vouches for this key"}
 ```
 
+Escalations whose `expires_at` has passed are swept first — dropped from
+`pending_escalations` and their reservations released — as they are at the
+start of `propose`, `approve` and `reject`. A late `approve` or `reject` of a
+swept one still answers "the escalation expired". The in-process method
+`sweep_expired` (`{"swept": n}`) does the same on demand; the notary
+follower calls it on every poll.
+
 ### `public_key`
 
 ```json
