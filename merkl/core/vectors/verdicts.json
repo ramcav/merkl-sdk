@@ -3014,6 +3014,353 @@
           "signature": "707a1a0db5a53de22a426650e06a68cf9af3aaac5d81bee59c6c36f251b23e2150e79eb195e4460e02e126c5e065c85bd6fd4ace6a550fde536b92b4a2b3f400",
           "signer_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad"
         },
+        "session_bundle": null,
+        "settlement_proof": null,
+        "validator_trust": null
+      },
+      "name": "deny-window-cap",
+      "receipt": "deny-window-cap",
+      "verdict": {
+        "attested": false,
+        "checks": [
+          {
+            "detail": "version 'merkl-receipt-v1'",
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "detail": "7 leaf contents",
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "detail": "['instruction', 'intent', 'policy_decision'] are present in every receipt",
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 319d8c4f84ae9b46df7400e50966813946d45c5f1b829536db83778a29746d23 vs committed 319d8c4f84ae9b46df7400e50966813946d45c5f1b829536db83778a29746d23",
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed d47630027c8d1fe5a55f087840ab6ee7c3d673e97995efe608a248fa4c6a02be vs committed d47630027c8d1fe5a55f087840ab6ee7c3d673e97995efe608a248fa4c6a02be",
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed 4f09fc6090d9c2736c51adbdb3e3d673222c43a97ef227c251692ffa6ad7f06f vs committed 4f09fc6090d9c2736c51adbdb3e3d673222c43a97ef227c251692ffa6ad7f06f",
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe vs committed bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc vs committed db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed d1a496d36b7d24cbec0c599b74dcd9b1023224257cab405d713601f6795402ed vs committed d1a496d36b7d24cbec0c599b74dcd9b1023224257cab405d713601f6795402ed",
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "detail": "recomputed d3db7686c3182f2a3996349a3d6132a8a4e471b19fc4ec210a262b435dbba1a5 vs committed d3db7686c3182f2a3996349a3d6132a8a4e471b19fc4ec210a262b435dbba1a5",
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "detail": "leaf 7 must repeat leaf 6",
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "detail": "LEFT over leaves 0-3 is ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6",
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "detail": "the supplied policy hashes to the 4bc56bce57e996f2… the decision names and the pinned admin key signed it",
+            "name": "policy.document",
+            "status": "pass"
+          },
+          {
+            "detail": "this decision did not escalate, so nothing was signed",
+            "name": "policy.escalation_challenge",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "this decision did not escalate, so nobody approved",
+            "name": "policy.approval_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there is no policy signature to check",
+            "name": "policy.signature",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "leaf 3 is null: this receipt proves it was produced by an unattested signer",
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there are no settled fields to compare",
+            "name": "intent.matches_settled_fields",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there is no anchor to compare",
+            "name": "settlement.anchor_equals_left",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there is no signed blob",
+            "name": "settlement.signed_blob",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there is no proof to read",
+            "name": "settlement.proof_matches_receipt",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so there is no ledger to check",
+            "name": "settlement.ledger_header",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "nothing settled, so no validators signed anything",
+            "name": "settlement.validator_quorum",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "unchecked: nothing settled, so there is no ledger inclusion to establish",
+            "name": "settlement.ledger_inclusion",
+            "status": "not_implemented"
+          },
+          {
+            "detail": "RIGHT over leaves 4-7 is 95279316632172ec0ab847c6ba104085f7817df178501991928a2df1cf839a11",
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "detail": "SHA-256(LEFT || RIGHT) is 134b2f1f2d9101bbf3efa02a48d0c27060c78938565c4d7718a917b68196775c",
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope rail 'xrpl'",
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope treasury 'rTREASURY0000000000000000000000000'",
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "detail": "envelope policy_hash 4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "detail": "no session bundle was supplied, so this is a level-1 verdict",
+            "name": "session.log_join",
+            "status": "not_implemented"
+          }
+        ],
+        "complete": false,
+        "level": 1,
+        "level_detail": "Level 1: verified against the signer key, the ledger and this receipt alone; no notary log was available to add completeness and an anchor.",
+        "not_checked": [
+          {
+            "label": "the escalation challenge",
+            "name": "policy.escalation_challenge",
+            "reason": "this decision did not escalate, so nothing was signed"
+          },
+          {
+            "label": "the approval quorum",
+            "name": "policy.approval_quorum",
+            "reason": "this decision did not escalate, so nobody approved"
+          },
+          {
+            "label": "the policy signature",
+            "name": "policy.signature",
+            "reason": "nothing settled, so there is no policy signature to check"
+          },
+          {
+            "label": "enclave attestation",
+            "name": "signer.attestation",
+            "reason": "leaf 3 is null: this receipt proves it was produced by an unattested signer"
+          },
+          {
+            "label": "the settled fields",
+            "name": "intent.matches_settled_fields",
+            "reason": "nothing settled, so there are no settled fields to compare"
+          },
+          {
+            "label": "the rail anchor",
+            "name": "settlement.anchor_equals_left",
+            "reason": "nothing settled, so there is no anchor to compare"
+          },
+          {
+            "label": "the submitted transaction blob",
+            "name": "settlement.signed_blob",
+            "reason": "nothing settled, so there is no signed blob"
+          },
+          {
+            "label": "the settlement capture",
+            "name": "settlement.proof_matches_receipt",
+            "reason": "nothing settled, so there is no proof to read"
+          },
+          {
+            "label": "the ledger header",
+            "name": "settlement.ledger_header",
+            "reason": "nothing settled, so there is no ledger to check"
+          },
+          {
+            "label": "the validator quorum",
+            "name": "settlement.validator_quorum",
+            "reason": "nothing settled, so no validators signed anything"
+          },
+          {
+            "label": "ledger inclusion",
+            "name": "settlement.ledger_inclusion",
+            "reason": "unchecked: nothing settled, so there is no ledger inclusion to establish"
+          },
+          {
+            "label": "the session join",
+            "name": "session.log_join",
+            "reason": "no session bundle was supplied, so this is a level-1 verdict"
+          }
+        ],
+        "not_checked_line": "Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), the policy signature (nothing settled, so there is no policy signature to check), enclave attestation (leaf 3 is null: this receipt proves it was produced by an unattested signer), the settled fields (nothing settled, so there are no settled fields to compare), the rail anchor (nothing settled, so there is no anchor to compare), the submitted transaction blob (nothing settled, so there is no signed blob), the settlement capture (nothing settled, so there is no proof to read), the ledger header (nothing settled, so there is no ledger to check), the validator quorum (nothing settled, so no validators signed anything), ledger inclusion (unchecked: nothing settled, so there is no ledger inclusion to establish), the session join (no session bundle was supplied, so this is a level-1 verdict).",
+        "ok": true,
+        "receipt_id": "01936b2e-2222-7000-8000-000000000008",
+        "settlement": {
+          "ledger_inclusion": "unchecked",
+          "ledger_inclusion_detail": "nothing settled, so there is no ledger inclusion to establish",
+          "transaction_authorization": "absent",
+          "transaction_authorization_detail": "nothing settled, so no transaction was authorized"
+        },
+        "summary": {
+          "approved": null,
+          "instructed": "The agent was told to make this payment — a person typed it. It traces back to 01936b2e-3333-7000-8000-000000000007.",
+          "rule": "The policy refused it at the instant tier — window_cap blocked it.",
+          "settled": "Nothing settled. The refusal is what this receipt records.",
+          "signer": "The signer is unattested: leaf 3 is null, so nothing proves which machine held the policy key — expected for a dev signer; a Nitro signer attests.",
+          "testimony": "The receipt also commits to a hash of the model's reasoning. That is testimony, not proof: it shows the account was not edited afterwards, never that it was true.",
+          "testimony_note": "The window was already mostly spent by earlier payments.",
+          "when": "The intent was valid until 2026-01-02T03:09:05Z."
+        },
+        "verdict_line": "Nothing was contradicted. Not checked: the escalation challenge (this decision did not escalate, so nothing was signed), the approval quorum (this decision did not escalate, so nobody approved), the policy signature (nothing settled, so there is no policy signature to check), enclave attestation (leaf 3 is null: this receipt proves it was produced by an unattested signer), the settled fields (nothing settled, so there are no settled fields to compare), the rail anchor (nothing settled, so there is no anchor to compare), the submitted transaction blob (nothing settled, so there is no signed blob), the settlement capture (nothing settled, so there is no proof to read), the ledger header (nothing settled, so there is no ledger to check), the validator quorum (nothing settled, so no validators signed anything), ledger inclusion (unchecked: nothing settled, so there is no ledger inclusion to establish), the session join (no session bundle was supplied, so this is a level-1 verdict)."
+      }
+    },
+    {
+      "material": {
+        "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+        "attestation_trust": null,
+        "policy_document": {
+          "document": {
+            "admin_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad",
+            "agents": [
+              {
+                "agent_id": "agent-accounts-payable",
+                "allowlist_assets": [
+                  {
+                    "code": "RLUSD",
+                    "issuer": "rISSUER000000000000000000000000000"
+                  }
+                ],
+                "allowlist_destinations": [
+                  "rSUPPLIER0000000000000000000000000"
+                ],
+                "per_tx_cap": [
+                  {
+                    "amount": "10000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ],
+                "public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+                "reference_binding": {
+                  "allowed_kinds": [
+                    "invoice",
+                    "contract"
+                  ],
+                  "allowlist": [],
+                  "hashes": [],
+                  "required": true
+                },
+                "windows": [
+                  {
+                    "amount": "20000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    },
+                    "seconds": 86400
+                  }
+                ]
+              }
+            ],
+            "approvers": [
+              {
+                "credential_type": "ed25519",
+                "id": "alice@example.com",
+                "origins": [],
+                "public_key": "2822d92330cdbcf0323f0ab93e4eb6f086e82ac48c86b9ae8b7fa04e33d34c9d",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "bob@example.com",
+                "origins": [],
+                "public_key": "1e8859a63118e8b935953ac8331de6f8d1bd026355f5f113cd3b69a67bd6407f",
+                "user_verification": false
+              },
+              {
+                "credential_type": "ed25519",
+                "id": "carol@example.com",
+                "origins": [],
+                "public_key": "8d383a0456efc11c46bcf24d05e036c2986ffbbabd01349fd5218b6eeac6242e",
+                "user_verification": false
+              }
+            ],
+            "format": "merkl-policy-v1",
+            "rail": "xrpl",
+            "risk": {
+              "threshold": "1"
+            },
+            "tiers": {
+              "human": {
+                "expires_seconds": 3600,
+                "quorum": 2,
+                "thresholds": [
+                  {
+                    "amount": "1000.00",
+                    "asset": {
+                      "code": "RLUSD",
+                      "issuer": "rISSUER000000000000000000000000000"
+                    }
+                  }
+                ]
+              },
+              "instant": {}
+            },
+            "treasury": "rTREASURY0000000000000000000000000",
+            "version": "2026.01.0"
+          },
+          "signature": "707a1a0db5a53de22a426650e06a68cf9af3aaac5d81bee59c6c36f251b23e2150e79eb195e4460e02e126c5e065c85bd6fd4ace6a550fde536b92b4a2b3f400",
+          "signer_public_key": "6f55ddb41c8d2a47269167ca010417ccea306812566071ab3b6abcef921d21ad"
+        },
         "session_bundle": {
           "actions": [
             {

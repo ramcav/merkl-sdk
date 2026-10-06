@@ -60,6 +60,13 @@ def test_a_denied_receipt_says_asked_and_refused() -> None:
     assert card.provenance[1].value.startswith("Refused by rule:")
 
 
+def test_a_skipped_rule_before_the_failing_one_is_never_the_reason() -> None:
+    card, _, _ = _run("deny-window-cap")
+    allowed_by = card.provenance[1].value
+    assert allowed_by.startswith("Refused by rule: over the window cap (33.9 in the last 86400s")
+    assert "swap" not in allowed_by and "trade" not in allowed_by
+
+
 def test_rules_passed_phrase_reads_plainly() -> None:
     from merkl.core.verify.card import rules_passed_phrase
 

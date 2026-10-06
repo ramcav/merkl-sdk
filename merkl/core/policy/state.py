@@ -65,6 +65,12 @@ class SpendEntry:
     status: str = SpendStatus.RESERVED.value
     commitment: str | None = None
     settlement_ref: str | None = None
+    expires_at: str | None = None
+    """When an unsettled reservation stops counting: the intent's own expiry.
+
+    The backstop for a reservation nothing else will ever release. ``None`` on
+    entries written before 0.3.3; the signer falls back to the escalation
+    lifetime for those."""
 
     def __post_init__(self) -> None:
         token(self.reservation_id, "spend.reservation_id", max_length=128)
@@ -78,6 +84,8 @@ class SpendEntry:
             token(self.commitment, "spend.commitment", max_length=128)
         if self.settlement_ref is not None:
             token(self.settlement_ref, "spend.settlement_ref", max_length=256)
+        if self.expires_at is not None:
+            instant(self.expires_at, "spend.expires_at")
 
     @property
     def amount(self) -> Decimal:
@@ -94,6 +102,7 @@ class SpendEntry:
                 "status": self.status,
                 "commitment": self.commitment,
                 "settlement_ref": self.settlement_ref,
+                "expires_at": self.expires_at,
             }
         )
 
@@ -109,6 +118,48 @@ class SpendEntry:
             status=obj.get("status", SpendStatus.RESERVED.value),
             commitment=obj.get("commitment"),
             settlement_ref=obj.get("settlement_ref"),
+            expires_at=obj.get("expires_at"),
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class EscalationEntry:
+    """An escalation waiting for people, as the sealed state keeps it.
+
+    ``content`` is the signer's own serialisation of everything it needs to
+    resume the escalation after a restart (instruction, intent, decision,
+    prepared transaction); this module only orders and expires it.
+    """
+
+    challenge: str
+    reservation_id: str
+    expires_at: str
+    content: JSONObject
+
+    def __post_init__(self) -> None:
+        token(self.challenge, "escalation.challenge", max_length=128)
+        token(self.reservation_id, "escalation.reservation_id", max_length=128)
+        instant(self.expires_at, "escalation.expires_at")
+
+    def to_content(self) -> JSONObject:
+        return {
+            "challenge": self.challenge,
+            "reservation_id": self.reservation_id,
+            "expires_at": self.expires_at,
+            "content": self.content,
+        }
+
+    @classmethod
+    def from_content(cls, data: Any) -> EscalationEntry:
+        obj = _object(data, "escalation")
+        content = _required(obj, "content", "escalation")
+        if not isinstance(content, dict):
+            raise StateError("escalation.content must be an object")
+        return cls(
+            challenge=_required(obj, "challenge", "escalation"),
+            reservation_id=_required(obj, "reservation_id", "escalation"),
+            expires_at=_required(obj, "expires_at", "escalation"),
+            content=content,
         )
 
 
@@ -218,6 +269,7 @@ class LedgerState:
     sequence: int = 0
     entries: tuple[SpendEntry, ...] = ()
     nonces: tuple[NonceEntry, ...] = ()
+    escalations: tuple[EscalationEntry, ...] = ()
 
     def __post_init__(self) -> None:
         token(self.treasury, "state.treasury", max_length=128)
@@ -252,14 +304,28 @@ class LedgerState:
         return self._next(entries=(*self.entries, entry))
 
     def with_release(self, reservation_id: str) -> LedgerState:
-        """Drop a reservation whose attempt provably failed."""
+        """Drop a reservation whose attempt provably failed, and its escalation."""
         existing = self.entry(reservation_id)
         if existing is None:
             raise StateError(f"no reservation {reservation_id}")
         if existing.status == SpendStatus.SETTLED.value:
             raise StateError(f"reservation {reservation_id} settled; it cannot be released")
         return self._next(
-            entries=tuple(e for e in self.entries if e.reservation_id != reservation_id)
+            entries=tuple(e for e in self.entries if e.reservation_id != reservation_id),
+            escalations=tuple(e for e in self.escalations if e.reservation_id != reservation_id),
+        )
+
+    def with_escalation(self, entry: EscalationEntry) -> LedgerState:
+        if any(e.challenge == entry.challenge for e in self.escalations):
+            raise StateError(f"escalation {entry.challenge[:16]} already exists")
+        return self._next(escalations=(*self.escalations, entry))
+
+    def with_escalation_resolved(self, challenge: str) -> LedgerState:
+        """Forget an escalation that people answered; its reservation is untouched."""
+        if not any(e.challenge == challenge for e in self.escalations):
+            raise StateError(f"no escalation {challenge[:16]}")
+        return self._next(
+            escalations=tuple(e for e in self.escalations if e.challenge != challenge)
         )
 
     def with_settlement(self, reservation_id: str, settlement_ref: str) -> LedgerState:
@@ -300,25 +366,34 @@ class LedgerState:
     # -- snapshot ---------------------------------------------------------- #
 
     def to_content(self) -> JSONObject:
-        return {
+        content: JSONObject = {
             "treasury": self.treasury,
             "sequence": self.sequence,
             "entries": [e.to_content() for e in self.entries],
             "nonces": [n.to_content() for n in self.nonces],
         }
+        if self.escalations:
+            content["escalations"] = [e.to_content() for e in self.escalations]
+        return content
 
     @classmethod
     def from_content(cls, data: Any) -> LedgerState:
         obj = _object(data, "state")
         entries = obj.get("entries", [])
         nonces = obj.get("nonces", [])
-        if not isinstance(entries, list) or not isinstance(nonces, list):
-            raise StateError("state.entries and state.nonces must be arrays")
+        escalations = obj.get("escalations", [])
+        if (
+            not isinstance(entries, list)
+            or not isinstance(nonces, list)
+            or not isinstance(escalations, list)
+        ):
+            raise StateError("state.entries, state.nonces and state.escalations must be arrays")
         return cls(
             treasury=_required(obj, "treasury", "state"),
             sequence=obj.get("sequence", 0),
             entries=tuple(SpendEntry.from_content(e) for e in entries),
             nonces=tuple(NonceEntry.from_content(n) for n in nonces),
+            escalations=tuple(EscalationEntry.from_content(e) for e in escalations),
         )
 
 
@@ -354,6 +429,14 @@ class StateStore(Protocol):
 
     def settle(self, reservation_id: str, settlement_ref: str) -> int:
         """Mark a reservation settled, keeping the amount counted."""
+        ...
+
+    def escalate(self, entry: EscalationEntry) -> int:
+        """Persist an escalation beside its reservation."""
+        ...
+
+    def resolve_escalation(self, challenge: str) -> int:
+        """Forget an answered escalation, keeping its reservation."""
         ...
 
     def nonces_seen(self, agent_id: str) -> frozenset[str]:

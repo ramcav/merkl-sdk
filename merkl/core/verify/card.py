@@ -57,6 +57,7 @@ _RULE_NAMES: Final[dict[str, str]] = {
     "may_swap": "the agent may not trade",
     "per_tx_cap": "over the per-transaction cap",
     "sliding_window": "over the sliding-window cap",
+    "window_cap": "over the window cap",
     "reference_binding": "reference mismatch",
     "intent_expiry": "the intent had expired",
     "agent_known": "unknown agent",
@@ -275,14 +276,19 @@ def _blocked_rule(decision: JSONValue) -> str | None:
     # would tell a reader a trade was refused by the destination allowlist, which
     # a trade does not have.
     blocked = [
-        str(r.get("name") or "")
-        for r in rules
-        if isinstance(r, Mapping) and r.get("outcome") in ("fail", "escalate")
+        r for r in rules if isinstance(r, Mapping) and r.get("outcome") in ("fail", "escalate")
     ]
     if not blocked:
         return None
-    name = blocked[0]
-    return _RULE_NAMES.get(name, name.replace("_", " "))
+    return "; ".join(_rule_in_words(r) for r in blocked)
+
+
+def _rule_in_words(rule: Mapping[str, Any]) -> str:
+    """A failing rule as words, with the engine's own detail when it gave one."""
+    name = str(rule.get("name") or "")
+    words = _RULE_NAMES.get(name, name.replace("_", " "))
+    detail = str(rule.get("detail") or "").strip()
+    return f"{words} ({detail})" if detail else words
 
 
 def _because(instruction: JSONValue) -> str:

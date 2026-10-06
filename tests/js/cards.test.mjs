@@ -69,8 +69,15 @@ test('a settled trade reads Bought, Sold against its limit, and Rate', () => {
   // The rule that refused it is the one that failed, never one that was skipped.
   assert.equal(
     refused.card.provenance.find((l) => l.label === 'Allowed by').value,
-    'Refused by rule: the agent may not trade',
+    'Refused by rule: the agent may not trade (agent may not trade)',
   );
+});
+
+test('a skipped rule listed before the failing one is never named as the reason', () => {
+  const refused = CARDS.cases.find((c) => c.name === 'deny-window-cap');
+  const allowedBy = refused.card.provenance.find((l) => l.label === 'Allowed by').value;
+  assert.match(allowedBy, /^Refused by rule: over the window cap \(33\.9 in the last 86400s/);
+  assert.doesNotMatch(allowedBy, /swap|trade/);
 });
 
 test('a pending receipt reads as waiting, not as expired', async (t) => {

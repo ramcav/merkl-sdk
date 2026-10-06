@@ -3983,6 +3983,509 @@
         "complete": false,
         "ok": true
       }
+    },
+    {
+      "description": "A payment refused only by window_cap, with a skipped may_swap rule listed before the failure. A reader names the rule that failed, never the skip.",
+      "disclosure": {
+        "leaf_hashes": [
+          "319d8c4f84ae9b46df7400e50966813946d45c5f1b829536db83778a29746d23",
+          "d47630027c8d1fe5a55f087840ab6ee7c3d673e97995efe608a248fa4c6a02be",
+          "4f09fc6090d9c2736c51adbdb3e3d673222c43a97ef227c251692ffa6ad7f06f",
+          "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+          "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+          "d1a496d36b7d24cbec0c599b74dcd9b1023224257cab405d713601f6795402ed",
+          "d3db7686c3182f2a3996349a3d6132a8a4e471b19fc4ec210a262b435dbba1a5",
+          "d3db7686c3182f2a3996349a3d6132a8a4e471b19fc4ec210a262b435dbba1a5"
+        ],
+        "leaves": [
+          {
+            "content": {
+              "outcome": "deny",
+              "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+              "rules": [
+                {
+                  "detail": "key belongs to agent-accounts-payable",
+                  "name": "agent_known",
+                  "outcome": "pass"
+                },
+                {
+                  "detail": "not a trade",
+                  "name": "may_swap",
+                  "outcome": "skip"
+                },
+                {
+                  "detail": "6 is within the per-transaction cap 10 XRP",
+                  "name": "per_tx_cap",
+                  "outcome": "pass"
+                },
+                {
+                  "detail": "33.9 in the last 86400s would exceed the 30 XRP window (27.9 already authorized, including in-flight)",
+                  "name": "window_cap",
+                  "outcome": "fail"
+                }
+              ],
+              "tier": "instant"
+            },
+            "index": 2,
+            "name": "policy_decision",
+            "proof": {
+              "directions": [
+                "right",
+                "left",
+                "right"
+              ],
+              "siblings": [
+                "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+                "27f1b3bdc03b509eab6bb082b71b44ea6e30532f22bd495cb0ac185b8df37b4e",
+                "95279316632172ec0ab847c6ba104085f7817df178501991928a2df1cf839a11"
+              ]
+            }
+          }
+        ],
+        "left": "ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6",
+        "receipt_id": "01936b2e-2222-7000-8000-000000000008",
+        "root": "134b2f1f2d9101bbf3efa02a48d0c27060c78938565c4d7718a917b68196775c",
+        "version": "merkl-receipt-v1"
+      },
+      "disclosure_verification": {
+        "checks": [
+          {
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "name": "disclosure.root",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "name": "proof.policy_decision",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.root",
+            "status": "pass"
+          }
+        ],
+        "complete": true,
+        "ok": true
+      },
+      "envelope": {
+        "agent_id": "agent-accounts-payable",
+        "leaf_hashes": [
+          "319d8c4f84ae9b46df7400e50966813946d45c5f1b829536db83778a29746d23",
+          "d47630027c8d1fe5a55f087840ab6ee7c3d673e97995efe608a248fa4c6a02be",
+          "4f09fc6090d9c2736c51adbdb3e3d673222c43a97ef227c251692ffa6ad7f06f",
+          "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+          "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+          "d1a496d36b7d24cbec0c599b74dcd9b1023224257cab405d713601f6795402ed",
+          "d3db7686c3182f2a3996349a3d6132a8a4e471b19fc4ec210a262b435dbba1a5",
+          "d3db7686c3182f2a3996349a3d6132a8a4e471b19fc4ec210a262b435dbba1a5"
+        ],
+        "left": "ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6",
+        "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+        "rail": "xrpl",
+        "receipt_id": "01936b2e-2222-7000-8000-000000000008",
+        "root": "134b2f1f2d9101bbf3efa02a48d0c27060c78938565c4d7718a917b68196775c",
+        "signer_public_key": "cb71a82c2d84f675be0172080c40f2e1cf833970e62e4b39261cc4b4df148a6a",
+        "treasury": "rTREASURY0000000000000000000000000",
+        "version": "merkl-receipt-v1"
+      },
+      "envelope_hash": "2558a5586bdf0f4af24f6e3fc58341771b0566a9b518b5d1b2f82c133a218a17",
+      "half_proofs": {
+        "instruction": {
+          "directions": [
+            "right",
+            "right"
+          ],
+          "half": "left",
+          "index": 0,
+          "level": 2,
+          "siblings": [
+            "d47630027c8d1fe5a55f087840ab6ee7c3d673e97995efe608a248fa4c6a02be",
+            "0e53b574f24bb6f357c80904f8997624b9865637106b52c4269f1f5198d9317f"
+          ],
+          "subtree_root": "ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6"
+        },
+        "intent": {
+          "directions": [
+            "left",
+            "right"
+          ],
+          "half": "left",
+          "index": 1,
+          "level": 2,
+          "siblings": [
+            "319d8c4f84ae9b46df7400e50966813946d45c5f1b829536db83778a29746d23",
+            "0e53b574f24bb6f357c80904f8997624b9865637106b52c4269f1f5198d9317f"
+          ],
+          "subtree_root": "ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6"
+        },
+        "policy_decision": {
+          "directions": [
+            "right",
+            "left"
+          ],
+          "half": "left",
+          "index": 2,
+          "level": 2,
+          "siblings": [
+            "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "27f1b3bdc03b509eab6bb082b71b44ea6e30532f22bd495cb0ac185b8df37b4e"
+          ],
+          "subtree_root": "ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6"
+        },
+        "reasoning": {
+          "directions": [
+            "right",
+            "left"
+          ],
+          "half": "right",
+          "index": 6,
+          "level": 2,
+          "siblings": [
+            "d3db7686c3182f2a3996349a3d6132a8a4e471b19fc4ec210a262b435dbba1a5",
+            "39c9e1a58ef65cce79f50a9bd2749510e27ce8379a97f91fcb26759ea0cd3c1e"
+          ],
+          "subtree_root": "95279316632172ec0ab847c6ba104085f7817df178501991928a2df1cf839a11"
+        },
+        "result": {
+          "directions": [
+            "left",
+            "right"
+          ],
+          "half": "right",
+          "index": 5,
+          "level": 2,
+          "siblings": [
+            "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+            "2b387a892dc7b1164e6bb1145f9dbb1d0e0cf547eee66e2de95f43dd1b952ade"
+          ],
+          "subtree_root": "95279316632172ec0ab847c6ba104085f7817df178501991928a2df1cf839a11"
+        },
+        "settlement": {
+          "directions": [
+            "right",
+            "right"
+          ],
+          "half": "right",
+          "index": 4,
+          "level": 2,
+          "siblings": [
+            "d1a496d36b7d24cbec0c599b74dcd9b1023224257cab405d713601f6795402ed",
+            "2b387a892dc7b1164e6bb1145f9dbb1d0e0cf547eee66e2de95f43dd1b952ade"
+          ],
+          "subtree_root": "95279316632172ec0ab847c6ba104085f7817df178501991928a2df1cf839a11"
+        },
+        "signer_attestation": {
+          "directions": [
+            "left",
+            "left"
+          ],
+          "half": "left",
+          "index": 3,
+          "level": 2,
+          "siblings": [
+            "4f09fc6090d9c2736c51adbdb3e3d673222c43a97ef227c251692ffa6ad7f06f",
+            "27f1b3bdc03b509eab6bb082b71b44ea6e30532f22bd495cb0ac185b8df37b4e"
+          ],
+          "subtree_root": "ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6"
+        }
+      },
+      "leaf_hashes": [
+        "319d8c4f84ae9b46df7400e50966813946d45c5f1b829536db83778a29746d23",
+        "d47630027c8d1fe5a55f087840ab6ee7c3d673e97995efe608a248fa4c6a02be",
+        "4f09fc6090d9c2736c51adbdb3e3d673222c43a97ef227c251692ffa6ad7f06f",
+        "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+        "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+        "d1a496d36b7d24cbec0c599b74dcd9b1023224257cab405d713601f6795402ed",
+        "d3db7686c3182f2a3996349a3d6132a8a4e471b19fc4ec210a262b435dbba1a5",
+        "d3db7686c3182f2a3996349a3d6132a8a4e471b19fc4ec210a262b435dbba1a5"
+      ],
+      "leaf_names": [
+        "instruction",
+        "intent",
+        "policy_decision",
+        "signer_attestation",
+        "settlement",
+        "result",
+        "reasoning"
+      ],
+      "leaves": [
+        {
+          "content_hash": "b4eace9946dea0b2dddbf0f9649f708b9906e8be00d4df3eb67cc29203c75ed8",
+          "ref": "01936b2e-3333-7000-8000-000000000007",
+          "source": "human_input"
+        },
+        {
+          "agent_public_key": "67c4469c347b0c931b1d11b0c98a12f49e3ce9943a90e898e5de10ea32f9ae72",
+          "amount": {
+            "currency": "XRP",
+            "value": "6"
+          },
+          "destination": "rSUPPLIER0000000000000000000000000",
+          "expires_at": "2026-01-02T03:09:05Z",
+          "nonce": "7e8f90a1b2c3d4e5f60718293a4b5c6d",
+          "policy_version": "2026.01.0",
+          "rail": "xrpl",
+          "treasury": "rTREASURY0000000000000000000000000",
+          "type": "payment"
+        },
+        {
+          "outcome": "deny",
+          "policy_hash": "4bc56bce57e996f284163dfa302571ff3dfadeba78aaa8a8d05f94c3835c4b59",
+          "rules": [
+            {
+              "detail": "key belongs to agent-accounts-payable",
+              "name": "agent_known",
+              "outcome": "pass"
+            },
+            {
+              "detail": "not a trade",
+              "name": "may_swap",
+              "outcome": "skip"
+            },
+            {
+              "detail": "6 is within the per-transaction cap 10 XRP",
+              "name": "per_tx_cap",
+              "outcome": "pass"
+            },
+            {
+              "detail": "33.9 in the last 86400s would exceed the 30 XRP window (27.9 already authorized, including in-flight)",
+              "name": "window_cap",
+              "outcome": "fail"
+            }
+          ],
+          "tier": "instant"
+        },
+        null,
+        null,
+        {
+          "balance_deltas": [],
+          "detail": "Denied by policy; nothing was submitted. window_cap: 33.9 in the last 86400s would exceed the 30 XRP window",
+          "outcome": "denied"
+        },
+        {
+          "content_hash": "17506ab93d4c49c6cca05b14ef2a0e36f247eea1c51295e5f69f49a9e6cd8156",
+          "note": "The window was already mostly spent by earlier payments.",
+          "source": "claude-code",
+          "testimony": true
+        }
+      ],
+      "left": "ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6",
+      "name": "deny-window-cap",
+      "proofs": {
+        "instruction": {
+          "directions": [
+            "right",
+            "right",
+            "right"
+          ],
+          "index": 0,
+          "siblings": [
+            "d47630027c8d1fe5a55f087840ab6ee7c3d673e97995efe608a248fa4c6a02be",
+            "0e53b574f24bb6f357c80904f8997624b9865637106b52c4269f1f5198d9317f",
+            "95279316632172ec0ab847c6ba104085f7817df178501991928a2df1cf839a11"
+          ]
+        },
+        "intent": {
+          "directions": [
+            "left",
+            "right",
+            "right"
+          ],
+          "index": 1,
+          "siblings": [
+            "319d8c4f84ae9b46df7400e50966813946d45c5f1b829536db83778a29746d23",
+            "0e53b574f24bb6f357c80904f8997624b9865637106b52c4269f1f5198d9317f",
+            "95279316632172ec0ab847c6ba104085f7817df178501991928a2df1cf839a11"
+          ]
+        },
+        "policy_decision": {
+          "directions": [
+            "right",
+            "left",
+            "right"
+          ],
+          "index": 2,
+          "siblings": [
+            "bfa52ddf43d9caec3861c1c7bf1ecd59b8ce7bc955e71862ae065781c22ac2fe",
+            "27f1b3bdc03b509eab6bb082b71b44ea6e30532f22bd495cb0ac185b8df37b4e",
+            "95279316632172ec0ab847c6ba104085f7817df178501991928a2df1cf839a11"
+          ]
+        },
+        "reasoning": {
+          "directions": [
+            "right",
+            "left",
+            "left"
+          ],
+          "index": 6,
+          "siblings": [
+            "d3db7686c3182f2a3996349a3d6132a8a4e471b19fc4ec210a262b435dbba1a5",
+            "39c9e1a58ef65cce79f50a9bd2749510e27ce8379a97f91fcb26759ea0cd3c1e",
+            "ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6"
+          ]
+        },
+        "result": {
+          "directions": [
+            "left",
+            "right",
+            "left"
+          ],
+          "index": 5,
+          "siblings": [
+            "db949119d81323f23052f29a2d9a42db17c494a2554a8483b869241eb800eefc",
+            "2b387a892dc7b1164e6bb1145f9dbb1d0e0cf547eee66e2de95f43dd1b952ade",
+            "ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6"
+          ]
+        },
+        "settlement": {
+          "directions": [
+            "right",
+            "right",
+            "left"
+          ],
+          "index": 4,
+          "siblings": [
+            "d1a496d36b7d24cbec0c599b74dcd9b1023224257cab405d713601f6795402ed",
+            "2b387a892dc7b1164e6bb1145f9dbb1d0e0cf547eee66e2de95f43dd1b952ade",
+            "ed5f24643997314851c6d92b7e7f9ecd114ac8c00abdbd0f7030c7d8f1fbb9a6"
+          ]
+        },
+        "signer_attestation": {
+          "directions": [
+            "left",
+            "left",
+            "right"
+          ],
+          "index": 3,
+          "siblings": [
+            "4f09fc6090d9c2736c51adbdb3e3d673222c43a97ef227c251692ffa6ad7f06f",
+            "27f1b3bdc03b509eab6bb082b71b44ea6e30532f22bd495cb0ac185b8df37b4e",
+            "95279316632172ec0ab847c6ba104085f7817df178501991928a2df1cf839a11"
+          ]
+        }
+      },
+      "right": "95279316632172ec0ab847c6ba104085f7817df178501991928a2df1cf839a11",
+      "root": "134b2f1f2d9101bbf3efa02a48d0c27060c78938565c4d7718a917b68196775c",
+      "verification": {
+        "checks": [
+          {
+            "name": "receipt.version",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.count",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.required_present",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.instruction",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.intent",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.policy_decision",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.signer_attestation",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.settlement",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.result",
+            "status": "pass"
+          },
+          {
+            "name": "leaf.reasoning",
+            "status": "pass"
+          },
+          {
+            "name": "leaves.padding",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.left",
+            "status": "pass"
+          },
+          {
+            "name": "policy.signature",
+            "status": "not_implemented"
+          },
+          {
+            "name": "signer.attestation",
+            "status": "not_implemented"
+          },
+          {
+            "name": "intent.matches_settled_fields",
+            "status": "not_implemented"
+          },
+          {
+            "name": "settlement.anchor_equals_left",
+            "status": "not_implemented"
+          },
+          {
+            "name": "settlement.signed_blob",
+            "status": "not_implemented"
+          },
+          {
+            "name": "settlement.ledger_inclusion",
+            "status": "not_implemented"
+          },
+          {
+            "name": "commitment.right",
+            "status": "pass"
+          },
+          {
+            "name": "commitment.root",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.rail",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.treasury",
+            "status": "pass"
+          },
+          {
+            "name": "envelope.policy_hash",
+            "status": "pass"
+          },
+          {
+            "name": "session.log_join",
+            "status": "not_implemented"
+          }
+        ],
+        "complete": false,
+        "ok": true
+      }
     }
   ],
   "description": "Complete merkl-receipt-v1 receipts. Leaves hash under merkl-receipt-leaf-v1, pad to eight by repeating leaf 6, fold into LEFT (0-3) and RIGHT (4-7), and ROOT = SHA-256(LEFT || RIGHT). envelope_hash = SHA-256(canonical_bytes(envelope)).",

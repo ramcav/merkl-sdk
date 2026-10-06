@@ -9,6 +9,32 @@ Releases are cut by pushing a `v<version>` tag; see
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-06
+
+### Fixed
+
+- **Orphaned reservations no longer outlive a signer restart.** 0.3.2's sweep
+  worked off the in-memory pending-escalation map, which was not persisted,
+  while the reservations it released were. A signer recreated with expired
+  escalations in its state reported `pending_escalations: 0` yet `window_cap`
+  still counted their amounts, so a payment that fit was refused instead of
+  escalating. Pending escalations are now persisted in the sealed state beside
+  the reservations (same `StateStore`, sequence-bumped, dropped in the same
+  step as the release) and restored when the engine is built. Every reservation
+  also carries an `expires_at` (the intent's, or the escalation's if later),
+  and the sweep releases any reserved-but-unsettled entry past it even with no
+  escalation to match; entries written by 0.3.2 and earlier, which have none,
+  lapse one escalation lifetime (`tiers.human.expires_seconds`) after they were
+  made. The sweep runs once when the engine is built, before it serves.
+  Sealed state without escalations keeps its previous shape.
+- **The receipt card and summary name the rule that failed, never a skip.**
+  The plain-language summary named every rule whose outcome was not `pass`, so
+  a payment refused only by `window_cap` read "may_swap blocked it" (the
+  skipped rule listed first). Both implementations now name only `fail` rules;
+  the card's "Refused by rule" line gives each in words with the engine's own
+  detail, and `window_cap` has words (`over the window cap`). New vector case
+  `deny-window-cap` puts a skip ahead of the fail so both suites pin it.
+
 ## [0.3.2] - 2026-10-05
 
 ### Fixed
