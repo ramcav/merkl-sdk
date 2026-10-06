@@ -1313,6 +1313,62 @@ def _swap_denied_receipt(rng: random.Random) -> Receipt:
     )
 
 
+def _window_denied_receipt(rng: random.Random) -> Receipt:
+    """A payment refused only by the window, with a skipped rule ahead of the failure.
+
+    ``may_swap`` is skipped for anything that is not a trade, and it runs before
+    ``window_cap`` does. A card that names the first rule that is not a pass
+    reads "may swap" here; the rule that refused the payment is the window.
+    """
+    del rng
+    leaves = ReceiptLeaves(
+        instruction=Instruction(
+            source="human_input",
+            content_hash=digest("pay the courier six XRP"),
+            ref="01936b2e-3333-7000-8000-000000000007",
+        ),
+        intent=_intent(
+            amount=Amount(value="6", currency="XRP"),
+            nonce="7e8f90a1b2c3d4e5f60718293a4b5c6d",
+            reference=None,
+        ),
+        policy_decision=PolicyDecision(
+            policy_hash=POLICY_HASH,
+            rules=(
+                PolicyRule("agent_known", "pass", "key belongs to agent-accounts-payable"),
+                PolicyRule("may_swap", "skip", "not a trade"),
+                PolicyRule("per_tx_cap", "pass", "6 is within the per-transaction cap 10 XRP"),
+                PolicyRule(
+                    "window_cap",
+                    "fail",
+                    "33.9 in the last 86400s would exceed the 30 XRP window "
+                    "(27.9 already authorized, including in-flight)",
+                ),
+            ),
+            outcome="deny",
+            tier="instant",
+        ),
+        signer_attestation=None,
+        settlement=None,
+        result=Result(
+            outcome="denied",
+            detail="Denied by policy; nothing was submitted. window_cap: 33.9 in the last "
+            "86400s would exceed the 30 XRP window",
+        ),
+        reasoning=Reasoning(
+            content_hash=digest("model trace for the courier payment"),
+            source="claude-code",
+            note="The window was already mostly spent by earlier payments.",
+        ),
+    )
+    return Receipt.build(
+        receipt_id="01936b2e-2222-7000-8000-000000000008",
+        leaves=leaves,
+        agent_id="agent-accounts-payable",
+        signer_public_key=SIGNER_KEY,
+    )
+
+
 def _deny_receipt(rng: random.Random) -> Receipt:
     leaves = ReceiptLeaves(
         instruction=Instruction(
@@ -1690,6 +1746,7 @@ def receipts(rng: random.Random) -> dict[str, Receipt]:
         "allow-settled-fake-rail": _fake_receipt(rng),
         "swap-settled": _swap_receipt(rng),
         "swap-denied-may-not-trade": _swap_denied_receipt(rng),
+        "deny-window-cap": _window_denied_receipt(rng),
     }
 
 
@@ -1729,6 +1786,10 @@ def receipt_vectors(built: dict[str, Receipt]) -> JSONObject:
             "Refused before any question about assets or size, because whether an "
             "agent may trade at all is a separate authority from what it may trade."
         ),
+        "deny-window-cap": (
+            "A payment refused only by window_cap, with a skipped may_swap rule listed "
+            "before the failure. A reader names the rule that failed, never the skip."
+        ),
     }
     reveal = {
         "allow-settled": ["intent", "settlement"],
@@ -1738,6 +1799,7 @@ def receipt_vectors(built: dict[str, Receipt]) -> JSONObject:
         "allow-settled-fake-rail": ["instruction", "settlement"],
         "swap-settled": ["intent", "result"],
         "swap-denied-may-not-trade": ["intent", "policy_decision"],
+        "deny-window-cap": ["policy_decision"],
     }
     return {
         "description": (

@@ -3050,7 +3050,7 @@ export function summarize(contents, envelope, approvedIds = []) {
     const tier = String(decision.tier ?? '?');
     const rules = Array.isArray(decision.rules) ? decision.rules : [];
     const names = rules.filter((r) => r && typeof r === 'object');
-    const blocked = names.filter((r) => r.outcome !== 'pass' && r.outcome !== null && r.outcome !== undefined);
+    const blocked = names.filter((r) => r.outcome === 'fail');
     if (outcomeWord === 'allow') {
       rule = `The policy allowed it at the ${tier} tier; ${names.length} rules ran and all of them passed.`;
     } else if (outcomeWord === 'deny') {
@@ -3149,6 +3149,7 @@ const CARD_RULE_NAMES = {
   may_swap: 'the agent may not trade',
   per_tx_cap: 'over the per-transaction cap',
   sliding_window: 'over the sliding-window cap',
+  window_cap: 'over the window cap',
   reference_binding: 'reference mismatch',
   intent_expiry: 'the intent had expired',
   agent_known: 'unknown agent',
@@ -3211,6 +3212,13 @@ function statusMark(status) {
   return '…';
 }
 
+function ruleInWords(rule) {
+  const name = String(rule.name ?? '');
+  const words = CARD_RULE_NAMES[name] ?? name.replaceAll('_', ' ');
+  const detail = String(rule.detail ?? '').trim();
+  return detail ? `${words} (${detail})` : words;
+}
+
 function blockedRule(decision) {
   const rules = member(decision, 'rules');
   if (!Array.isArray(rules)) return null;
@@ -3219,8 +3227,7 @@ function blockedRule(decision) {
     (r) => r && typeof r === 'object' && (r.outcome === 'fail' || r.outcome === 'escalate'),
   );
   if (!blocked.length) return null;
-  const name = String(blocked[0].name ?? '');
-  return CARD_RULE_NAMES[name] ?? name.replaceAll('_', ' ');
+  return blocked.map(ruleInWords).join('; ');
 }
 
 function allowedBy(status, decision, policyVersion, envelope) {

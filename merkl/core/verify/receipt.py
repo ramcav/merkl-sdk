@@ -266,7 +266,7 @@ def _summarize(
             [
                 str(r.get("name"))
                 for r in rules
-                if isinstance(r, Mapping) and r.get("outcome") not in ("pass", None)
+                if isinstance(r, Mapping) and r.get("outcome") == "fail"
             ]
             if isinstance(rules, list)
             else []

@@ -173,6 +173,7 @@ class TestReceiptVectors:
             "allow-settled-fake-rail",
             "swap-settled",
             "swap-denied-may-not-trade",
+            "deny-window-cap",
         }
 
     @pytest.mark.parametrize("case", RECEIPTS["cases"], ids=ids(RECEIPTS["cases"]))
