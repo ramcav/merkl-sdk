@@ -339,8 +339,8 @@ async with client.session(goal="Process refunds", allowed_tools=["query_db"]) as
 
 ```bash
 uv pip install -p .venv/bin/python -e ".[dev,xrpl,signer,signer-xrpl]"
-pytest                                          # 1775 tests, 10 skipped
-npm test                                        # 257 JS tests, node --test, no bundler
+pytest                                          # 1835 tests, 10 skipped
+npm test                                        # 271 JS tests, node --test, no bundler
 mypy --strict merkl/core merkl/signer merkl/adapters merkl/sdk/receipts.py merkl/sdk/receipt_store.py nitro merkl/demo merkl/cli
 ruff check merkl/ tests/
 ruff format --check merkl/ tests/
@@ -409,11 +409,14 @@ docker run -d --name merkl-signer -v merkl-signer:/var/lib/merkl-signer \
 ```bash
 # bump the version in BOTH pyproject.toml and merkl/core/verify/js/package.json,
 # add a CHANGELOG.md section, commit, then:
-git tag v0.3.2 && git push origin v0.3.2
+git tag v0.3.3 && git push origin v0.3.2
 ```
 
-Both files and `CHANGELOG.md` are at `0.3.2` (an unanswered escalation now
-gives its reservation back when it expires; before that, 0.3.1 — phase 20: a managed signer keeps
+Both files and `CHANGELOG.md` are at `0.3.3` (pending escalations are persisted in
+the sealed state beside their reservations, every reservation carries an
+`expires_at`, and the signer sweeps on boot; the card names the rule that failed,
+never a skip; before that, 0.3.2 — an unanswered escalation gives its reservation
+back when it expires; before that, 0.3.1 — phase 20: a managed signer keeps
 nothing of the agent's after handing its bundle to the notary, and public urls
 in the bundle instead of the notary's internal one). Drafting the notes is not
 cutting the release: the tag is.
