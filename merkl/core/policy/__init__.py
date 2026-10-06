@@ -57,6 +57,7 @@ from merkl.core.policy.engine import (
     evaluate,
 )
 from merkl.core.policy.state import (
+    EscalationEntry,
     LedgerState,
     NonceEntry,
     Outflow,
@@ -101,6 +102,7 @@ __all__ = [
     "RiskScore",
     "RuleOutcome",
     "SignedPolicy",
+    "EscalationEntry",
     "SpendEntry",
     "SpendStatus",
     "StateError",

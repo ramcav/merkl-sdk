@@ -33,6 +33,7 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from merkl.core.policy.state import (
+    EscalationEntry,
     LedgerState,
     NonceEntry,
     Outflow,
@@ -136,6 +137,12 @@ class SealedStateStore:
 
     def settle(self, reservation_id: str, settlement_ref: str) -> int:
         return self._commit(self._state.with_settlement(reservation_id, settlement_ref))
+
+    def escalate(self, entry: EscalationEntry) -> int:
+        return self._commit(self._state.with_escalation(entry))
+
+    def resolve_escalation(self, challenge: str) -> int:
+        return self._commit(self._state.with_escalation_resolved(challenge))
 
     def nonces_seen(self, agent_id: str) -> frozenset[str]:
         return frozenset(n.nonce for n in self._state.nonces if n.agent_id == agent_id)

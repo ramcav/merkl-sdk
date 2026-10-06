@@ -8,6 +8,7 @@ import pytest
 
 from merkl.core.canonical import shift_instant
 from merkl.core.policy.state import (
+    EscalationEntry,
     LedgerState,
     NonceEntry,
     Outflow,
@@ -167,3 +168,39 @@ class TestReconciliation:
         report = reconcile(state, [])
         assert report.clean, "an unsettled reservation is not an unauthorized outflow"
         assert report.unsettled_reservations == ("r1",)
+
+
+class TestEscalations:
+    def _escalation(self, reservation_id: str = "r1") -> EscalationEntry:
+        return EscalationEntry(
+            challenge="ab" * 32,
+            reservation_id=reservation_id,
+            expires_at="2026-01-01T01:00:00Z",
+            content={"quorum": 2},
+        )
+
+    def test_an_escalation_round_trips_beside_its_reservation(self) -> None:
+        state = (
+            LedgerState(treasury=TREASURY)
+            .with_reservation(entry())
+            .with_escalation(self._escalation())
+        )
+        assert LedgerState.from_content(state.to_content()) == state
+
+    def test_releasing_the_reservation_drops_its_escalation_in_one_step(self) -> None:
+        state = (
+            LedgerState(treasury=TREASURY)
+            .with_reservation(entry())
+            .with_escalation(self._escalation())
+        )
+        released = state.with_release("r1")
+        assert released.escalations == ()
+        assert released.sequence == state.sequence + 1
+
+    def test_state_without_escalations_keeps_its_old_shape(self) -> None:
+        assert "escalations" not in LedgerState(treasury=TREASURY).to_content()
+
+    def test_a_reservation_remembers_its_expiry(self) -> None:
+        stamped = entry(expires_at="2026-01-01T00:10:00Z")
+        assert SpendEntry.from_content(stamped.to_content()) == stamped
+        assert "expires_at" not in entry().to_content()

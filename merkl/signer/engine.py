@@ -32,7 +32,7 @@ import secrets
 from collections.abc import Callable, Sequence
 from typing import Any, Final
 
-from merkl.core.canonical import JSONObject, JSONValue, parse_instant
+from merkl.core.canonical import JSONObject, JSONValue, parse_instant, shift_instant
 from merkl.core.intent import Intent
 from merkl.core.policy.approvals import (
     ApprovalAssertion,
@@ -48,12 +48,21 @@ from merkl.core.policy.document import (
     SignedPolicy,
     asset_key,
 )
-from merkl.core.policy.engine import Decision, RiskScore, RuleOutcome, evaluate
+from merkl.core.policy.engine import (
+    Decision,
+    EscalationRequest,
+    ReservationRequest,
+    RiskScore,
+    RuleOutcome,
+    evaluate,
+)
 from merkl.core.policy.state import (
+    EscalationEntry,
     NonceEntry,
     Outflow,
     Reconciliation,
     SpendEntry,
+    SpendStatus,
     StateError,
 )
 from merkl.core.rail import (
@@ -66,6 +75,7 @@ from merkl.core.rail import (
 from merkl.core.receipt import (
     Escalation,
     Instruction,
+    PolicyDecision,
     PolicyOutcome,
     PolicyRule,
     ReceiptLeaves,
@@ -122,6 +132,78 @@ class PendingEscalation:
     quorum: int
     agent_id: str
 
+    def to_content(self) -> JSONObject:
+        """Everything needed to resume this escalation after a restart."""
+        escalation = self.decision.escalation
+        reservation = self.decision.reservation
+        return {
+            "agent_id": self.agent_id,
+            "instruction": self.instruction.to_content(),
+            "intent": self.intent.to_content(),
+            "prepared_tx": self.unsigned.to_content() if self.unsigned is not None else None,
+            "quorum": self.quorum,
+            "decision": self.decision.to_content(),
+            "escalation_request": (
+                {"quorum": escalation.quorum, "expires_at": escalation.expires_at}
+                if escalation is not None
+                else None
+            ),
+            "reservation_request": (
+                {"asset": reservation.asset, "value": reservation.value, "at": reservation.at}
+                if reservation is not None
+                else None
+            ),
+            "risk_score": {
+                "value": self.decision.risk_score.value,
+                "source": self.decision.risk_score.source,
+            },
+        }
+
+    @classmethod
+    def from_entry(cls, entry: EscalationEntry) -> PendingEscalation:
+        content = entry.content
+        leaf = PolicyDecision.from_content(content["decision"])
+        request = content.get("escalation_request")
+        reserved = content.get("reservation_request")
+        risk = content["risk_score"]
+        prepared = content.get("prepared_tx")
+        if not isinstance(risk, dict):
+            raise SignerError("a persisted escalation has no risk score")
+        decision = Decision(
+            policy_hash=leaf.policy_hash,
+            rules=leaf.rules,
+            outcome=leaf.outcome,
+            tier=leaf.tier,
+            escalation=(
+                EscalationRequest(
+                    quorum=int(str(request["quorum"])), expires_at=str(request["expires_at"])
+                )
+                if isinstance(request, dict)
+                else None
+            ),
+            reservation=(
+                ReservationRequest(
+                    asset=str(reserved["asset"]),
+                    value=str(reserved["value"]),
+                    at=str(reserved["at"]),
+                )
+                if isinstance(reserved, dict)
+                else None
+            ),
+            risk_score=RiskScore(value=str(risk["value"]), source=str(risk["source"])),
+        )
+        return cls(
+            challenge=entry.challenge,
+            instruction=Instruction.from_content(content["instruction"]),
+            intent=Intent.from_content(content["intent"]),
+            decision=decision,
+            unsigned=None if prepared is None else UnsignedTx.from_content(prepared),
+            reservation_id=entry.reservation_id,
+            expires_at=entry.expires_at,
+            quorum=int(str(content["quorum"])),
+            agent_id=str(content["agent_id"]),
+        )
+
 
 class SignerEngine:
     """One signer, one treasury, one pinned policy, one key.
@@ -162,6 +244,12 @@ class SignerEngine:
         self._pending: dict[str, PendingEscalation] = {}
         self._expired: dict[str, PendingEscalation] = {}
         self._changes: list[PolicyChange] = []
+        # The pending map is a cache of what the sealed state holds: a signer
+        # recreated with escalations in flight resumes them, and the sweep
+        # below gives back whatever lapsed while it was down, before serving.
+        for entry in state.snapshot().escalations:
+            self._pending[entry.challenge] = PendingEscalation.from_entry(entry)
+        self.sweep_expired()
 
     # -- read-only methods ------------------------------------------------- #
 
@@ -241,7 +329,9 @@ class SignerEngine:
             return self._envelope(decision, outcome=PolicyOutcome.DENY.value)
 
         unsigned = self._prepared(params, intent)
-        reservation_id = self._reserve(decision, request.agent_id, now)
+        reservation_id = self._reserve(
+            decision, request.agent_id, now, self._reservation_expiry(decision, intent)
+        )
 
         if decision.escalated:
             return self._register_escalation(
@@ -314,6 +404,7 @@ class SignerEngine:
             escalation=pending.decision.escalation,
         )
         del self._pending[challenge]
+        self._state.resolve_escalation(challenge)
         return self._authorize(
             decision,
             pending.instruction,
@@ -390,19 +481,51 @@ class SignerEngine:
         afterwards is still refused as *expired* rather than as unknown.
         """
         moment = parse_instant(now if now is not None else self._clock.now(), "now")
+        swept = 0
         stale = [
             p
             for p in self._pending.values()
             if moment > parse_instant(p.expires_at, "escalation.expires_at")
         ]
         for pending in stale:
-            del self._pending[pending.challenge]
-            self._expired[pending.challenge] = pending
-            with contextlib.suppress(StateError):  # already settled or released elsewhere
-                self._state.release(pending.reservation_id)
+            self._forget(pending)
+            swept += 1
+        # The backstop: a reservation past its own expiry that nothing will ever
+        # settle or release, with no escalation left to match it.
+        by_reservation = {p.reservation_id: p for p in self._pending.values()}
+        for entry in self._state.snapshot().entries:
+            if entry.status != SpendStatus.RESERVED.value:
+                continue
+            if moment <= parse_instant(self._lapses_at(entry), "reservation.expires_at"):
+                continue
+            orphan = by_reservation.get(entry.reservation_id)
+            if orphan is not None:
+                self._forget(orphan)
+            else:
+                with contextlib.suppress(StateError):
+                    self._state.release(entry.reservation_id)
+            swept += 1
         while len(self._expired) > MAX_REMEMBERED_EXPIRED:
             del self._expired[next(iter(self._expired))]
-        return len(stale)
+        return swept
+
+    def _forget(self, pending: PendingEscalation) -> None:
+        """Move an escalation to the expired memory and give its reservation back."""
+        del self._pending[pending.challenge]
+        self._expired[pending.challenge] = pending
+        with contextlib.suppress(StateError):  # already settled or released elsewhere
+            self._state.release(pending.reservation_id)
+
+    def _lapses_at(self, entry: SpendEntry) -> str:
+        """When an unsettled reservation stops counting.
+
+        Entries written before 0.3.3 carry no expiry; the longest an unsettled
+        reservation could legitimately wait is an escalation's lifetime, so that
+        is what they get.
+        """
+        if entry.expires_at is not None:
+            return entry.expires_at
+        return shift_instant(entry.at, self.document.tiers.human.expires_seconds)
 
     def _expired_denial(
         self, pending: PendingEscalation, assertions: Sequence[ApprovalAssertion]
@@ -550,7 +673,7 @@ class SignerEngine:
             )
         return unsigned
 
-    def _reserve(self, decision: Decision, agent_id: str, now: str) -> str:
+    def _reserve(self, decision: Decision, agent_id: str, now: str, expires_at: str) -> str:
         reservation = decision.reservation
         if reservation is None:  # pragma: no cover - allow and escalate always reserve
             raise SignerError("an authorized decision must carry a reservation")
@@ -562,9 +685,20 @@ class SignerEngine:
                 asset=reservation.asset,
                 value=reservation.value,
                 at=now,
+                expires_at=expires_at,
             )
         )
         return reservation_id
+
+    @staticmethod
+    def _reservation_expiry(decision: Decision, intent: Intent) -> str:
+        """The intent's own expiry, or the escalation's if people are given longer."""
+        request = decision.escalation
+        if request is not None and parse_instant(request.expires_at, "escalation.expires_at") > (
+            parse_instant(intent.expires_at, "intent.expires_at")
+        ):
+            return request.expires_at
+        return intent.expires_at
 
     def _register_escalation(
         self,
@@ -585,7 +719,7 @@ class SignerEngine:
         request = decision.escalation
         if request is None:  # pragma: no cover - escalate always carries one
             raise SignerError("an escalated decision must carry escalation parameters")
-        self._pending[challenge] = PendingEscalation(
+        pending = PendingEscalation(
             challenge=challenge,
             instruction=instruction,
             intent=intent,
@@ -596,6 +730,15 @@ class SignerEngine:
             quorum=request.quorum,
             agent_id=agent_id,
         )
+        self._state.escalate(
+            EscalationEntry(
+                challenge=challenge,
+                reservation_id=reservation_id,
+                expires_at=request.expires_at,
+                content=pending.to_content(),
+            )
+        )
+        self._pending[challenge] = pending
         return self._envelope(
             decision,
             outcome=PolicyOutcome.ESCALATE.value,
@@ -628,6 +771,9 @@ class SignerEngine:
         self._pending.pop(pending.challenge, None)
         if release:
             self._state.release(pending.reservation_id)
+        else:
+            with contextlib.suppress(StateError):
+                self._state.resolve_escalation(pending.challenge)
         decision = dataclasses.replace(pending.decision, outcome=PolicyOutcome.DENY.value)
         return self._envelope(
             decision,
